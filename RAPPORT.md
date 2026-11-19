@@ -35,7 +35,7 @@ Le suivi détaillé, case par case, est dans [CHECK_LEVEL.md](CHECK_LEVEL.md).
 |---|---|---|
 | `2a7c32e` | Phase 5A : caisse (encaissements, reçus `REC-2026-000001`, solde, trop-perçu refusé, remboursements) | ✅ |
 | `f520504` | Phases 5B et 5C : factures figées `FAC-…`, avoirs `AV-…`, PDF A4, **QR code** et vérification publique | ✅ |
-| *(ce commit)* | Phase 5D : **e-mails au client** ; rapport et suivi | voir CHECK_LEVEL |
+| `37c3691` | Phase 5D : **e-mails au client** ; rapport et suivi | ✅ |
 
 ### Ports libérés (ta demande)
 
