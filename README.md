@@ -154,6 +154,16 @@ Tous les identifiants exposés par l'API et utilisés dans les liens sont des **
 | `POST …/{id}/cancel` | `reservations.cancel` | Annulation motivée (avant l'arrivée) |
 | `POST …/{id}/check-in` · `POST …/{id}/check-out` | `reservations.check_in_out` | Arrivée et départ |
 
+### Caisse (phase 5A)
+
+| Route | Droit | Rôle |
+|---|---|---|
+| `GET /api/v1/reservations/{id}/payments` | `payments.view` | Encaissements d'une réservation et situation de caisse : dû, encaissé net, solde, statut |
+| `GET /api/v1/payments/{id}` | `payments.view` | Reçu : numéro, montant, moyen, caissière, client, chambre, solde |
+| `POST /api/v1/reservations/{id}/payments` | `payments.record` | Encaissement `{ amount_fcfa, method, reference? }` ; un versement supérieur au solde est refusé |
+| `POST /api/v1/payments/{id}/cancel` | `payments.cancel` | Annulation motivée d'un encaissement (jamais de suppression) |
+| `POST /api/v1/payments/{id}/refunds` | `refunds.create` | Remboursement `{ amount_fcfa, reason, method? }` |
+
 Exemple de réservation (la demi-journée couvre jusqu'à 12 h ; une remise exige un motif) :
 
 ```json

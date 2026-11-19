@@ -189,3 +189,15 @@ Deux caissières sont ainsi servies l'une après l'autre, et la seconde voit la 
 
 ### D-034 — Frontières entre modules (Technique)
 Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`, `CurrentPriceProvider`, `BillingUnit`) et de Customers (`CustomerDirectory`), jamais leurs modèles. Pour valider l'existence d'un UUID, les requêtes HTTP utilisent toutefois la règle `exists` sur les tables concernées : c'est une lecture simple, acceptée par pragmatisme.
+
+## Décisions de la phase 5A (caisse)
+
+### D-035 — Encaissements, reçus et remboursements (Validé + Provisoire)
+- **Un reçu par paiement :** numéro `REC-AAAA-NNNNNN`, continu et sans trou par année. Il est attribué par `DocumentNumberer` sous verrou, dans la transaction de l'encaissement : un encaissement refusé ne consomme pas de numéro. Le préfixe est paramétrable (`billing.receipt_number_prefix`).
+- **Encaissé net** = paiements validés − remboursements. **Solde** = montant exigible − encaissé net. Les statuts affichés sont : Non payé, Partiellement payé, Soldé, Trop-perçu à rembourser. Une réservation **annulée** n'exige plus rien : ce qui a déjà été versé apparaît comme trop-perçu à rembourser, et le remboursement est une opération explicite.
+- **Pas de trop-perçu (D-014) :** un versement supérieur au solde est refusé, avec le détail du montant, de ce qui est déjà encaissé et du solde restant. Chaque encaissement verrouille la réservation (contrat `ReservationLedger::lockForPayment`), ce qui empêche deux versements simultanés de dépasser ensemble le montant dû.
+- **Date de l'encaissement :** l'heure du serveur. Aucun antidatage n'est possible.
+- **Annulation d'un encaissement :** motif obligatoire, statut `CANCELLED`, jamais de suppression. Impossible si le paiement a déjà été partiellement remboursé.
+- **Remboursement :** une ligne distincte avec motif, auteur et date, dans la limite du montant encore remboursable sur le reçu. Le paiement initial reste intact.
+- **Provisoire (Q-08) :** la caissière encaisse ; l'annulation d'un encaissement et le remboursement sont réservés à l'administrateur (permissions `payments.cancel` et `refunds.create`).
+- **Moyens de paiement :** liste paramétrable `payments.methods` (provisoire, Q-11) : espèces, mobile money, carte, virement.

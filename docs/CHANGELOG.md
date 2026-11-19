@@ -41,6 +41,15 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
   - **disponibilités** par période et **occupation** à un instant (libre, réservée, occupée, maintenance, réservée plus tard) ;
   - décisions D-029 à D-034 et questions Q-18 à Q-21.
 - Erreurs métier : champ `details` (aides à la correction), affiché par la modale du frontend.
+- Phase 5A, module **Cashier** :
+  - paiements intégraux, partiels ou différés, avec plusieurs versements par réservation ;
+  - **un reçu numéroté par versement** (`REC-AAAA-NNNNNN`, numérotation continue sous verrou) ;
+  - situation de caisse : montant dû, encaissé, remboursé, encaissé net, solde, statut ;
+  - **trop-perçu refusé** ;
+  - annulation d'encaissement et **remboursements** tracés, sans jamais supprimer le paiement initial ;
+  - données du reçu imprimable ;
+  - contrat public `ReservationLedger` côté Reservations ;
+  - décision D-035.
 
 ### Corrigé
 - Fiche client : le type et le numéro de pièce d'identité sont toujours contrôlés ensemble (la règle était ignorée quand un seul des deux était envoyé).
