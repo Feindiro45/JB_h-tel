@@ -786,6 +786,22 @@ fieldset legend {
   color: #155b45;
 }
 
+.segmented button {
+  min-height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 6px 11px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.segmented button[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: #e5f4eb;
+  color: #155b45;
+}
+
 .segmented input {
   width: 16px;
   height: 16px;
@@ -1234,6 +1250,80 @@ fieldset legend {
   padding: clamp(22px, 5vw, 55px);
 }
 
+.paper header,
+.paper-client {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+
+.paper header > div {
+  display: grid;
+  gap: 4px;
+}
+
+.paper header h2 {
+  margin-top: 7px;
+  font-size: 1.5rem;
+}
+
+.paper header p,
+.paper footer {
+  color: var(--muted);
+  font-size: 0.79rem;
+}
+
+.paper footer {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding-top: 12px;
+}
+
+.paper-total {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 25px auto;
+  max-width: 280px;
+}
+
+.compact-actions {
+  white-space: nowrap;
+}
+
+/* Onglets (rôle tablist) : même apparence que le sélecteur segmenté. */
+.tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 14px;
+  border-radius: 10px;
+  background: #e6efe9;
+}
+
+.tabs [role='tab'] {
+  min-height: 36px;
+  padding: 0.35rem 0.9rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.tabs [role='tab'][aria-selected='true'] {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 1px 3px #0f172a24;
+}
+
+.amount-out {
+  color: #a02726;
+}
+
 /* ---------- Adaptation aux écrans ---------- */
 @media (max-width: 1120px) {
   .layout {
@@ -1365,8 +1455,27 @@ fieldset legend {
   .skip-link,
   .toast,
   .filterbar,
+  .heading-actions,
+  .tabs,
+  .no-print,
   button {
     display: none !important;
+  }
+
+  /* Un document imprimé (reçu) occupe seul la page A4. */
+  .print-only-paper .page-heading {
+    display: none;
+  }
+
+  .print-only-paper .paper {
+    max-width: none;
+    padding: 0;
+    border: 0;
+  }
+
+  @page {
+    size: A4;
+    margin: 16mm;
   }
 
   .workspace main {

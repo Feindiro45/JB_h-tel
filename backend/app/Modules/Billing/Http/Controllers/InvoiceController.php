@@ -3,16 +3,21 @@
 namespace App\Modules\Billing\Http\Controllers;
 
 use App\Modules\Billing\Application\InvoicePdfRenderer;
+use App\Modules\Billing\Application\Queries\InvoiceList;
 use App\Modules\Billing\Application\Services\InvoiceService;
+use App\Modules\Billing\Domain\InvoiceStatus;
+use App\Modules\Billing\Domain\InvoiceType;
 use App\Modules\Billing\Http\InvoicePresenter;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Contracts\ReservationDue;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Shared\Exceptions\BusinessRuleException;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Validation\Rule;
 
 /** Écran « Factures et reçus » : liste, émission, avoir, PDF A4 généré côté serveur (source de vérité). */
 final class InvoiceController
@@ -21,6 +26,37 @@ final class InvoiceController
         private readonly InvoiceService $invoices,
         private readonly ReservationLedger $reservations,
     ) {}
+
+    /** Tous les documents (écran « Factures et reçus »), filtrables, avec leurs totaux. */
+    public function all(Request $request, InvoiceList $list): JsonResponse
+    {
+        $validated = $request->validate([
+            'type' => ['nullable', Rule::enum(InvoiceType::class)],
+            'status' => ['nullable', Rule::enum(InvoiceStatus::class)],
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'search' => ['nullable', 'string', 'max:40'],
+        ], attributes: ['type' => 'type de document', 'status' => 'statut', 'from' => 'date de début', 'to' => 'date de fin', 'search' => 'numéro']);
+
+        $timezone = (string) config('app.timezone');
+        $filters = array_filter([
+            'type' => $validated['type'] ?? null,
+            'status' => $validated['status'] ?? null,
+            'from' => isset($validated['from']) ? CarbonImmutable::parse($validated['from'], $timezone)->startOfDay() : null,
+            'until' => isset($validated['to']) ? CarbonImmutable::parse($validated['to'], $timezone)->startOfDay()->addDay() : null,
+            'search' => isset($validated['search']) ? trim((string) $validated['search']) : null,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $page = $list->page($filters);
+        /** @var list<Invoice> $items */
+        $items = $page->items();
+
+        return new JsonResponse([
+            'data' => array_map(fn (Invoice $invoice) => InvoicePresenter::invoice($invoice, false) + InvoiceList::context($invoice), $items),
+            'meta' => ['total' => $page->total(), 'current_page' => $page->currentPage(), 'last_page' => $page->lastPage()],
+            'totals' => $list->totals($filters),
+        ]);
+    }
 
     public function index(string $reservation): JsonResponse
     {

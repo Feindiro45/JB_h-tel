@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router'
 import { Badge } from '../../shared/ui/Badge'
 import { TextField } from '../../shared/ui/fields'
 import { EmptyState, LoadingBlock, PageHeading, Panel } from '../../shared/ui/layout'
+import { Pagination } from '../../shared/ui/Pagination'
 import { formatDate, initials } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
 import { customersQuery } from './api'
@@ -134,29 +135,7 @@ export function CustomersPage() {
             </table>
           </div>
         )}
-        {meta && meta.last_page > 1 && (
-          <div className="toolbar" style={{ padding: '12px 18px' }}>
-            <button
-              type="button"
-              className="secondary"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              ← Précédent
-            </button>
-            <span className="caption">
-              Page {meta.current_page} sur {meta.last_page}
-            </span>
-            <button
-              type="button"
-              className="secondary"
-              disabled={page >= meta.last_page}
-              onClick={() => setPage(page + 1)}
-            >
-              Suivant →
-            </button>
-          </div>
-        )}
+        <Pagination meta={meta} onPage={setPage} />
       </Panel>
       {creating && (
         <CustomerFormDialog

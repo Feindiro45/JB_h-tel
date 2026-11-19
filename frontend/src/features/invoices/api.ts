@@ -1,6 +1,12 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api, apiUrl } from '../../shared/api/client'
-import type { Envelope, InvoiceSummary } from '../../shared/api/types'
+import type {
+  Envelope,
+  InvoiceRow,
+  InvoiceSummary,
+  InvoiceTotals,
+  Paginated,
+} from '../../shared/api/types'
 
 export const invoicesKey = (reservationId: string) => ['invoices', reservationId] as const
 
@@ -25,4 +31,33 @@ export async function issueInvoice(reservationId: string): Promise<InvoiceSummar
 /** PDF A4 généré par le serveur (source de vérité), ouvert dans un nouvel onglet. */
 export function invoicePdfUrl(invoiceId: string): string {
   return apiUrl(`/api/v1/invoices/${invoiceId}/pdf`)
+}
+
+export interface InvoiceFilters {
+  type?: string
+  status?: string
+  from?: string
+  to?: string
+  search?: string
+  page?: number
+}
+
+export const invoicesListQuery = (filters: InvoiceFilters) =>
+  queryOptions({
+    queryKey: ['invoices', 'list', filters],
+    queryFn: ({ signal }) =>
+      api.get<Paginated<InvoiceRow> & { totals: InvoiceTotals }>('/api/v1/invoices', {
+        query: { ...filters },
+        signal,
+      }),
+    placeholderData: (previous) => previous,
+  })
+
+/** Avoir motivé : la facture d'origine reste figée et passe « annulée par avoir ». */
+export async function creditInvoice(invoiceId: string, reason: string): Promise<InvoiceSummary> {
+  return (
+    await api.post<Envelope<InvoiceSummary>>(`/api/v1/invoices/${invoiceId}/credit-notes`, {
+      reason,
+    })
+  ).data
 }

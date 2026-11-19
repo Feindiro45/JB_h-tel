@@ -44,14 +44,12 @@ export const NAVIGATION: { group: string; items: NavItem[] }[] = [
         label: 'Caisse',
         icon: 'cash',
         permission: 'payments.view',
-        upcoming: true,
       },
       {
         path: '/documents',
         label: 'Factures et reçus',
         icon: 'document',
         permission: 'invoices.view',
-        upcoming: true,
       },
       {
         path: '/rapports',

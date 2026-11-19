@@ -14,6 +14,11 @@ export function formatFcfa(amount: number): string {
   return `${integerFormatter.format(amount)} FCFA`
 }
 
+/** Montant signé lisible : « − 5 000 FCFA » pour une sortie de caisse (vrai signe moins). */
+export function formatSignedFcfa(amount: number): string {
+  return amount < 0 ? `− ${formatFcfa(-amount)}` : formatFcfa(amount)
+}
+
 /** Montant sans unité, pour les axes de graphique et les tableaux serrés. */
 export function formatNumber(amount: number): string {
   return integerFormatter.format(amount)

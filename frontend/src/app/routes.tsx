@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 import type { RouteObject } from 'react-router'
 import { LoginPage, RequireAuth, RequirePermission } from '../features/auth'
+import { CashierPage, ReceiptPage } from '../features/cashier'
 import { CustomerDetailPage, CustomersPage } from '../features/customers'
 import { DashboardPage } from '../features/dashboard'
+import { DocumentsPage } from '../features/invoices'
 import { PlanningPage, ReservationDetailPage, ReservationsPage } from '../features/reservations'
 import { StatusPage } from '../features/system'
 import { AppShell } from './AppShell'
@@ -49,20 +51,9 @@ export const routes: RouteObject[] = [
       { path: 'disponibilites', element: guarded('reservations.view', <PlanningPage />) },
       { path: 'clients', element: guarded('customers.view', <CustomersPage />) },
       { path: 'clients/:id', element: guarded('customers.view', <CustomerDetailPage />) },
-      {
-        path: 'caisse',
-        element: guarded(
-          'payments.view',
-          upcoming('Finances', 'Caisse', 'Mouvements de caisse, soldes et remboursements.'),
-        ),
-      },
-      {
-        path: 'documents',
-        element: guarded(
-          'invoices.view',
-          upcoming('Finances', 'Factures et reçus', 'Factures, avoirs et reçus émis.'),
-        ),
-      },
+      { path: 'caisse', element: guarded('payments.view', <CashierPage />) },
+      { path: 'documents', element: guarded('invoices.view', <DocumentsPage />) },
+      { path: 'documents/recus/:id', element: guarded('payments.view', <ReceiptPage />) },
       {
         path: 'rapports',
         element: guarded(

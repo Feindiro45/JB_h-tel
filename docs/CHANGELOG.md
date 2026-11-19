@@ -81,6 +81,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
   - **clients** : répertoire avec recherche, fiche, séjours, création et modification ;
   - nouveaux endpoints `GET /api/v1/dashboard` (module Reporting) et `GET /api/v1/planning` ;
   - 47 tests frontend ; décision D-040.
+- Phase 6B, **caisse et documents** :
+  - écran **Caisse** : journal d'une période (raccourcis aujourd'hui, hier, 7 jours, mois), encaissé, remboursé, net et annulés, ventilation par moyen de paiement et par agent, mouvements chronologiques, soldes à encaisser avec encaissement direct, impression ;
+  - **remboursement** (plafonné au remboursable, motif obligatoire) et **annulation d'encaissement** (motif) pour l'administrateur, depuis la caisse, la liste des reçus et la fiche réservation ;
+  - écran **Factures et reçus** : onglets accessibles au clavier, filtres, totaux « factures − avoirs », PDF, vérification publique, **avoir motivé** ;
+  - **reçu imprimable A4** (`/documents/recus/:id`) avec l'en-tête de l'hôtel, les remboursements et le reste à payer ;
+  - nouveaux endpoints `GET /api/v1/cash-journal`, `GET /api/v1/payments`, `GET /api/v1/invoices` et `GET /api/v1/receivables` ; contrat `ReservationLedger::findMany` ;
+  - 7 tests backend, 8 tests frontend ; décision D-041.
 ### Corrigé
 - Connexion : la page demandée avant la connexion n'était pas toujours retrouvée (deux redirections concurrentes).
 - Champs de formulaire : l'aide et le message d'erreur ne font plus partie du nom lu par les lecteurs d'écran ; ils sont reliés au champ par `aria-describedby`.

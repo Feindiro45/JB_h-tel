@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 — phase 6A terminée (connexion, tableau de bord, réservations, disponibilités, clients) : 164 tests backend et 47 tests frontend verts ; prochaine étape : 6B (caisse et documents)
+**Dernière mise à jour :** 19/11/2026 — phase 6B terminée (caisse, factures et reçus, reçu imprimable) : 171 tests backend et 55 tests frontend verts ; prochaine étape : 6C (administration)
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -21,7 +21,7 @@
 | 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
 | 4 | Clients et réservations | ✅ Fait (CI verte) | 100 % |
 | 5 | Caisse, factures, QR code, notifications | ✅ Fait (5A à 5D) | 100 % |
-| 6 | Frontend (écrans métier) | 🟡 En cours (6A faite, CI verte ; 6B à faire) | 40 % |
+| 6 | Frontend (écrans métier) | 🟡 En cours (6A et 6B faites ; 6C à faire) | 70 % |
 | 7 | Reporting | ⬜ À faire | 0 % |
 | 8 | Qualité et livraison | ⬜ À faire | 0 % |
 
@@ -271,9 +271,16 @@
 - [x] Contrats d'API vérifiés contre le serveur réel : 32 appels du frontend rejoués avec une vraie session Sanctum, réponses conformes aux types TypeScript
 - [ ] Revue visuelle dans le navigateur par l'utilisateur (http://localhost:5173)
 
-### 6B — Caisse et documents (à faire)
-- [ ] Caisse : mouvements, soldes, encaissement, remboursement et annulation (administrateur)
-- [ ] Factures et reçus : liste, aperçu, PDF, avoir, lien de vérification
+### 6B — Caisse et documents ✅
+- [x] API : journal de caisse `GET /cash-journal` (totaux, ventilation par moyen et par caissière, mouvements ; 92 jours au plus) ; reçu enrichi (en-tête de l’hôtel)
+- [x] API : liste des reçus `GET /payments` et des factures et avoirs `GET /invoices` (filtres, pagination, totaux facturés)
+- [x] API : soldes à encaisser `GET /receivables` (même total que le tableau de bord) — **7 tests backend**
+- [x] Écran Caisse : période (raccourcis aujourd’hui, hier, 7 jours, mois), indicateurs, ventilations par moyen et par agent, mouvements, soldes à encaisser avec bouton « Encaisser », impression du journal
+- [x] Annulation d'un encaissement et remboursement (administrateur), depuis la caisse, la liste des reçus et la fiche réservation ; avoir depuis la fiche réservation
+- [x] Écran Factures et reçus : onglets accessibles au clavier, filtres, totaux factures − avoirs, PDF, vérification, avoir motivé
+- [x] Reçu imprimable A4 (`/documents/recus/:id`) : en-tête de l’hôtel, versement, remboursements, reste à payer
+- [x] Tests : 7 tests backend ; **55 tests frontend** (+8 : caisse, raccourcis de période, remboursement plafonné et motivé, factures et totaux, avoir réservé à l'administrateur, onglets au clavier, reçu imprimable, reçu annulé)
+- [x] Contrats des nouveaux appels vérifiés contre le serveur réel (caissière puis administrateur) : net du jour, soldes, remboursement refusé à la caissière (403), annulation refusée après remboursement (409), avoir
 
 ### 6C — Administration (à faire)
 - [ ] Chambres et catégories, maintenance

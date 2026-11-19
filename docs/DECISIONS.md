@@ -238,3 +238,23 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
 - **Session expirée :** toute réponse 401 en cours de travail affiche la modale « Session expirée » et renvoie à la connexion ; après reconnexion, l'utilisateur retrouve la page demandée.
 - **Nouvelle réservation guidée :** client existant ou nouveau, occupants, période, chambres **réellement libres** pour la capacité demandée, devis du serveur en direct, remise, puis règlement (différé, intégral ou avance). Si la réservation échoue après la création du nouveau client, la fiche créée est conservée pour la nouvelle tentative (pas de doublon). Si l'encaissement échoue après la réservation, la réservation reste enregistrée et l'écran invite à reprendre l'encaissement depuis la fiche.
 - **Indicateurs du tableau de bord (provisoire, à compléter en phase 7) :** encaissé net = versements validés − remboursements, par date de mouvement ; facturé = factures émises − avoirs, par date d'émission ; soldes à recevoir = montant net − encaissé net des réservations non annulées ; occupation = état calculé à l'instant de chaque chambre.
+
+### D-041 — Journal de caisse, listes de documents et reçu imprimé (Validé + Provisoire)
+- **Journal de caisse (`GET /cash-journal`) :** mêmes définitions que le tableau de bord (D-040).
+  - **Encaissé** = versements au statut « valide », comptés à leur date de réception.
+  - **Remboursé** = remboursements, comptés à leur date de traitement.
+  - **Net** = encaissé − remboursé.
+  - Un versement **annulé** reste listé, avec son motif, pour la traçabilité, mais il n'entre dans aucun total ; le montant annulé est affiché à part, pour mémoire.
+- **Ventilations :**
+  - **par moyen de paiement** : un remboursement sans moyen précisé est rattaché au moyen du versement d'origine ;
+  - **par agent** : les versements comptent pour l'agent qui les a reçus, les remboursements pour celui qui les a traités.
+- **Période :** le jour même par défaut ; **92 jours au plus**, les analyses plus longues relevant des rapports (phase 7). Provisoire (Q-23) : la caissière voit le journal de tous les agents (droit `payments.view`).
+- **Soldes à encaisser (`GET /receivables`) :** réservations non annulées dont le solde est positif, du séjour le plus ancien au plus récent. Le total est calculé par la même requête que celui du tableau de bord.
+- **Listes des documents :**
+  - **reçus (`GET /payments`)** : la réservation, le client et la chambre sont lus par les contrats publics, en une requête groupée par module ;
+  - **factures et avoirs (`GET /invoices`)** : ces informations sont lues dans l'**instantané figé** de chaque document, c'est-à-dire ce qui a été facturé. Les totaux suivent la règle « factures − avoirs ».
+  - La recherche porte sur le numéro (et sur la référence pour un reçu). Une recherche par nom de client sur les factures demanderait de chercher dans l'instantané JSON, ce que MariaDB et MySQL ne font pas de la même façon (D-002) ; elle n'est pas proposée en V1.
+- **Reçu imprimé :**
+  - il est imprimé en A4 par le navigateur (CSS d'impression), avec l'en-tête de l'hôtel (`jbhotel.hotel`, provisoire, Q-09) ;
+  - la « situation du séjour » indiquée sur le reçu est celle **du moment de l'impression**, datée sur le reçu : elle n'est pas figée au jour du versement ;
+  - un reçu annulé porte la mention « Encaissement annulé », avec son motif.

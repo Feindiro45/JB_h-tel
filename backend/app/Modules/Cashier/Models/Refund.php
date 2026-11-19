@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property int $processed_by
  * @property Carbon $processed_at
  * @property-read User $processor
+ * @property-read Payment $payment
  */
 class Refund extends Model
 {
@@ -40,5 +41,11 @@ class Refund extends Model
     public function processor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    /** @return BelongsTo<Payment, $this> */
+    public function payment(): BelongsTo
+    {
+        return $this->belongsTo(Payment::class);
     }
 }

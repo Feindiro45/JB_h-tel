@@ -11,6 +11,7 @@ type Handler = Reply | ((request: { url: URL; body: unknown }) => Reply)
 export interface ApiCall {
   method: string
   path: string
+  query: Record<string, string>
   body: unknown
 }
 
@@ -24,7 +25,7 @@ export function mockApi(handlers: Record<string, Handler>): ApiCall[] {
     const url = new URL(String(input))
     const method = init?.method ?? 'GET'
     const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
-    calls.push({ method, path: url.pathname, body })
+    calls.push({ method, path: url.pathname, query: Object.fromEntries(url.searchParams), body })
     const handler = handlers[`${method} ${url.pathname}`]
     const reply: Reply = handler
       ? typeof handler === 'function'
@@ -93,4 +94,17 @@ export const EMPTY_DASHBOARD = {
     departures_today: [],
     recent_reservations: [],
   },
+}
+
+/** Administrateur : droits de la caissière plus annulation, remboursement et avoir. */
+export function admin(overrides: Partial<CurrentUser> = {}): CurrentUser {
+  return cashier({
+    id: '0190a000-0000-7000-8000-000000000002',
+    name: 'Directeur',
+    email: 'admin@jbhotel.local',
+    role: 'admin',
+    role_label: 'Administrateur',
+    permissions: [...CASHIER_PERMISSIONS, 'payments.cancel', 'refunds.create', 'invoices.credit'],
+    ...overrides,
+  })
 }

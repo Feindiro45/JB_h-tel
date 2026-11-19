@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Cashier\Http\Controllers\CashJournalController;
 use App\Modules\Cashier\Http\Controllers\PaymentController;
 use App\Modules\Identity\Domain\PermissionName;
 use Illuminate\Support\Facades\Route;
@@ -8,6 +9,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('authenticated')->group(function (): void {
     Route::middleware('permission:'.PermissionName::PaymentsView->value)->group(function (): void {
+        Route::get('cash-journal', [CashJournalController::class, 'journal'])->name('cash-journal');
+        Route::get('payments', [CashJournalController::class, 'index'])->name('payments.list');
         Route::get('reservations/{reservation}/payments', [PaymentController::class, 'index'])->name('payments.index');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
     });

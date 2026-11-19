@@ -1,0 +1,212 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Link } from 'react-router'
+import { SelectField, TextAreaField, TextField } from '../../shared/ui/fields'
+import { Modal } from '../../shared/ui/Modal'
+import { useToast } from '../../shared/ui/toastContext'
+import { formatFcfa } from '../../shared/utils/format'
+import { useCurrentUser } from '../auth'
+import { CASH_KEYS, PAYMENT_METHODS, cancelPayment, refundPayment } from './api'
+
+export interface PaymentActionTarget {
+  id: string
+  receipt_number: string
+  amount_fcfa: number
+  status: string
+  method_label: string
+  /** Montant encore remboursable (versement − remboursements déjà faits). */
+  refundable_fcfa: number
+  has_refunds: boolean
+}
+
+/** Après un mouvement, tous les écrans de caisse et la fiche du séjour sont rechargés. */
+function useCashRefresh() {
+  const queryClient = useQueryClient()
+  return () => {
+    for (const key of [...CASH_KEYS, ['reservations']]) {
+      void queryClient.invalidateQueries({ queryKey: key })
+    }
+  }
+}
+
+/**
+ * Actions d'un encaissement : reçu imprimable, remboursement et annulation (droits
+ * `refunds.create` et `payments.cancel`, réservés à l'administrateur par défaut, D-035).
+ */
+export function PaymentActions({ payment }: { payment: PaymentActionTarget }) {
+  const { can } = useCurrentUser()
+  const [dialog, setDialog] = useState<'refund' | 'cancel' | null>(null)
+  const valid = payment.status === 'VALID'
+
+  return (
+    <span className="compact-actions">
+      <Link
+        className="text-button"
+        to={`/documents/recus/${payment.id}`}
+        aria-label={`Reçu ${payment.receipt_number}`}
+      >
+        Reçu
+      </Link>
+      {valid && payment.refundable_fcfa > 0 && can('refunds.create') && (
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => setDialog('refund')}
+          aria-label={`Rembourser le reçu ${payment.receipt_number}`}
+        >
+          Rembourser
+        </button>
+      )}
+      {valid && !payment.has_refunds && can('payments.cancel') && (
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => setDialog('cancel')}
+          aria-label={`Annuler le reçu ${payment.receipt_number}`}
+        >
+          Annuler
+        </button>
+      )}
+      {dialog === 'refund' && <RefundDialog payment={payment} onClose={() => setDialog(null)} />}
+      {dialog === 'cancel' && (
+        <CancelPaymentDialog payment={payment} onClose={() => setDialog(null)} />
+      )}
+    </span>
+  )
+}
+
+export function RefundDialog({
+  payment,
+  onClose,
+}: {
+  payment: PaymentActionTarget
+  onClose: () => void
+}) {
+  const refresh = useCashRefresh()
+  const { notify } = useToast()
+  const [amount, setAmount] = useState(String(payment.refundable_fcfa))
+  const [method, setMethod] = useState('')
+  const [reason, setReason] = useState('')
+  const [errors, setErrors] = useState<{ amount?: string; reason?: string }>({})
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      refundPayment(payment.id, {
+        amount_fcfa: Number(amount),
+        method: method || null,
+        reason: reason.trim(),
+      }),
+    onSuccess: () => {
+      refresh()
+      notify(`Remboursement de ${formatFcfa(Number(amount))} enregistré`)
+      onClose()
+    },
+  })
+
+  function submit() {
+    const value = Number(amount)
+    const next: typeof errors = {}
+    if (!Number.isInteger(value) || value < 1) next.amount = 'Montant entier en FCFA, au moins 1.'
+    else if (value > payment.refundable_fcfa)
+      next.amount = `Au plus ${formatFcfa(payment.refundable_fcfa)} sur ce versement.`
+    if (!reason.trim()) next.reason = 'Le motif est obligatoire.'
+    setErrors(next)
+    if (Object.keys(next).length === 0) mutation.mutate()
+  }
+
+  return (
+    <Modal
+      title="Rembourser"
+      subtitle={`Reçu ${payment.receipt_number} · ${formatFcfa(payment.amount_fcfa)} · le versement d’origine reste intact.`}
+      onClose={onClose}
+      onSubmit={submit}
+      submitLabel="Enregistrer le remboursement"
+      submitting={mutation.isPending}
+      danger
+      size="small"
+    >
+      <div className="fields">
+        <TextField
+          label="Montant remboursé (FCFA)"
+          type="number"
+          min={1}
+          max={payment.refundable_fcfa}
+          step={1}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          error={errors.amount}
+          hint={`Remboursable : ${formatFcfa(payment.refundable_fcfa)}`}
+          required
+        />
+        <SelectField
+          label="Moyen de remboursement"
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+        >
+          <option value="">Comme le versement ({payment.method_label})</option>
+          {PAYMENT_METHODS.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </SelectField>
+        <TextAreaField
+          className="full"
+          label="Motif du remboursement"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          error={errors.reason}
+          required
+        />
+      </div>
+    </Modal>
+  )
+}
+
+export function CancelPaymentDialog({
+  payment,
+  onClose,
+}: {
+  payment: PaymentActionTarget
+  onClose: () => void
+}) {
+  const refresh = useCashRefresh()
+  const { notify } = useToast()
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string>()
+  const mutation = useMutation({
+    mutationFn: () => cancelPayment(payment.id, reason.trim()),
+    onSuccess: () => {
+      refresh()
+      notify(`Encaissement ${payment.receipt_number} annulé`)
+      onClose()
+    },
+  })
+
+  return (
+    <Modal
+      title="Annuler l’encaissement"
+      subtitle={`Reçu ${payment.receipt_number} · ${formatFcfa(payment.amount_fcfa)}`}
+      onClose={onClose}
+      onSubmit={() =>
+        reason.trim() ? mutation.mutate() : setError('Le motif d’annulation est obligatoire.')
+      }
+      submitLabel="Annuler l’encaissement"
+      submitting={mutation.isPending}
+      danger
+      size="small"
+    >
+      <p style={{ marginBottom: 10 }}>
+        L’encaissement reste dans l’historique avec la mention « Annulé » et n’est plus compté dans
+        la caisse. Pour rendre de l’argent au client, utilisez plutôt un remboursement.
+      </p>
+      <TextAreaField
+        label="Motif d’annulation"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        error={error}
+        required
+      />
+    </Modal>
+  )
+}

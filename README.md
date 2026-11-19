@@ -72,7 +72,7 @@ cd backend  && php artisan serve     # API : http://localhost:8000  (santé : /a
 cd frontend && npm run dev           # Interface : http://localhost:5173
 ```
 
-Ouvre http://localhost:5173 et connecte-toi (comptes de démonstration créés par `php artisan migrate:fresh --seed`). Écrans disponibles (phase 6A) : vue d'ensemble, réservations et fiche réservation, nouvelle réservation guidée, disponibilités, clients ; l'état du système est sous Administration. Le menu suit les droits du compte connecté.
+Ouvre http://localhost:5173 et connecte-toi (comptes de démonstration créés par `php artisan migrate:fresh --seed`). Écrans disponibles (phases 6A et 6B) : vue d'ensemble, réservations et fiche réservation, nouvelle réservation guidée, disponibilités, clients, caisse, factures et reçus (reçu imprimable A4) ; l'état du système est sous Administration. Le menu suit les droits du compte connecté.
 
 ## Commandes
 
@@ -166,7 +166,10 @@ Tous les identifiants exposés par l'API et utilisés dans les liens sont des **
 | Route | Droit | Rôle |
 |---|---|---|
 | `GET /api/v1/reservations/{id}/payments` | `payments.view` | Encaissements d'une réservation et situation de caisse : dû, encaissé net, solde, statut |
-| `GET /api/v1/payments/{id}` | `payments.view` | Reçu : numéro, montant, moyen, caissière, client, chambre, solde |
+| `GET /api/v1/payments/{id}` | `payments.view` | Reçu : numéro, montant, moyen, caissière, client, chambre, situation du séjour, en-tête de l'hôtel |
+| `GET /api/v1/payments?from=&to=&method=&status=&agent_id=&search=` | `payments.view` | Liste de tous les reçus, paginée |
+| `GET /api/v1/cash-journal?from=&to=&agent_id=` | `payments.view` | Journal de caisse : encaissé, remboursé, net, annulés, ventilations par moyen et par agent, mouvements (92 jours au plus, D-041) |
+| `GET /api/v1/receivables` | `payments.view` | Soldes à encaisser des réservations non annulées |
 | `POST /api/v1/reservations/{id}/payments` | `payments.record` | Encaissement `{ amount_fcfa, method, reference? }` ; un versement supérieur au solde est refusé |
 | `POST /api/v1/payments/{id}/cancel` | `payments.cancel` | Annulation motivée d'un encaissement (jamais de suppression) |
 | `POST /api/v1/payments/{id}/refunds` | `refunds.create` | Remboursement `{ amount_fcfa, reason, method? }` |
@@ -176,6 +179,7 @@ Tous les identifiants exposés par l'API et utilisés dans les liens sont des **
 | Route | Droit | Rôle |
 |---|---|---|
 | `GET /api/v1/reservations/{id}/invoices` · `GET /api/v1/invoices/{id}` | `invoices.view` | Factures et avoirs d'une réservation ; détail figé et `verification_url` |
+| `GET /api/v1/invoices?type=&status=&from=&to=&search=` | `invoices.view` | Toutes les factures et tous les avoirs, paginés, avec les totaux « factures − avoirs » |
 | `GET /api/v1/invoices/{id}/pdf` | `invoices.view` | PDF A4 avec QR code, généré à partir de l'instantané figé |
 | `POST /api/v1/reservations/{id}/invoices` | `invoices.issue` | Émission (une facture active par réservation) |
 | `POST /api/v1/invoices/{id}/credit-notes` | `invoices.credit` | Avoir motivé `{ reason }`, puis nouvelle facture possible |

@@ -28,6 +28,17 @@ final class EloquentReservationLedger implements ReservationLedger
         return $reservation === null ? null : self::toDue($reservation);
     }
 
+    public function findMany(array $reservationIds): array
+    {
+        if ($reservationIds === []) {
+            return [];
+        }
+
+        return Reservation::query()->whereIn('id', array_values(array_unique($reservationIds)))->get()
+            ->mapWithKeys(fn (Reservation $reservation) => [$reservation->id => self::toDue($reservation)])
+            ->all();
+    }
+
     public function lockForPayment(int $reservationId): ?ReservationDue
     {
         $reservation = Reservation::query()->lockForUpdate()->find($reservationId);

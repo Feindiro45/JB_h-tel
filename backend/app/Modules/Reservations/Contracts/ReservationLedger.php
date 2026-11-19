@@ -10,6 +10,14 @@ interface ReservationLedger
     public function findByUuid(string $uuid): ?ReservationDue;
 
     /**
+     * Lecture groupée, pour les listes (journal de caisse, reçus) : une seule requête.
+     *
+     * @param  list<int>  $reservationIds
+     * @return array<int, ReservationDue> Indexé par identifiant interne.
+     */
+    public function findMany(array $reservationIds): array;
+
+    /**
      * Verrouille la réservation (`SELECT … FOR UPDATE`) jusqu'à la fin de la transaction : deux
      * encaissements simultanés sur une même réservation sont traités l'un après l'autre, et le
      * contrôle du trop-perçu reste exact. À appeler **dans** une transaction.

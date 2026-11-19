@@ -4,7 +4,6 @@ namespace App\Modules\Reporting\Application\Queries;
 
 use App\Modules\Reservations\Domain\ReservationStatus;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,6 +17,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class DashboardQuery
 {
+    public function __construct(private readonly ReceivablesQuery $receivables) {}
+
     /** @return array<string, mixed> */
     public function summary(CarbonImmutable $today): array
     {
@@ -32,7 +33,7 @@ final class DashboardQuery
                 'net_fcfa' => $this->netCollected($day, $day->addDay()),
             ], $days),
             'invoiced_month_fcfa' => $this->invoiced($today->startOfMonth(), $today->startOfMonth()->addMonth()),
-            'receivables_fcfa' => $this->receivables(),
+            'receivables_fcfa' => $this->receivables->total(),
             'arrivals_today' => $this->movements('start_date', ReservationStatus::Confirmed, $today),
             'departures_today' => $this->movements('end_date', ReservationStatus::InProgress, $today),
             'recent_reservations' => $this->recent(),
@@ -58,33 +59,15 @@ final class DashboardQuery
         return $sum('INVOICE') - $sum('CREDIT_NOTE');
     }
 
-    private function receivables(): int
-    {
-        $paid = DB::table('payments')->select('reservation_id', DB::raw('SUM(amount_fcfa) AS paid'))
-            ->where('status', 'VALID')->groupBy('reservation_id');
-        $refunded = DB::table('refunds')->join('payments', 'payments.id', '=', 'refunds.payment_id')
-            ->select('payments.reservation_id', DB::raw('SUM(refunds.amount_fcfa) AS refunded'))
-            ->where('payments.status', 'VALID')->groupBy('payments.reservation_id');
-
-        $rows = DB::table('reservations')
-            ->leftJoinSub($paid, 'p', 'p.reservation_id', '=', 'reservations.id')
-            ->leftJoinSub($refunded, 'r', 'r.reservation_id', '=', 'reservations.id')
-            ->where('reservations.status', '!=', ReservationStatus::Cancelled->value)
-            ->select('reservations.net_fcfa', DB::raw('COALESCE(p.paid, 0) AS paid'), DB::raw('COALESCE(r.refunded, 0) AS refunded'))
-            ->get();
-
-        return (int) $rows->sum(fn (object $row) => max(0, (int) $row->net_fcfa - ((int) $row->paid - (int) $row->refunded)));
-    }
-
     /** @return list<array<string, mixed>> */
     private function movements(string $dateColumn, ReservationStatus $status, CarbonImmutable $day): array
     {
-        return $this->baseQuery()
+        return ReservationRows::query()
             ->where('reservations.status', $status->value)
             ->whereDate("reservations.{$dateColumn}", $day->toDateString())
             ->orderBy($dateColumn === 'start_date' ? 'reservations.start_time' : 'reservations.end_time')
             ->get()
-            ->map(fn (object $row) => self::row($row))
+            ->map(fn (object $row) => ReservationRows::row($row))
             ->values()
             ->all();
     }
@@ -92,39 +75,7 @@ final class DashboardQuery
     /** @return list<array<string, mixed>> */
     private function recent(): array
     {
-        return $this->baseQuery()->orderByDesc('reservations.id')->limit(5)->get()
-            ->map(fn (object $row) => self::row($row))->values()->all();
-    }
-
-    private function baseQuery(): Builder
-    {
-        return DB::table('reservations')
-            ->join('customers', 'customers.id', '=', 'reservations.customer_id')
-            ->join('rooms', 'rooms.id', '=', 'reservations.room_id')
-            ->join('room_types', 'room_types.id', '=', 'rooms.room_type_id')
-            ->select(
-                'reservations.uuid', 'reservations.status', 'reservations.start_date', 'reservations.end_date',
-                'reservations.start_time', 'reservations.end_time', 'reservations.net_fcfa',
-                'customers.name', 'customers.first_name', 'rooms.number', 'room_types.label AS room_type',
-            );
-    }
-
-    /** @return array<string, mixed> Identifiants publics uniquement (D-026). */
-    private static function row(object $row): array
-    {
-        $status = ReservationStatus::from((string) $row->status);
-
-        return [
-            'id' => $row->uuid,
-            'customer' => trim($row->name.' '.($row->first_name ?? '')),
-            'room' => ['number' => $row->number, 'type' => $row->room_type],
-            'start_date' => CarbonImmutable::parse((string) $row->start_date)->toDateString(),
-            'end_date' => CarbonImmutable::parse((string) $row->end_date)->toDateString(),
-            'start_time' => $row->start_time === null ? null : substr((string) $row->start_time, 0, 5),
-            'end_time' => $row->end_time === null ? null : substr((string) $row->end_time, 0, 5),
-            'status' => $status->value,
-            'status_label' => $status->label(),
-            'net_fcfa' => (int) $row->net_fcfa,
-        ];
+        return ReservationRows::query()->orderByDesc('reservations.id')->limit(5)->get()
+            ->map(fn (object $row) => ReservationRows::row($row))->values()->all();
     }
 }

@@ -233,3 +233,84 @@ export interface Planning {
   labels: Record<RoomState, string>
   data: { room: RoomBrief; days: Record<string, RoomState> }[]
 }
+
+/** Réservation, client et chambre d'un mouvement de caisse (contrats publics des modules). */
+export interface PartyContext {
+  reservation: { id: string; status: string; status_label: string } | null
+  customer: { id: string; full_name: string } | null
+  room: { id: string; number: string; room_type: string } | null
+}
+
+export type PaymentRow = Payment & PartyContext
+
+export interface CashMovement extends PartyContext {
+  type: 'PAYMENT' | 'REFUND'
+  type_label: string
+  id: string
+  payment_id: string
+  receipt_number: string
+  at: string
+  amount_fcfa: number
+  /** + encaissement compté, − remboursement, 0 pour un encaissement annulé. */
+  signed_amount_fcfa: number
+  counted: boolean
+  method: string
+  method_label: string
+  agent: { id: string; name: string }
+  status: string
+  status_label: string
+  reason: string | null
+  refundable_fcfa: number
+  has_refunds: boolean
+}
+
+export interface CashBreakdown {
+  label: string
+  collected_fcfa: number
+  refunded_fcfa: number
+  net_fcfa: number
+}
+
+export interface CashJournal {
+  from: string
+  to: string
+  totals: {
+    collected_fcfa: number
+    refunded_fcfa: number
+    cancelled_fcfa: number
+    payments_count: number
+    refunds_count: number
+    net_fcfa: number
+  }
+  by_method: (CashBreakdown & { method: string })[]
+  by_agent: (CashBreakdown & { id: string })[]
+  movements: CashMovement[]
+}
+
+export interface Receipt extends Payment {
+  reservation: { id: string; status_label: string }
+  customer: { id: string; full_name: string } | null
+  room: { id: string; number: string; room_type: string } | null
+  summary: AccountSummary
+  summary_at: string
+  hotel: Record<string, string | null>
+}
+
+export interface Receivable extends DashboardRow {
+  phone: string | null
+  paid_net_fcfa: number
+  balance_fcfa: number
+}
+
+export interface InvoiceRow extends InvoiceSummary {
+  reservation: { id: string } | null
+  customer: { full_name: string } | null
+  room: { number: string; type: string | null } | null
+}
+
+export interface InvoiceTotals {
+  invoices_fcfa: number
+  credit_notes_fcfa: number
+  net_invoiced_fcfa: number
+  count: number
+}

@@ -6,6 +6,7 @@ import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
 import { RESERVATION_STATUS_LABELS } from '../../shared/ui/statusLabels'
 import { SelectField, TextField } from '../../shared/ui/fields'
 import { EmptyState, LoadingBlock, PageHeading, Panel } from '../../shared/ui/layout'
+import { Pagination } from '../../shared/ui/Pagination'
 import { formatDay, formatFcfa, initials } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
 import { roomsQuery } from '../catalog'
@@ -102,29 +103,7 @@ export function ReservationsPage() {
           )}
         </form>
         {list.isPending ? <LoadingBlock /> : <ReservationTable rows={rows} />}
-        {meta && meta.last_page > 1 && (
-          <div className="toolbar" style={{ padding: '12px 18px' }}>
-            <button
-              type="button"
-              className="secondary"
-              disabled={meta.current_page <= 1}
-              onClick={() => setFilters({ ...filters, page: meta.current_page - 1 })}
-            >
-              ← Précédent
-            </button>
-            <span className="caption">
-              Page {meta.current_page} sur {meta.last_page}
-            </span>
-            <button
-              type="button"
-              className="secondary"
-              disabled={meta.current_page >= meta.last_page}
-              onClick={() => setFilters({ ...filters, page: meta.current_page + 1 })}
-            >
-              Suivant →
-            </button>
-          </div>
-        )}
+        <Pagination meta={meta} onPage={(page) => setFilters({ ...filters, page })} />
       </Panel>
       {creating && <NewReservationDialog onClose={() => setCreating(false)} />}
     </>

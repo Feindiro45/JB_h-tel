@@ -4,7 +4,7 @@ import { SelectField, TextField } from '../../shared/ui/fields'
 import { Modal } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatFcfa } from '../../shared/utils/format'
-import { PAYMENT_METHODS, paymentsKey, recordPayment } from './api'
+import { CASH_KEYS, PAYMENT_METHODS, recordPayment } from './api'
 
 /** Encaissement (intégral, avance ou solde). Le serveur refuse tout trop-perçu (D-014). */
 export function PaymentDialog({
@@ -31,9 +31,10 @@ export function PaymentDialog({
         reference: reference.trim() || null,
       }),
     onSuccess: (payment) => {
-      void queryClient.invalidateQueries({ queryKey: paymentsKey(reservationId) })
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      void queryClient.invalidateQueries({ queryKey: ['reservations', reservationId, 'history'] })
+      // Fiche du séjour, caisse, liste des reçus, soldes et tableau de bord.
+      for (const key of [...CASH_KEYS, ['reservations', reservationId]]) {
+        void queryClient.invalidateQueries({ queryKey: key })
+      }
       notify(`Encaissement enregistré — reçu ${payment.receipt_number}`)
       onClose()
     },

@@ -1,6 +1,15 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
-import type { AccountSummary, Envelope, Payment } from '../../shared/api/types'
+import type {
+  AccountSummary,
+  CashJournal,
+  Envelope,
+  Paginated,
+  Payment,
+  PaymentRow,
+  Receipt,
+  Receivable,
+} from '../../shared/api/types'
 
 export const PAYMENT_METHODS: { value: string; label: string }[] = [
   { value: 'CASH', label: 'Espèces' },
@@ -28,4 +37,64 @@ export async function recordPayment(
   return (
     await api.post<Envelope<Payment>>(`/api/v1/reservations/${reservationId}/payments`, input)
   ).data
+}
+
+export interface PaymentFilters {
+  from?: string
+  to?: string
+  method?: string
+  status?: string
+  search?: string
+  page?: number
+}
+
+/** Clés de cache des écrans de caisse : à invalider après tout mouvement. */
+export const CASH_KEYS = [['payments'], ['cash-journal'], ['receivables'], ['dashboard']] as const
+
+export const cashJournalQuery = (from: string, to: string, agentId: string) =>
+  queryOptions({
+    queryKey: ['cash-journal', from, to, agentId],
+    queryFn: async ({ signal }) =>
+      (
+        await api.get<Envelope<CashJournal>>('/api/v1/cash-journal', {
+          query: { from, to, agent_id: agentId },
+          signal,
+        })
+      ).data,
+    placeholderData: (previous) => previous,
+  })
+
+export const paymentsListQuery = (filters: PaymentFilters) =>
+  queryOptions({
+    queryKey: ['payments', 'list', filters],
+    queryFn: ({ signal }) =>
+      api.get<Paginated<PaymentRow>>('/api/v1/payments', { query: { ...filters }, signal }),
+    placeholderData: (previous) => previous,
+  })
+
+export const receivablesQuery = queryOptions({
+  queryKey: ['receivables'],
+  queryFn: ({ signal }) =>
+    api.get<{ data: Receivable[]; total_fcfa: number }>('/api/v1/receivables', { signal }),
+})
+
+export const receiptQuery = (paymentId: string) =>
+  queryOptions({
+    queryKey: ['payments', 'receipt', paymentId],
+    queryFn: async ({ signal }) =>
+      (await api.get<Envelope<Receipt>>(`/api/v1/payments/${paymentId}`, { signal })).data,
+  })
+
+/** Annulation motivée d'un encaissement (jamais de suppression). */
+export async function cancelPayment(paymentId: string, reason: string): Promise<Payment> {
+  return (await api.post<Envelope<Payment>>(`/api/v1/payments/${paymentId}/cancel`, { reason }))
+    .data
+}
+
+/** Remboursement : ligne distincte, le versement d'origine reste intact. */
+export async function refundPayment(
+  paymentId: string,
+  input: { amount_fcfa: number; method?: string | null; reason: string },
+): Promise<void> {
+  await api.post(`/api/v1/payments/${paymentId}/refunds`, input)
 }

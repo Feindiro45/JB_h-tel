@@ -1,14 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import type { Reservation } from '../../shared/api/types'
+import type { InvoiceSummary, Reservation } from '../../shared/api/types'
 import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
 import { EmptyState, LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatDateTime, formatDay, formatFcfa, todayIso } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
-import { PaymentDialog, paymentsKey, reservationPaymentsQuery } from '../cashier'
-import { invoicePdfUrl, invoicesKey, issueInvoice, reservationInvoicesQuery } from '../invoices'
+import { PaymentActions, PaymentDialog, paymentsKey, reservationPaymentsQuery } from '../cashier'
+import {
+  CreditNoteDialog,
+  invoicePdfUrl,
+  invoicesKey,
+  issueInvoice,
+  reservationInvoicesQuery,
+} from '../invoices'
 import {
   cancelReservation,
   checkIn,
@@ -57,6 +63,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [crediting, setCrediting] = useState<InvoiceSummary | null>(null)
   const payments = useQuery({ ...reservationPaymentsQuery(r.id), enabled: can('payments.view') })
   const invoices = useQuery({ ...reservationInvoicesQuery(r.id), enabled: can('invoices.view') })
   const history = useQuery(historyQuery(r.id))
@@ -255,6 +262,9 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
                     <th scope="col" className="num">
                       Montant
                     </th>
+                    <th scope="col">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,6 +284,16 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
                         )}
                       </td>
                       <td className="num">{formatFcfa(p.amount_fcfa)}</td>
+                      <td className="num">
+                        <PaymentActions
+                          payment={{
+                            ...p,
+                            refundable_fcfa:
+                              p.status === 'VALID' ? p.amount_fcfa - p.refunded_fcfa : 0,
+                            has_refunds: p.refunds.length > 0,
+                          }}
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -340,6 +360,18 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
                         >
                           Vérification ↗
                         </a>
+                        {invoice.type === 'INVOICE' &&
+                          invoice.status === 'ISSUED' &&
+                          can('invoices.credit') && (
+                            <button
+                              type="button"
+                              className="text-button"
+                              onClick={() => setCrediting(invoice)}
+                              aria-label={`Émettre un avoir pour ${invoice.number}`}
+                            >
+                              Avoir
+                            </button>
+                          )}
                       </td>
                     </tr>
                   ))}
@@ -472,6 +504,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           }}
         />
       )}
+      {crediting && <CreditNoteDialog invoice={crediting} onClose={() => setCrediting(null)} />}
     </>
   )
 }
