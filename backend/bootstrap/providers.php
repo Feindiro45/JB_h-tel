@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Cashier\CashierServiceProvider;
 use App\Modules\Customers\CustomersServiceProvider;
 use App\Modules\Identity\IdentityServiceProvider;
 use App\Modules\Reservations\ReservationsServiceProvider;
@@ -12,4 +13,5 @@ return [
     RoomCatalogServiceProvider::class,
     CustomersServiceProvider::class,
     ReservationsServiceProvider::class,
+    CashierServiceProvider::class,
 ];

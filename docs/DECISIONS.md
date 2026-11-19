@@ -201,3 +201,20 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
 - **Remboursement :** une ligne distincte avec motif, auteur et date, dans la limite du montant encore remboursable sur le reçu. Le paiement initial reste intact.
 - **Provisoire (Q-08) :** la caissière encaisse ; l'annulation d'un encaissement et le remboursement sont réservés à l'administrateur (permissions `payments.cancel` et `refunds.create`).
 - **Moyens de paiement :** liste paramétrable `payments.methods` (provisoire, Q-11) : espèces, mobile money, carte, virement.
+
+## Décisions de la phase 5B (factures) et 5C (QR code)
+
+### D-037 — Factures et avoirs (Validé + Provisoire, Q-09)
+- **Facture figée à l'émission :** l'instantané (`snapshot_json`) copie l'en-tête de l'hôtel, le client, la chambre, la période, la ligne d'hébergement, le brut, la remise et son motif, le net, ainsi que **les versements et le solde à la date d'émission**. Le PDF A4 est généré côté serveur (dompdf) **à partir de cet instantané seulement** : un changement ultérieur de tarif, de client ou de paiement ne modifie jamais une facture (critère « l'ancienne facture reste à 50 000 », testé).
+- **Immuable :** le modèle refuse toute modification et toute suppression. La seule évolution permise est le passage de « émise » à « annulée par avoir ».
+- **Une seule facture active** par réservation. Pas de facture pour une réservation en attente ou annulée.
+- **Correction par avoir total** (`AV-AAAA-NNNNNN`), qui recopie les montants de la facture créditée, avec le motif et l'auteur. Une nouvelle facture peut ensuite être émise, par exemple après une prolongation. Les avoirs partiels ne sont pas gérés en V1.
+- **Numérotation :** `FAC-AAAA-NNNNNN` et `AV-AAAA-NNNNNN`, continues et sans trou, attribuées sous verrou par `DocumentNumberer`. Les préfixes sont paramétrables.
+- **Provisoire (Q-09, Q-16) :** en-tête « JB Hôtel », avec adresse, NIF et RCCM lus dans `HOTEL_*` (vides par défaut) ; aucune TVA calculée.
+- **Droits (provisoire) :** la caissière émet les factures ; seul l'administrateur émet un avoir (`invoices.credit`).
+
+### D-038 — QR code et vérification publique (Validé, demande du 19/11/2026)
+- Chaque facture et chaque avoir reçoit à l'émission un **code de vérification aléatoire** de 24 caractères, enregistré en base. Il n'apparaît ni dans le journal d'audit ni dans les réponses publiques.
+- Le PDF porte un **QR code** pointant vers `VERIFICATION_BASE_URL/verification/factures/{uuid}?code={code}`. En production, `VERIFICATION_BASE_URL` doit être l'adresse publique de l'hôtel.
+- La **page publique**, sans connexion, et son équivalent JSON (`GET /api/v1/public/invoices/{uuid}/verification?code=`) n'affichent que le strict nécessaire : type, numéro, date, émetteur, montant net, statut (émise ou annulée par avoir, avec le numéro de l'avoir) et les **initiales** du client.
+- Les deux exigent l'UUID **et** le code, avec une comparaison à temps constant. Une facture inconnue et un code faux reçoivent **la même réponse** (404 « Document introuvable »). Le débit est limité à 30 requêtes par minute et par adresse, et les pages ne sont pas indexées par les moteurs de recherche (`noindex`).

@@ -50,6 +50,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
   - données du reçu imprimable ;
   - contrat public `ReservationLedger` côté Reservations ;
   - décision D-035.
+- Phase 5B, module **Billing** :
+  - factures `FAC-AAAA-NNNNNN` **figées** (instantané complet, versements et solde à l'émission) et immuables ;
+  - une facture active par réservation ;
+  - **avoirs** `AV-AAAA-NNNNNN` ;
+  - **PDF A4** généré côté serveur (dompdf, sous-ensemble de police, environ 30 Ko) ;
+  - contrats publics `PaymentHistory` (Cashier) et `invoiceData` (Reservations) ;
+  - décision D-037.
+- Phase 5C, **QR code de vérification** sur chaque facture et avoir :
+  - page publique sans connexion (`/verification/factures/{id}?code=`) et API JSON publique ;
+  - code aléatoire par document, réponse identique si le document est inconnu ou le code faux ;
+  - données minimales (initiales du client), débit limité ;
+  - décision D-038.
 
 ### Corrigé
 - Fiche client : le type et le numéro de pièce d'identité sont toujours contrôlés ensemble (la règle était ignorée quand un seul des deux était envoyé).

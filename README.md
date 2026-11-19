@@ -164,6 +164,19 @@ Tous les identifiants exposés par l'API et utilisés dans les liens sont des **
 | `POST /api/v1/payments/{id}/cancel` | `payments.cancel` | Annulation motivée d'un encaissement (jamais de suppression) |
 | `POST /api/v1/payments/{id}/refunds` | `refunds.create` | Remboursement `{ amount_fcfa, reason, method? }` |
 
+### Factures et vérification (phases 5B et 5C)
+
+| Route | Droit | Rôle |
+|---|---|---|
+| `GET /api/v1/reservations/{id}/invoices` · `GET /api/v1/invoices/{id}` | `invoices.view` | Factures et avoirs d'une réservation ; détail figé et `verification_url` |
+| `GET /api/v1/invoices/{id}/pdf` | `invoices.view` | PDF A4 avec QR code, généré à partir de l'instantané figé |
+| `POST /api/v1/reservations/{id}/invoices` | `invoices.issue` | Émission (une facture active par réservation) |
+| `POST /api/v1/invoices/{id}/credit-notes` | `invoices.credit` | Avoir motivé `{ reason }`, puis nouvelle facture possible |
+| `GET /verification/factures/{id}?code=` | **public** | Page de vérification ouverte par le QR code |
+| `GET /api/v1/public/invoices/{id}/verification?code=` | **public** | Même vérification en JSON |
+
+En production, renseigne `VERIFICATION_BASE_URL` (adresse publique encodée dans le QR code) et l'en-tête des factures : `HOTEL_NAME`, `HOTEL_ADDRESS`, `HOTEL_PHONE`, `HOTEL_TAX_ID`, `HOTEL_RCCM`.
+
 Exemple de réservation (la demi-journée couvre jusqu'à 12 h ; une remise exige un motif) :
 
 ```json

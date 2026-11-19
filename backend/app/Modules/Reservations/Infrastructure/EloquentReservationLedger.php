@@ -3,6 +3,7 @@
 namespace App\Modules\Reservations\Infrastructure;
 
 use App\Modules\Reservations\Contracts\ReservationDue;
+use App\Modules\Reservations\Contracts\ReservationInvoiceData;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Modules\Reservations\Domain\ReservationStatus;
 use App\Modules\Reservations\Models\Reservation;
@@ -32,6 +33,40 @@ final class EloquentReservationLedger implements ReservationLedger
         $reservation = Reservation::query()->lockForUpdate()->find($reservationId);
 
         return $reservation === null ? null : self::toDue($reservation);
+    }
+
+    public function invoiceData(int $reservationId): ?ReservationInvoiceData
+    {
+        $reservation = Reservation::query()->find($reservationId);
+        if ($reservation === null) {
+            return null;
+        }
+        $discount = $reservation->discount();
+
+        return new ReservationInvoiceData(
+            id: $reservation->id,
+            uuid: $reservation->uuid,
+            status: $reservation->status->value,
+            statusLabel: $reservation->status->label(),
+            customerId: $reservation->customer_id,
+            roomId: $reservation->room_id,
+            startDate: $reservation->start_date->toDateString(),
+            endDate: $reservation->end_date->toDateString(),
+            startTime: $reservation->start_time === null ? null : substr($reservation->start_time, 0, 5),
+            endTime: $reservation->end_time === null ? null : substr($reservation->end_time, 0, 5),
+            blockedFrom: $reservation->blocked_from->toIso8601String(),
+            blockedUntil: $reservation->blocked_until->toIso8601String(),
+            periodIsEstimated: $reservation->period_is_estimated,
+            billingUnit: $reservation->billing_unit->value,
+            billingUnitLabel: $reservation->billing_unit->label(),
+            quantity: $reservation->quantity,
+            unitPriceFcfa: $reservation->applied_unit_price_fcfa,
+            grossFcfa: $reservation->gross_fcfa,
+            discountLabel: $discount?->describe(),
+            discountReason: $discount?->reason,
+            discountFcfa: $reservation->discount_fcfa,
+            netFcfa: $reservation->net_fcfa,
+        );
     }
 
     private static function toDue(Reservation $reservation): ReservationDue

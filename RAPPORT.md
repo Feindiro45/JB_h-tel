@@ -2,23 +2,11 @@
 
 **Date :** 19/11/2026, session autonome pendant ton absence.
 
-**Où en est le projet :**
-- phases 0 à 4 terminées et envoyées sur GitHub, avec une CI verte ;
-- **phase 5A (caisse) terminée et testée, mais seulement en local**.
+**Où en est le projet :** phases 0 à 5A terminées et envoyées sur GitHub (`main`). Phase 5B (factures) en cours.
 
 Le suivi détaillé, case par case, est dans [CHECK_LEVEL.md](CHECK_LEVEL.md).
 
-> ⚠️ **Action requise de ta part : envoyer le dernier travail sur GitHub.**
-> Après la phase 4, l'envoi suivant (`git push`) a été **bloqué par le contrôle automatique des permissions** de Claude Code. Je ne l'ai pas contourné.
->
-> Ce qui n'est donc pas encore sur GitHub :
-> - la phase 5A (caisse) ;
-> - ce rapport ;
-> - le suivi mis à jour.
->
-> Tout est prêt et vérifié en local. Pour l'envoyer, tu peux :
-> - soit me le redemander (« commit et push »), et autoriser l'opération si une demande de permission s'affiche ;
-> - soit lancer toi-même `git push` depuis le dossier du projet, après le commit local décrit en section 8.
+> ✅ L'envoi de la phase 5A, d'abord bloqué par le contrôle des permissions, a été fait après ton accord (commit `2a7c32e`).
 
 ---
 

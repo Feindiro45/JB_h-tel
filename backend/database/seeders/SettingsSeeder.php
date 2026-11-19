@@ -38,6 +38,10 @@ class SettingsSeeder extends Seeder
             'value' => 'FAC',
             'description' => 'PROVISOIRE (D-015, Q-09) : préfixe des numéros de facture (FAC-AAAA-NNNNNN).',
         ],
+        'billing.credit_note_prefix' => [
+            'value' => 'AV',
+            'description' => 'PROVISOIRE (Q-09) : préfixe des numéros d’avoir (AV-AAAA-NNNNNN).',
+        ],
         'billing.receipt_number_prefix' => [
             'value' => 'REC',
             'description' => 'PROVISOIRE : préfixe des numéros de reçu (REC-AAAA-NNNNNN).',

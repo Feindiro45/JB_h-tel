@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 — phases 0 à 4 envoyées (CI verte) ; phase 5A (caisse) faite et testée, en local (envoi bloqué par les permissions, voir `RAPPORT.md`)
+**Dernière mise à jour :** 19/11/2026 — phases 5B (factures) et 5C (QR code) faites, 153 tests verts ; 5D (e-mails) en cours
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -20,7 +20,7 @@
 | 2 | Base de données et identité | ✅ Fait (CI verte) | 100 % |
 | 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
 | 4 | Clients et réservations | ✅ Fait (CI verte) | 100 % |
-| 5 | Caisse et factures | 🟡 5A fait (caisse) ; 5B à faire (factures) | ~55 % |
+| 5 | Caisse, factures, QR code, notifications | 🟡 5A, 5B et 5C faits ; 5D (e-mails) à faire | ~85 % |
 | 6 | Frontend (écrans métier) | ⬜ À faire | 0 % |
 | 7 | Reporting | ⬜ À faire | 0 % |
 | 8 | Qualité et livraison | ⬜ À faire | 0 % |
@@ -218,7 +218,7 @@
 
 ## Phase 5 — Caisse et factures 🟡
 
-### 5A — Caisse (module Cashier) ✅ (code et tests ; **envoi GitHub en attente**, voir RAPPORT.md)
+### 5A — Caisse (module Cashier) ✅ (commit `2a7c32e` envoyé sur GitHub)
 - [x] Numérotation continue des documents (reçus `REC-AAAA-NNNNNN`) sous verrou : un échec ne consomme pas de numéro (testé)
 - [x] Contrat public `ReservationLedger` : montant dû, statut, verrou de la réservation
 - [x] Paiements intégraux, partiels et différés ; versements multiples ; solde (non payé, partiellement payé, soldé, trop-perçu à rembourser)
@@ -229,10 +229,28 @@
 - [x] Tests : **10 tests Cashier** (avance de 20 000 sur 50 000 → solde de 30 000 et un reçu par versement ; remboursement qui corrige l'encaissement net ; droits) ; **suite backend 139 sur 139**, Larastan OK
 - [x] Vérification réelle sur le serveur : avance, refus du trop-perçu, solde, reçu, remboursement refusé à la caissière
 
-### 5B — Factures (module Billing), à faire
-- [!] Factures numérotées et figées, PDF A4 côté serveur ; règles fiscales de la RCA (Q-09)
-- [ ] Avoirs (document rectificatif)
-- [ ] Tests : l'ancienne facture reste à 50 000 après un changement de tarif
+### 5B — Factures (module Billing) ✅
+- [x] Contrats publics : détail de facturation d'une réservation (`ReservationLedger::invoiceData`) et historique des paiements (`PaymentHistory`)
+- [x] Facture numérotée `FAC-AAAA-NNNNNN` et **figée** (instantané complet : client, chambre, période, prix, remise, versements, solde), une seule facture active par réservation
+- [x] Facture immuable : ni modification ni suppression ; seule la mention « annulée par avoir » est possible
+- [x] Avoir (document rectificatif `AV-AAAA-NNNNNN`) qui crédite une facture ; nouvelle facture possible ensuite
+- [x] PDF A4 généré côté serveur à partir de l'instantané (dompdf, environ 30 Ko grâce au sous-ensemble de police)
+- [!] Mentions légales et TVA en RCA (Q-09) : en attente ; en-tête provisoire « JB Hôtel »
+- [x] Tests : l'ancienne facture reste à 50 000 après un changement de tarif ; immuabilité ; avoir ; droits ; PDF (**7 tests verts**)
+
+### 5C — QR code de vérification sur la facture (demande du 19/11/2026) ✅
+- [x] Code de vérification aléatoire (24 caractères) enregistré à l'émission de chaque facture ou avoir ; jamais journalisé
+- [x] QR code imprimé sur le PDF A4, pointant vers la page publique de vérification
+- [x] Route publique (sans connexion) : page HTML en français et API JSON, limitée à 30 requêtes par minute ; réponse identique si la facture est inconnue ou le code faux ; non indexée
+- [x] Données publiées minimales : type, numéro, date, émetteur, montant net, statut (émise ou annulée par avoir), initiales du client
+- [x] Tests : **7 tests** ; vérifié sur le serveur (facture réelle, page « Document authentique », code faux → « Document introuvable »)
+
+### 5D — Notifications par e-mail au client (demande du 19/11/2026) ⬜ à faire
+- [ ] Si le client a donné son e-mail : message à chaque opération sur son séjour (confirmation et bienvenue, arrivée, prolongation, annulation, départ, reçu de paiement, facture en PDF, avoir)
+- [ ] Envoi en file d'attente, après validation de la transaction ; échec d'envoi sans blocage de l'opération ; journalisé
+- [ ] Modèles d'e-mail en français ; possibilité de désinscription (données personnelles)
+- [!] Serveur d'envoi (SMTP) de l'hôtel à fournir ; en local, les e-mails sont écrits dans le journal
+- [ ] Tests
 
 ## Phase 6 — Frontend (écrans) ⬜
 
@@ -268,13 +286,13 @@
 - [x] Deux caissières ne peuvent pas confirmer la même chambre pour des périodes incompatibles (test de concurrence réel, deux processus)
 - [x] Une chambre en maintenance ne peut pas être réservée (409, testé)
 - [x] Un client avec 2 occupants paie le même tarif qu'avec 1, si la capacité est respectée ; au-delà, refus (testé)
-- [~] Tarif passé de 50 000 à 60 000 FCFA : l'ancienne facture reste à 50 000, la nouvelle réservation est à 60 000. Côté réservations, c'est testé (l'ancienne reste à 50 000, la nouvelle passe à 60 000) ; la facture vient en phase 5
+- [x] Tarif passé de 50 000 à 60 000 FCFA : l'ancienne facture reste à 50 000, la nouvelle réservation est à 60 000 (testé : réservations et factures)
 - [x] Une avance de 20 000 sur 50 000 laisse un solde de 30 000, avec un reçu par versement (testé)
 - [x] Une réduction de 10 % sur 50 000 donne 45 000, utilisateur et motif enregistrés (testé ; au-delà de 10 %, refus pour la caissière)
 - [x] Les remboursements diminuent les encaissements nets sans effacer le paiement initial (testé)
 - [ ] Les indicateurs de caisse se rapprochent des transactions enregistrées
 - [x] Une caissière sans le droit nécessaire ne peut pas modifier un tarif : permission absente du rôle et API des tarifs en 403 (testé en phases 2 et 3)
-- [ ] Factures imprimables en A4 ; données conservées après redémarrage
+- [~] Factures imprimables en A4 ; données conservées après redémarrage. PDF A4 généré côté serveur (testé) et données en base MySQL/MariaDB ; recette d'impression papier à faire en phase 8
 
 ## Questions en attente de l'hôtel
 

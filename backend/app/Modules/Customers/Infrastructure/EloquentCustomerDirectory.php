@@ -39,6 +39,6 @@ final class EloquentCustomerDirectory implements CustomerDirectory
 
     private function toSnapshot(Customer $customer): CustomerSnapshot
     {
-        return new CustomerSnapshot($customer->id, $customer->uuid, $customer->fullName(), $customer->phone);
+        return new CustomerSnapshot($customer->id, $customer->uuid, $customer->fullName(), $customer->phone, $customer->address, $customer->email);
     }
 }

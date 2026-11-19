@@ -15,4 +15,7 @@ interface ReservationLedger
      * contrôle du trop-perçu reste exact. À appeler **dans** une transaction.
      */
     public function lockForPayment(int $reservationId): ?ReservationDue;
+
+    /** Détail facturable (période, unité, quantité, prix, remise, net), lu au moment de l'émission. */
+    public function invoiceData(int $reservationId): ?ReservationInvoiceData;
 }

@@ -10,5 +10,7 @@ final readonly class CustomerSnapshot
         public string $uuid,
         public string $fullName,
         public ?string $phone,
+        public ?string $address = null,
+        public ?string $email = null,
     ) {}
 }
