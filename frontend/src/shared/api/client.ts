@@ -1,0 +1,88 @@
+import { config } from '../config'
+import { errorFromResponse, networkError } from './errors'
+
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+type QueryValue = string | number | boolean | null | undefined
+
+export interface RequestOptions {
+  method?: HttpMethod
+  body?: unknown
+  query?: Record<string, QueryValue>
+  signal?: AbortSignal
+}
+
+function buildUrl(path: string, query?: Record<string, QueryValue>): string {
+  const url = new URL(path.startsWith('/') ? path : `/${path}`, `${config.apiUrl}/`)
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value !== null && value !== undefined && value !== '')
+      url.searchParams.set(key, String(value))
+  }
+  return url.toString()
+}
+
+function readCookie(name: string): string | undefined {
+  const prefix = `${name}=`
+  const entry = document.cookie.split('; ').find((part) => part.startsWith(prefix))
+  return entry ? decodeURIComponent(entry.slice(prefix.length)) : undefined
+}
+
+async function parseBody(response: Response): Promise<unknown> {
+  if (response.status === 204) return undefined
+  const text = await response.text()
+  if (text === '') return undefined
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Appel à l'API Laravel. Envoie les cookies de session (Sanctum, mode SPA) et l'en-tête
+ * CSRF `X-XSRF-TOKEN` sur les requêtes qui modifient des données.
+ * Lève toujours une `ApiError` au message français en cas d'échec.
+ */
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const method = options.method ?? 'GET'
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  }
+  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (method !== 'GET') {
+    const xsrf = readCookie('XSRF-TOKEN')
+    if (xsrf) headers['X-XSRF-TOKEN'] = xsrf
+  }
+
+  let response: Response
+  try {
+    response = await fetch(buildUrl(path, options.query), {
+      method,
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      credentials: 'include',
+      signal: options.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    throw networkError()
+  }
+
+  const payload = await parseBody(response)
+  if (!response.ok) throw errorFromResponse(response.status, payload)
+  return payload as T
+}
+
+type Options = Omit<RequestOptions, 'method' | 'body'>
+
+export const api = {
+  get: <T>(path: string, options?: Options) => apiRequest<T>(path, { ...options, method: 'GET' }),
+  post: <T>(path: string, body?: unknown, options?: Options) =>
+    apiRequest<T>(path, { ...options, method: 'POST', body }),
+  patch: <T>(path: string, body?: unknown, options?: Options) =>
+    apiRequest<T>(path, { ...options, method: 'PATCH', body }),
+  put: <T>(path: string, body?: unknown, options?: Options) =>
+    apiRequest<T>(path, { ...options, method: 'PUT', body }),
+  delete: <T>(path: string, options?: Options) =>
+    apiRequest<T>(path, { ...options, method: 'DELETE' }),
+}

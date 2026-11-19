@@ -1,0 +1,313 @@
+/*
+ * Thème JB Hôtel — charte docs/05_charte_design_UI_UX.md (proposition à valider par l'hôtel).
+ * Grille de 8 px, base 16 px, cible WCAG 2.2 AA. L'accent #10B981 a un contraste insuffisant
+ * pour du texte sur fond clair : il est réservé aux éléments décoratifs.
+ */
+:root {
+  --color-primary: #047857;
+  --color-primary-hover: #065f46;
+  --color-accent: #10b981;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-border: #cbd5e1;
+  --color-error: #b91c1c;
+  --color-error-bg: #fef2f2;
+  --color-warning: #b45309;
+  --color-warning-bg: #fffbeb;
+  --color-success-bg: #ecfdf5;
+  --color-neutral-bg: #f1f5f9;
+  --color-focus: #1d4ed8;
+
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-6: 48px;
+
+  --radius: 8px;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 4px 12px rgb(15 23 42 / 0.06);
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--color-bg);
+}
+
+h1,
+h2 {
+  margin: 0 0 var(--space-2);
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+}
+
+p {
+  margin: 0 0 var(--space-2);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+/* Mise en page */
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: -100px;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border-radius: var(--radius);
+  z-index: 100;
+}
+
+.skip-link:focus {
+  top: var(--space-1);
+}
+
+.layout__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.layout__subtitle {
+  color: var(--color-text-muted);
+}
+
+.layout__main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-2);
+}
+
+.layout__main:focus {
+  outline: none;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: 1.125rem;
+  text-decoration: none;
+}
+
+.brand__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+}
+
+/* Composants */
+.card {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.button--primary {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.button--secondary {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.button--secondary:hover:not(:disabled) {
+  background: var(--color-success-bg);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-1);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.badge--success {
+  color: var(--color-primary);
+  background: var(--color-success-bg);
+}
+
+.badge--warning {
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+.badge--error {
+  color: var(--color-error);
+  background: var(--color-error-bg);
+}
+
+.badge--neutral {
+  color: var(--color-text-muted);
+  background: var(--color-neutral-bg);
+}
+
+.status-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.status-list dt {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.status-list dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+/* Modale */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-2);
+  background: rgb(15 23 42 / 0.55);
+  z-index: 1000;
+}
+
+.modal {
+  width: min(520px, 100%);
+  max-height: calc(100vh - var(--space-4));
+  overflow-y: auto;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 48px rgb(15 23 42 / 0.3);
+}
+
+.modal--error {
+  border-top: 6px solid var(--color-error);
+}
+
+.modal__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.modal--error .modal__title {
+  color: var(--color-error);
+}
+
+.modal__icon {
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+.modal__details {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-3);
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+@media print {
+  .skip-link,
+  .layout__header,
+  .button {
+    display: none !important;
+  }
+
+  body,
+  .card {
+    background: #ffffff;
+    box-shadow: none;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}

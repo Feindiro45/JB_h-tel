@@ -1,0 +1,37 @@
+# Base MySQL 8.4 pour le développement local (cible de production, docs/DECISIONS.md D-002).
+#
+#   cp .env.example .env            # à la racine du dépôt, puis remplacer les mots de passe
+#   docker compose --env-file .env -f infra/docker-compose.yml up -d
+#
+# Puis, dans backend/.env : DB_PORT=3307, DB_USERNAME/DB_PASSWORD = MYSQL_USER/MYSQL_PASSWORD.
+# Le script d'initialisation crée aussi la base de test `jb_hotel_test`.
+
+name: jb-hotel
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?définir MYSQL_ROOT_PASSWORD dans .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-jb_hotel}
+      MYSQL_USER: ${MYSQL_USER:-jb_hotel}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?définir MYSQL_PASSWORD dans .env}
+      TZ: Africa/Bangui
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-storage-engine=InnoDB
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql-data:

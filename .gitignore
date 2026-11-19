@@ -1,0 +1,19 @@
+# Secrets et configuration locale (chaque application a aussi son propre .gitignore)
+.env
+.env.*
+!.env.example
+*.local
+
+# Systèmes et éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Journaux et sauvegardes locales
+*.log
+backups/
+
+# Paramètres personnels de Claude Code
+.claude/settings.local.json
