@@ -46,6 +46,7 @@ final class CustomerRequest extends FormRequest
             'identification_type' => ['nullable', 'string', 'max:60', 'required_with:identification_number'],
             'identification_number' => ['nullable', 'string', 'max:100', 'required_with:identification_type'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'email_notifications' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -63,6 +64,7 @@ final class CustomerRequest extends FormRequest
             'identification_type' => "type de pièce d'identité",
             'identification_number' => "numéro de pièce d'identité",
             'notes' => 'notes',
+            'email_notifications' => 'notifications par e-mail',
         ];
     }
 
@@ -72,10 +74,10 @@ final class CustomerRequest extends FormRequest
         return ['phone.regex' => 'Le numéro de téléphone ne peut contenir que des chiffres, des espaces et « + ( ) . - ».'];
     }
 
-    /** @return array<string, string|null> */
+    /** @return array<string, string|bool|null> */
     public function fields(): array
     {
-        /** @var array<string, string|null> $validated */
+        /** @var array<string, string|bool|null> $validated */
         $validated = $this->validated();
 
         return $validated;

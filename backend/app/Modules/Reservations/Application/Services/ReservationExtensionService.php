@@ -10,6 +10,7 @@ use App\Modules\Reservations\Domain\Contracts\RoomAvailability;
 use App\Modules\Reservations\Domain\PriceBreakdown;
 use App\Modules\Reservations\Domain\PriceCalculator;
 use App\Modules\Reservations\DTO\ExtensionData;
+use App\Modules\Reservations\Events\ReservationExtended;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Shared\Contracts\AuditTrail;
@@ -118,6 +119,7 @@ final class ReservationExtensionService
             $this->audit->record('reservation.extended', 'reservation', $reservation->id, $before, ReservationSnapshot::of($reservation) + [
                 'supplement_fcfa' => $preview->supplementFcfa(),
             ], $actor->id);
+            event(new ReservationExtended($reservation->id));
 
             return $reservation;
         });

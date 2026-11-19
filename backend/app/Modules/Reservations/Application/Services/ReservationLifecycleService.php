@@ -6,6 +6,9 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Application\ReservationSnapshot;
 use App\Modules\Reservations\Domain\ReservationStatus;
 use App\Modules\Reservations\DTO\OccupantData;
+use App\Modules\Reservations\Events\ReservationCancelled;
+use App\Modules\Reservations\Events\ReservationCheckedIn;
+use App\Modules\Reservations\Events\ReservationCheckedOut;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Shared\Contracts\AuditTrail;
@@ -68,6 +71,8 @@ final class ReservationLifecycleService
                 );
             }
 
+            event(new ReservationCheckedIn($reservation->id));
+
             return $this->transition($reservation, $actor, 'reservation.checked_in', [
                 'status' => ReservationStatus::InProgress,
                 'checked_in_at' => now(),
@@ -83,6 +88,8 @@ final class ReservationLifecycleService
             if ($reservation->status !== ReservationStatus::InProgress) {
                 throw self::invalidStatus($reservation, 'enregistrer le départ');
             }
+
+            event(new ReservationCheckedOut($reservation->id));
 
             return $this->transition($reservation, $actor, 'reservation.checked_out', [
                 'status' => ReservationStatus::Completed,
@@ -109,6 +116,8 @@ final class ReservationLifecycleService
             if (! in_array($reservation->status, [ReservationStatus::Pending, ReservationStatus::Confirmed], true)) {
                 throw self::invalidStatus($reservation, 'annuler');
             }
+
+            event(new ReservationCancelled($reservation->id));
 
             return $this->transition($reservation, $actor, 'reservation.cancelled', [
                 'status' => ReservationStatus::Cancelled,

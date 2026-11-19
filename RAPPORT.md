@@ -1,164 +1,125 @@
 # Rapport de travail — JB Hôtel
 
-**Date :** 19/11/2026, session autonome pendant ton absence.
+**Date :** 19/11/2026.
 
-**Où en est le projet :** phases 0 à 5A terminées et envoyées sur GitHub (`main`). Phase 5B (factures) en cours.
+**Où en est le projet :**
+- ✅ **Le backend (API) est complet pour les phases 0 à 5** : comptes, chambres, tarifs, clients, réservations, caisse, factures, QR code, e-mails.
+- ⏭️ La **phase 6 (écrans)** vient ensuite.
+- Tout est sur GitHub (`main`), avec une CI verte à chaque envoi.
 
 Le suivi détaillé, case par case, est dans [CHECK_LEVEL.md](CHECK_LEVEL.md).
 
-> ✅ L'envoi de la phase 5A, d'abord bloqué par le contrôle des permissions, a été fait après ton accord (commit `2a7c32e`).
+> ⚠️ **Pourquoi tu ne « vois » pas encore l'application dans le navigateur.** Les écrans (connexion, réservation, caisse, factures…) correspondent à la **phase 6**, la prochaine. Aujourd'hui, http://localhost:5173 n'affiche que la page « État du système ». Tout le métier fonctionne déjà, mais seulement à travers l'API. Je peux attaquer les écrans dès maintenant si tu veux.
 
 ---
 
-## 1. Résumé en 30 secondes
+## 1. Résumé
 
-- ✅ **Le backend gère maintenant les réservations de bout en bout** :
-  - clients ;
-  - devis ;
-  - réservation avec prix figé ;
-  - remises plafonnées ;
-  - arrivée et départ ;
-  - annulation ;
-  - prolongation avec validation explicite ;
-  - disponibilités et occupation des chambres.
-- ✅ **Double réservation impossible**, prouvé par un vrai test de concurrence : deux processus PHP réservent la même chambre en même temps, un seul obtient la chambre.
-- ✅ **La caisse est en place (phase 5A)** :
-  - avances et versements multiples ;
-  - un reçu numéroté par versement ;
-  - solde calculé ;
-  - trop-perçu refusé ;
-  - remboursements et annulations tracés, sans jamais rien supprimer.
-- ✅ **Tests :** backend 139/139, frontend 29/29. Analyse statique (Larastan niveau 6) et format (Pint, Prettier) sans erreur.
-- ⚠️ **À valider avec l'hôtel :** 6 questions bloquantes pour la mise en production (section 5).
-- ⏭️ **Prochaine étape :** phase 5B, les factures (figées, numérotées, PDF A4, avoirs).
+| Domaine | État |
+|---|---|
+| Comptes, rôles, droits (administrateur et caissière) | ✅ |
+| Chambres, types, maintenance, tarifs versionnés | ✅ |
+| Clients, réservations, disponibilités, occupation | ✅, double réservation impossible (test avec deux processus concurrents) |
+| Caisse : avances, versements, reçus, solde, remboursements | ✅ |
+| Factures figées, avoirs, PDF A4 | ✅ |
+| **QR code** sur chaque facture et vérification publique | ✅ (demande du 19/11) |
+| **E-mails au client** à chaque opération sur son séjour | ✅ (demande du 19/11) |
+| Écrans du frontend | ⏭️ phase 6 |
+| Rapports, exports, recette finale | phases 7 et 8 |
 
-## 2. Ce qui a été fait pendant ton absence
+**Tests :** backend **161/161**, frontend 29/29. Larastan (niveau 6), Pint et Prettier ne signalent aucune erreur. Chaque fonctionnalité a aussi été vérifiée **en conditions réelles** sur le serveur.
 
-| Étape | Commit | Contenu |
+## 2. Ce qui a été fait depuis le dernier rapport
+
+| Commit | Contenu | CI |
 |---|---|---|
-| Envoi de la phase 3 | `3f91816` | Catalogue des chambres, tarifs versionnés, identifiants UUID partout. CI verte. |
-| **Phase 4** | `bd175ec` | Clients, réservations, disponibilités, concurrence (détail ci-dessous). CI verte. |
-| **Phase 5A** | local, non envoyé | Caisse : encaissements, reçus, solde, remboursements (détail ci-dessous). |
+| `2a7c32e` | Phase 5A : caisse (encaissements, reçus `REC-2026-000001`, solde, trop-perçu refusé, remboursements) | ✅ |
+| `f520504` | Phases 5B et 5C : factures figées `FAC-…`, avoirs `AV-…`, PDF A4, **QR code** et vérification publique | ✅ |
+| *(ce commit)* | Phase 5D : **e-mails au client** ; rapport et suivi | voir CHECK_LEVEL |
 
-### Phase 5A : la caisse, en détail
+### Ports libérés (ta demande)
 
-- **Encaissements :** paiement intégral, avance ou paiement différé, et plusieurs versements par réservation. Moyens acceptés : espèces, mobile money, carte, virement (liste modifiable).
-- **Un reçu par versement**, numéroté sans trou : `REC-2026-000001`, `REC-2026-000002`… Un encaissement refusé ne consomme pas de numéro.
-- **Situation de caisse :** montant dû, encaissé, remboursé, encaissé net, **solde**. Statuts : Non payé, Partiellement payé, Soldé, Trop-perçu à rembourser.
-- **Trop-perçu refusé :** un versement supérieur au solde est bloqué, avec le message « Solde restant : 30 000 FCFA ».
-- **Annulation d'un encaissement** saisi par erreur : motif obligatoire, l'encaissement est conservé avec le statut « Annulé ».
-- **Remboursement :** une ligne à part, avec motif, auteur et date. Le paiement initial reste intact.
-- **Droits (provisoire) :** la caissière encaisse ; l'annulation et le remboursement sont réservés à l'administrateur.
-- **Réservation annulée après un versement :** elle n'exige plus rien, et ce qui a été versé apparaît « à rembourser ».
+Un ancien projet (`saass_v2`) occupait aussi le port 5173, sur l'adresse IPv6 `::1`. C'est pour cela que `localhost:5173` t'affichait l'ancien projet. J'ai arrêté :
+- le frontend et le backend de `saass_v2` (ports 5173 et 8010) ;
+- un serveur `reverb` (port 8080) ;
+- Apache de XAMPP (ports 80 et 443).
 
-### Phase 4, en détail
+J'ai gardé MariaDB (3306), indispensable à JB Hôtel. Il reste ouvert :
+- http://localhost:5173 : frontend JB Hôtel ;
+- http://localhost:8000 : API JB Hôtel.
 
-**Clients**
-- Fiche détaillée : nom, prénoms, téléphone, e-mail, ville et pays de provenance, adresse, pièce d'identité, notes.
-- Recherche par nom, téléphone, e-mail ou numéro de pièce.
-- Historique des réservations du client.
-- Aucune suppression, et chaque modification est tracée.
+### QR code sur la facture
 
-**Réservations**
-- **Période bloquée :** sans heure saisie, toute la journée est bloquée par prudence (règle provisoire). L'écran signale alors une « période déduite ».
-- **Demi-journée :** couvre jusqu'à 12 h incluses. Au-delà, l'opération est **bloquée**, avec la quantité nécessaire et le supplément proposé (exemple : « Supplément proposé : +20 000 FCFA »). Elle n'est **jamais convertie automatiquement en journée**.
-- **Prix figé** au tarif en vigueur au moment de la confirmation : unité, quantité, brut, remise, net. Le prix est **par chambre** : 2 occupants paient comme 1, dans la limite de la capacité.
-- **Remises :** en pourcentage, arrondies au FCFA, ou en montant fixe. Le motif est obligatoire et l'auteur enregistré. La caissière est plafonnée à **10 %** (valeur provisoire) ; au-delà, seul l'administrateur peut appliquer la remise.
-- **Devis** sans enregistrement, pour l'écran de réservation.
-- **Cycle de vie :** en attente → confirmée → en cours → terminée, ou annulée.
-  - L'arrivée n'est possible qu'à partir du jour prévu.
-  - Le départ libère la chambre.
-  - L'annulation exige un motif et devient impossible une fois le client arrivé.
-- **Prolongation** en deux temps : un aperçu du supplément, puis une confirmation explicite. L'ancien et le nouveau montant sont tracés.
-- **Historique** de chaque réservation : qui a fait quoi, et quand.
+- Chaque facture et chaque avoir porte un **QR code**. En le scannant avec un téléphone, on ouvre une **page publique**, sans connexion : « ✓ Document authentique », avec le numéro, la date, le montant net, le statut et les **initiales** du client.
+- Le lien contient un **code secret propre à chaque facture** : impossible de deviner une autre facture ou de valider une fausse.
+- Une facture inconnue et un code faux reçoivent la même réponse, « Document introuvable ». Le nombre de consultations est limité, et les pages ne sont pas indexées par les moteurs de recherche.
+- Une facture annulée par avoir est signalée comme telle.
 
-**Disponibilités et occupation**
-- **Disponibilités** sur une période (`/availability`) : libre, réservée, occupée ou en maintenance, avec un filtre « seulement les chambres libres ».
-- **Occupation** à un instant (`/occupancy`) : état de chaque chambre, sortie prévue, et « réservée pour plus tard ».
+### E-mails au client
 
-**Critères d'acceptation de la fiche 06 désormais validés par des tests**
-- ✅ Deux caissières ne peuvent pas confirmer la même chambre sur des périodes qui se chevauchent.
-- ✅ Une chambre en maintenance n'est pas réservable.
-- ✅ 2 occupants paient le même tarif qu'un seul.
-- ✅ Une réduction de 10 % sur 50 000 donne 45 000, avec l'auteur et le motif.
-- ✅ Une caissière sans le droit nécessaire ne peut pas modifier un tarif.
-- ✅ Une avance de 20 000 sur 50 000 laisse un solde de 30 000, avec un reçu par versement.
-- ✅ Les remboursements diminuent l'encaissé net sans effacer le paiement initial.
-- 🟡 Tarif passé de 50 000 à 60 000 : côté réservations, c'est fait (l'ancienne reste à 50 000, la nouvelle passe à 60 000). La partie **facture** viendra en phase 5B.
+Si le client a donné son e-mail, il reçoit un message en français à chaque opération :
+- confirmation et **bienvenue** ;
+- arrivée, prolongation, annulation, départ ;
+- **reçu de chaque paiement** (avec le reste à régler) et remboursement ;
+- **facture en PDF joint**, avec le QR code ;
+- avoir.
 
-## 3. Comment vérifier toi-même
+L'envoi se fait en file d'attente, après la validation de l'opération : un e-mail en échec ne bloque jamais la caisse. Chaque e-mail contient un **lien de désinscription**, et la préférence est aussi modifiable sur la fiche client.
+
+## 3. Comment tester
 
 ```bash
-# Terminal 1 : API
-cd backend
-php artisan migrate --seed        # si la base n'est pas à jour
-php artisan serve                 # http://localhost:8000
-
-# Terminal 2 : tests
-cd backend && php artisan test    # 139 tests, environ 50 s
-cd frontend && npm test           # 29 tests
+# Terminal 1 : API          (déjà lancé)
+cd backend && php artisan serve          # http://localhost:8000
+# Terminal 2 : frontend     (déjà lancé)
+cd frontend && npm run dev               # http://localhost:5173
+# Terminal 3 : envoi des e-mails
+cd backend && php artisan queue:work     # en local, les e-mails sont écrits dans backend/storage/logs/laravel.log
+# Tests
+cd backend && php artisan test           # 161 tests, environ 70 s
 ```
 
 **Comptes de démonstration**, en local uniquement :
 - `admin@jbhotel.local`
 - `caissiere@jbhotel.local`
 
-**Mot de passe actuel :** `u0pubS5hPMDQnoEj`. Il a été généré aléatoirement au seed et n'est écrit nulle part dans le code. Tu peux en imposer un avec `DEMO_USERS_PASSWORD` dans `backend/.env`.
+**Mot de passe :** `u0pubS5hPMDQnoEj`.
 
-Les routes de l'API et un exemple de réservation sont dans le [README](README.md#clients-et-réservations-phase-4).
+Les routes de l'API sont listées dans le [README](README.md).
 
-> L'interface graphique (écrans de réservation, de caisse, etc.) correspond à la **phase 6**. Pour l'instant, le frontend affiche seulement l'état du système. Tout se teste par l'API.
+**Exemple de facture PDF**, générée sur le serveur avec des données fictives :
+`C:\Users\ACRED_IT\AppData\Local\Temp\claude\20485a309cac0ff2\b7e0052e-6ada-40bb-a638-99028a400df1\scratchpad\facture-exemple.pdf`
 
-## 4. Vérifications effectuées
-
-| Vérification | Résultat |
-|---|---|
-| Tests backend (PHPUnit, MariaDB locale) | ✅ 139/139 (781 assertions) |
-| Caisse sur le serveur | ✅ avance de 20 000 → `REC-2026-000001` et solde de 30 000 → versement de 40 000 refusé (trop-perçu) → solde réglé, « Soldé » → reçu avec client et chambre → remboursement refusé à la caissière (403) |
-| Tests frontend (Vitest) | ✅ 29/29 |
-| Larastan niveau 6, Pint, oxlint, Prettier, TypeScript, build | ✅ aucune erreur |
-| Concurrence réelle (2 processus PHP) | ✅ la seconde caissière attend le verrou de la chambre, puis voit le conflit ; une seule confirmation lors d'une course |
-| Parcours réel sur le serveur, avec session et CSRF | ✅ client avec accents → devis à 45 000 → réservation → doublon refusé (409) → disponibilités → arrivée anticipée refusée → annulation → historique → route avec un entier en 404 |
-| CI GitHub (MySQL 8.4) | ✅ verte pour chaque phase envoyée (1 à 4) |
-
-## 5. Questions à poser à l'hôtel
-
-Ces points bloquent la **mise en production**. En attendant, l'application applique des valeurs **provisoires et modifiables**, détaillées dans [docs/QUESTIONS.md](docs/QUESTIONS.md).
+## 4. Questions à poser à l'hôtel (bloquantes pour la mise en production)
 
 | # | Question | Ce que fait l'application aujourd'hui |
 |---|---|---|
-| **Q-01** | Que couvre exactement une « journée » ? | La caissière choisit la quantité, sans contrôle de durée. |
-| **Q-02 / Q-03** | Quelle période bloquer quand aucune heure n'est saisie ? | Toute la journée : deux demi-journées sans heure le même jour sont donc en conflit. |
-| **Q-07** | Peut-on confirmer une réservation sans paiement ? Une réservation en attente expire-t-elle ? | Oui, confirmation sans paiement ; pas d'expiration. |
-| **Q-08** | Qui peut rembourser, et dans quelles conditions ? | L'administrateur seulement (phase 5). |
-| **Q-09** | Quelles sont les obligations de facturation en RCA (NIF, RCCM, TVA, avoirs) ? | Format provisoire `FAC-AAAA-NNNNNN`, sans taxe (phase 5). |
-| **Q-21** *(nouvelle)* | Le prix appliqué est celui **du jour de la confirmation**, pas celui de la date du séjour. Est-ce bien voulu ? | Oui, conformément au document 02. |
+| Q-01 | Que couvre exactement une « journée » ? | La caissière choisit la quantité. |
+| Q-02 / Q-03 | Quelle période bloquer quand aucune heure n'est saisie ? | Toute la journée. |
+| Q-07 | Une réservation non payée peut-elle être confirmée ? Une réservation en attente expire-t-elle ? | Oui ; pas d'expiration. |
+| Q-08 | Qui peut rembourser ? | L'administrateur seulement. |
+| Q-09 | Quelles sont les obligations de facturation en RCA (NIF, RCCM, TVA) ? | En-tête « JB Hôtel », sans taxe. Les champs `HOTEL_*` sont prêts. |
+| Q-21 | Le prix appliqué est celui **du jour de la confirmation**. Est-ce bien voulu ? | Oui (document 02). |
+| **Q-22** *(nouvelle)* | Quel serveur SMTP et quelle adresse d'expédition pour les e-mails ? | En local, les e-mails sont écrits dans le journal. |
 
-Autres décisions provisoires prises pendant cette session :
-- **D-029 :** une réservation en attente bloque la chambre.
-- **D-030 :** une prolongation est facturée au prix d'origine de la réservation (Q-18).
-- **D-031 :** une date d'arrivée passée est refusée (Q-20).
+La liste complète est dans [docs/QUESTIONS.md](docs/QUESTIONS.md), et les décisions provisoires (D-001 à D-039) dans [docs/DECISIONS.md](docs/DECISIONS.md).
 
-## 6. Ce qui reste à faire
+## 5. Ce qui reste à faire
 
-- **Phase 5B : factures.**
-  - Factures figées et numérotées (`FAC-AAAA-NNNNNN`, Q-09), en PDF A4 côté serveur.
-  - Avoirs.
-  - Critère à valider : « l'ancienne facture reste à 50 000 ».
-- **Modification d'une réservation** (changement de chambre ou de dates) : seules la prolongation et la modification des occupants existent pour l'instant.
-- **Phase 6 :** tous les écrans (connexion, tableau de bord, réservation guidée, caisse, factures, administration).
-- **Phase 7 :** rapports et exports. **Phase 8 :** recette complète et livraison.
-- **Points mineurs :**
-  - redessiner le MCD (`docs/SCHEMA.md` fait foi en attendant) ;
-  - tester le Docker Compose (Docker absent du poste) ;
-  - prévoir des périodes de maintenance planifiées si l'hôtel le souhaite (Q-12).
-
-## 7. État de la CI de la phase 4
-
-✅ **Verte** (exécution `44535946930`, commit `bd175ec`). Le backend passe sur **MySQL 8.4**, test de concurrence à deux processus compris, et le frontend passe aussi.
-
-La phase 5A n'a pas encore été vérifiée par la CI, puisqu'elle n'est pas envoyée (voir l'encadré en haut). Elle est verte en local sur MariaDB.
-
-## 8. État git local
-
-Le travail de la phase 5A, le rapport et le suivi sont dans un **commit local** sur `main`, prêt à être envoyé avec `git push`. Si ce commit local a lui aussi été refusé, les fichiers sont simplement modifiés dans le dossier, et `git status` les liste.
+1. **Phase 6 : les écrans.**
+   - Connexion.
+   - Tableau de bord de caisse.
+   - Chambres et occupation.
+   - Clients.
+   - Réservation guidée.
+   - Caisse et reçus.
+   - Factures (aperçu, PDF).
+   - Administration (utilisateurs, tarifs, paramètres).
+   - Routes en UUID, en français, accessibles.
+2. **Modifier une réservation** (changer de chambre ou de dates), en plus de la prolongation qui existe déjà.
+3. **Phase 7 :** tableau de bord de caisse et rapports (encaissé, facturé, impayés, remises, remboursements), exports CSV et PDF.
+4. **Phase 8 :** recette complète, sécurité, sauvegardes, déploiement.
+5. **Points mineurs :**
+   - redessiner le MCD (`docs/SCHEMA.md` fait foi en attendant) ;
+   - tester le Docker Compose (Docker absent du poste) ;
+   - prévoir des périodes de maintenance planifiées (Q-12).

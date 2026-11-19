@@ -5,6 +5,7 @@ namespace App\Modules\Cashier\Application\Services;
 use App\Modules\Cashier\Application\AccountSummary;
 use App\Modules\Cashier\Domain\PaymentStatus;
 use App\Modules\Cashier\Events\PaymentRecorded;
+use App\Modules\Cashier\Events\PaymentRefunded;
 use App\Modules\Cashier\Models\Payment;
 use App\Modules\Cashier\Models\Refund;
 use App\Modules\Identity\Models\User;
@@ -168,6 +169,7 @@ final class CashierService
                 'reason' => $reason,
                 'refunded_fcfa' => $alreadyRefunded + $amountFcfa,
             ], $actor->id);
+            event(new PaymentRefunded($refund->id));
 
             return $refund;
         });

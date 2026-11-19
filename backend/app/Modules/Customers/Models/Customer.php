@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $first_name
  * @property string|null $phone
  * @property string|null $email
+ * @property bool $email_notifications
  * @property string|null $origin_city
  * @property string|null $origin_country
  * @property string|null $address
@@ -39,12 +40,19 @@ class Customer extends Model
     ];
 
     /** @var list<string> */
-    protected $fillable = [...self::FIELDS, 'created_by'];
+    protected $fillable = [...self::FIELDS, 'email_notifications', 'created_by'];
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return ['email_notifications' => 'boolean'];
+    }
 
     /** @var array<string, mixed> */
     protected $attributes = [
         'first_name' => null, 'phone' => null, 'email' => null, 'origin_city' => null, 'origin_country' => null,
         'address' => null, 'identification_type' => null, 'identification_number' => null, 'notes' => null,
+        'email_notifications' => true,
     ];
 
     /** « NOM Prénoms », tel qu'affiché sur les écrans et les factures. */

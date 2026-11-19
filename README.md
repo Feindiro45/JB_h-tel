@@ -177,6 +177,24 @@ Tous les identifiants exposés par l'API et utilisés dans les liens sont des **
 
 En production, renseigne `VERIFICATION_BASE_URL` (adresse publique encodée dans le QR code) et l'en-tête des factures : `HOTEL_NAME`, `HOTEL_ADDRESS`, `HOTEL_PHONE`, `HOTEL_TAX_ID`, `HOTEL_RCCM`.
 
+### E-mails aux clients (phase 5D)
+
+Si le client a donné son e-mail, il reçoit un message à chaque opération sur son séjour :
+- confirmation et bienvenue ;
+- arrivée, prolongation, annulation, départ ;
+- reçu de chaque paiement et remboursement ;
+- facture en PDF joint, et avoir.
+
+Chaque message contient un lien de désinscription (`GET /notifications/desinscription/{id}`, lien signé). La préférence est aussi modifiable sur la fiche client (`email_notifications`).
+
+Les e-mails partent **en file d'attente**. En développement, lance le traitement de la file dans un troisième terminal :
+
+```bash
+cd backend && php artisan queue:work    # traite les envois ; avec MAIL_MAILER=log, les e-mails sont écrits dans storage/logs/laravel.log
+```
+
+En production : configure le SMTP de l'hôtel (`MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_USERNAME`…, `MAIL_FROM_ADDRESS`) et fais tourner `queue:work` sous supervision.
+
 Exemple de réservation (la demi-journée couvre jusqu'à 12 h ; une remise exige un motif) :
 
 ```json

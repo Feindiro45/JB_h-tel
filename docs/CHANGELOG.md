@@ -62,6 +62,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
   - code aléatoire par document, réponse identique si le document est inconnu ou le code faux ;
   - données minimales (initiales du client), débit limité ;
   - décision D-038.
+- Phase 5D, **e-mails au client** (module Notifications) :
+  - si le client a donné son e-mail, un message en français part à chaque opération : confirmation et bienvenue, arrivée, prolongation, annulation, départ, reçu, remboursement, **facture PDF jointe**, avoir ;
+  - envoi en file d'attente après validation de la transaction ;
+  - lien de désinscription signé, préférence modifiable sur la fiche client ;
+  - nouveaux événements métier : `ReservationCheckedIn`, `ReservationCheckedOut`, `ReservationCancelled`, `ReservationExtended`, `PaymentRefunded` ;
+  - contrats `InvoiceDocuments` (Billing) et `PaymentHistory::receipt/refund` (Cashier) ;
+  - décision D-039 et question Q-22.
 
 ### Corrigé
 - Fiche client : le type et le numéro de pièce d'identité sont toujours contrôlés ensemble (la règle était ignorée quand un seul des deux était envoyé).

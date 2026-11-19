@@ -156,6 +156,7 @@ final class InvoiceService
 
             $invoice->status = InvoiceStatus::Credited;
             $invoice->save();
+            event(new InvoiceIssued($creditNote->id));
 
             $this->audit->record('invoice.credited', 'invoice', $invoice->id, ['status' => InvoiceStatus::Issued->value], [
                 'status' => InvoiceStatus::Credited->value,

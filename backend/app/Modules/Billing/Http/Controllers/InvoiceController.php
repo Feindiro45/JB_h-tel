@@ -2,7 +2,7 @@
 
 namespace App\Modules\Billing\Http\Controllers;
 
-use App\Modules\Billing\Application\InvoiceVerification;
+use App\Modules\Billing\Application\InvoicePdfRenderer;
 use App\Modules\Billing\Application\Services\InvoiceService;
 use App\Modules\Billing\Http\InvoicePresenter;
 use App\Modules\Billing\Models\Invoice;
@@ -10,7 +10,6 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Contracts\ReservationDue;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Shared\Exceptions\BusinessRuleException;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -52,18 +51,9 @@ final class InvoiceController
     }
 
     /** PDF A4 construit uniquement à partir de l'instantané figé : il est identique à chaque impression. */
-    public function pdf(Invoice $invoice, InvoiceVerification $verification): Response
+    public function pdf(Invoice $invoice, InvoicePdfRenderer $renderer): Response
     {
-        return Pdf::loadView('billing.invoice', [
-            'doc' => $invoice->snapshot_json,
-            'status' => $invoice->status->label(),
-            'qr' => $verification->qrDataUri($invoice),
-            'verificationUrl' => $verification->url($invoice),
-        ])
-            // Sous-ensemble de police : seuls les caractères utilisés sont embarqués (PDF léger).
-            ->setOption(['isFontSubsettingEnabled' => true, 'defaultFont' => 'DejaVu Sans'])
-            ->setPaper('a4')
-            ->stream($invoice->invoice_number.'.pdf');
+        return $renderer->document($invoice)->stream($invoice->invoice_number.'.pdf');
     }
 
     private function reservation(string $uuid): ReservationDue

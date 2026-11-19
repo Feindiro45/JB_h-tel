@@ -218,3 +218,16 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
 - Le PDF porte un **QR code** pointant vers `VERIFICATION_BASE_URL/verification/factures/{uuid}?code={code}`. En production, `VERIFICATION_BASE_URL` doit être l'adresse publique de l'hôtel.
 - La **page publique**, sans connexion, et son équivalent JSON (`GET /api/v1/public/invoices/{uuid}/verification?code=`) n'affichent que le strict nécessaire : type, numéro, date, émetteur, montant net, statut (émise ou annulée par avoir, avec le numéro de l'avoir) et les **initiales** du client.
 - Les deux exigent l'UUID **et** le code, avec une comparaison à temps constant. Une facture inconnue et un code faux reçoivent **la même réponse** (404 « Document introuvable »). Le débit est limité à 30 requêtes par minute et par adresse, et les pages ne sont pas indexées par les moteurs de recherche (`noindex`).
+
+## Décisions de la phase 5D (notifications par e-mail)
+
+### D-039 — E-mails au client à chaque opération sur son séjour (Validé, demande du 19/11/2026 ; Provisoire pour l'envoi, Q-22)
+- **Qui :** un client qui a donné son e-mail est prévenu automatiquement, sauf s'il s'est désinscrit (`customers.email_notifications`, actif par défaut). Sans e-mail, rien n'est envoyé.
+- **Quand :** confirmation de la réservation (message de bienvenue), arrivée, prolongation, annulation, départ, reçu de chaque paiement, remboursement, **facture en PDF joint** (avec le QR code et le lien de vérification), avoir.
+- **Comment :**
+  - les événements métier sont émis après validation de la transaction ;
+  - l'écouteur `NotifyCustomer` est **en file d'attente** (3 essais, avec reprise après 1 puis 5 minutes) ;
+  - un envoi lent ou en échec ne bloque jamais l'opération, et une opération refusée n'envoie rien.
+- **Contenu :** modèles en français (`resources/views/mail/stay.blade.php`) : titre, message, tableau récapitulatif (chambre, dates, montant, déjà réglé, reste à régler), bouton de vérification pour les factures.
+- **Données personnelles :** chaque e-mail contient un **lien de désinscription signé**, qui ne peut pas être fabriqué pour un autre client et ne demande pas de connexion. La désinscription est tracée dans l'audit. L'adresse e-mail n'est jamais écrite dans le journal d'audit (`notification.sent` ne garde que le type de message).
+- **Provisoire (Q-22) :** en local, les e-mails sont écrits dans `storage/logs` (`MAIL_MAILER=log`). En production, il faut le serveur SMTP et l'adresse d'expédition de l'hôtel, ainsi qu'un traitement de la file actif (`php artisan queue:work`, sous supervision).
