@@ -60,7 +60,7 @@ class UserAdministrationTest extends TestCase
             ->assertJsonPath('title', 'Accès refusé');
         $this->actingAs($cashier)->postJson('/api/v1/users', $this->newCashierPayload())
             ->assertStatus(403);
-        $this->actingAs($cashier)->patchJson("/api/v1/users/{$this->admin->id}", ['active' => false])
+        $this->actingAs($cashier)->patchJson("/api/v1/users/{$this->admin->uuid}", ['active' => false])
             ->assertStatus(403);
     }
 
@@ -68,8 +68,8 @@ class UserAdministrationTest extends TestCase
     {
         $cashier = User::factory()->cashier()->create();
 
-        $this->actingAs($cashier)->getJson("/api/v1/users/{$cashier->id}")->assertOk();
-        $this->actingAs($cashier)->getJson("/api/v1/users/{$this->admin->id}")->assertStatus(403);
+        $this->actingAs($cashier)->getJson("/api/v1/users/{$cashier->uuid}")->assertOk();
+        $this->actingAs($cashier)->getJson("/api/v1/users/{$this->admin->uuid}")->assertStatus(403);
     }
 
     public function test_admin_creates_a_cashier_with_hashed_password_role_and_audit(): void
@@ -81,7 +81,7 @@ class UserAdministrationTest extends TestCase
             ->assertJsonPath('data.role', 'caissiere')
             ->assertJsonPath('data.active', true);
 
-        $user = User::query()->findOrFail($response->json('data.id'));
+        $user = User::query()->where('uuid', $response->json('data.id'))->firstOrFail();
         $this->assertTrue(Hash::check('Caisse2026ok', $user->password));
 
         $audit = AuditLog::query()->where('action', 'user.created')->firstOrFail();
@@ -112,7 +112,7 @@ class UserAdministrationTest extends TestCase
         $cashier = User::factory()->cashier()->create(['name' => 'Awa']);
 
         $this->actingAs($this->admin)
-            ->patchJson("/api/v1/users/{$cashier->id}", ['name' => 'Awa Ndémanga', 'active' => false])
+            ->patchJson("/api/v1/users/{$cashier->uuid}", ['name' => 'Awa Ndémanga', 'active' => false])
             ->assertOk()
             ->assertJsonPath('data.name', 'Awa Ndémanga')
             ->assertJsonPath('data.active', false);
@@ -129,7 +129,7 @@ class UserAdministrationTest extends TestCase
         $cashier = User::factory()->cashier()->create();
 
         $this->actingAs($this->admin)
-            ->patchJson("/api/v1/users/{$cashier->id}", [
+            ->patchJson("/api/v1/users/{$cashier->uuid}", [
                 'password' => 'Nouveau2026ok',
                 'password_confirmation' => 'Nouveau2026ok',
             ])
@@ -146,7 +146,7 @@ class UserAdministrationTest extends TestCase
         $cashier = User::factory()->cashier()->create();
 
         $this->actingAs($this->admin)
-            ->patchJson("/api/v1/users/{$cashier->id}", ['role' => 'admin'])
+            ->patchJson("/api/v1/users/{$cashier->uuid}", ['role' => 'admin'])
             ->assertOk()
             ->assertJsonPath('data.role', 'admin');
 
@@ -158,12 +158,12 @@ class UserAdministrationTest extends TestCase
         User::factory()->admin()->create();
 
         $this->actingAs($this->admin)
-            ->patchJson("/api/v1/users/{$this->admin->id}", ['active' => false])
+            ->patchJson("/api/v1/users/{$this->admin->uuid}", ['active' => false])
             ->assertStatus(409)
             ->assertJsonPath('code', 'self_lockout');
 
         $this->actingAs($this->admin)
-            ->patchJson("/api/v1/users/{$this->admin->id}", ['role' => 'caissiere'])
+            ->patchJson("/api/v1/users/{$this->admin->uuid}", ['role' => 'caissiere'])
             ->assertStatus(409)
             ->assertJsonPath('code', 'self_lockout');
 
@@ -175,7 +175,7 @@ class UserAdministrationTest extends TestCase
         $otherAdmin = User::factory()->admin()->create();
 
         $this->actingAs($this->admin)
-            ->patchJson("/api/v1/users/{$otherAdmin->id}", ['active' => false])
+            ->patchJson("/api/v1/users/{$otherAdmin->uuid}", ['active' => false])
             ->assertOk()
             ->assertJsonPath('data.active', false);
     }
@@ -189,12 +189,12 @@ class UserAdministrationTest extends TestCase
         User::factory()->admin()->inactive()->create();
 
         $this->actingAs($delegate)
-            ->patchJson("/api/v1/users/{$this->admin->id}", ['active' => false])
+            ->patchJson("/api/v1/users/{$this->admin->uuid}", ['active' => false])
             ->assertStatus(409)
             ->assertJsonPath('code', 'last_active_admin');
 
         $this->actingAs($delegate)
-            ->patchJson("/api/v1/users/{$this->admin->id}", ['role' => 'caissiere'])
+            ->patchJson("/api/v1/users/{$this->admin->uuid}", ['role' => 'caissiere'])
             ->assertStatus(409)
             ->assertJsonPath('code', 'last_active_admin');
 

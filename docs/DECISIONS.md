@@ -129,3 +129,30 @@ Ce choix évite la limite de 2038 et les conversions de fuseau de MySQL. Les val
 - Un administrateur ne peut ni se désactiver ni se retirer son propre rôle.
 - Le dernier administrateur actif ne peut pas être désactivé ni rétrogradé.
 - La connexion n'est possible que depuis l'application frontend, avec session et CSRF ; sinon elle est refusée avec une erreur 400.
+
+## Décisions transverses
+
+### D-026 — Identifiants publics UUID dans toutes les routes et tous les liens (Validé, demande du 19/11/2026)
+- Chaque entité exposée (utilisateurs, clients, types de chambre, chambres, tarifs, réservations, occupants, paiements, remboursements, factures, journal d'audit) possède une colonne **`uuid`** (UUID v7, ordonné dans le temps), unique et obligatoire.
+- **Seul l'UUID apparaît** dans les URL de l'API (`/api/v1/users/{uuid}`), dans le champ `id` des réponses JSON, dans les références envoyées par le frontend (`room_type_id` = UUID) et dans les routes du frontend (`/reservations/:id`).
+- La clé primaire entière reste **interne** : clés étrangères, jointures, journal d'audit. Elle n'est jamais exposée.
+- Une route appelée avec un entier ou un identifiant mal formé répond 404 « Élément introuvable ».
+- Exception : les rôles sont désignés par leur **code** (`admin`, `caissiere`), qui est une référence stable et non séquentielle, et non par un identifiant.
+- Mise en œuvre : trait `App\Shared\Models\HasPublicUuid` sur chaque modèle, migration `2026_11_19_160000_add_public_uuids` (UUID attribué aux lignes existantes).
+
+## Décisions de la phase 3 (catalogue et tarifs)
+
+### D-027 — Chaîne des versions tarifaires (Validé + Technique)
+- Pour chaque couple (type de chambre, unité), les versions se suivent **sans trou ni chevauchement**. Publier une version donne pour date de fin à la version précédente la date d'effet de la nouvelle. Une version insérée avant une version déjà programmée se termine au début de celle-ci.
+- **Aucun montant n'est jamais modifié.** Seule la date de fin de la version précédente est renseignée. Les réservations et factures existantes gardent leur prix (recette 5, testée).
+- Une date d'effet **passée** est refusée (`rate_in_past`), avec une tolérance d'une minute. Deux versions ne peuvent pas commencer au même instant : refus côté service (`rate_version_conflict`) et index unique en base.
+- Une version **programmée** (pas encore entrée en vigueur) peut être **retirée** par l'administrateur : la version précédente est alors prolongée d'autant, et l'opération est tracée dans l'audit. Une telle version n'a jamais été appliquée, puisque le tarif est figé à la confirmation (invariant 3 de 02). Une version en vigueur ou expirée ne se retire pas (`rate_already_effective`) : il faut publier une nouvelle version.
+- Le motif est **obligatoire** à chaque publication (historique : ancien tarif, nouveau tarif, auteur, date d'effet, motif).
+- Les publications sur un même type de chambre sont sérialisées par un verrou sur la ligne du type.
+
+### D-028 — Catalogue (Technique)
+- Le **code** d'un type de chambre (`VIP`, `STANDARD`) est une référence stable : il ne se modifie pas ; seuls le libellé et la description le peuvent. Les types VIP et Standard sont créés dans tous les environnements (`RoomTypesSeeder`).
+- Les chambres et les types **ne se suppriment pas**. Une chambre hors service passe en maintenance (D-019). La liste des chambres n'est pas paginée (quelques dizaines de chambres) et suit un tri naturel par numéro.
+- Le filtre « disponibilité sur une période » de la page Chambres dépend des réservations : il arrive en phase 4.
+- Les autres modules n'utilisent que l'API publique `App\Modules\RoomCatalog\Contracts` (`CurrentPriceProvider`, `RoomDirectory`, `BillingUnit` et les DTO).
+- Le catalogue de démonstration (chambres 001, 002, 101, 102, 201 ; VIP journée à 50 000 FCFA…) est **local uniquement**. Ses montants ne sont pas les tarifs de l'hôtel.

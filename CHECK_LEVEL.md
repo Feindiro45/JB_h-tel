@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 — phase 2 envoyée sur GitHub ; phase 3 démarrée
+**Dernière mise à jour :** 19/11/2026 — phase 3 terminée (86 tests verts) ; envoi GitHub en attente de ton accord
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -17,8 +17,8 @@
 |---|---|---|---|
 | 0 | Audit et questions bloquantes | ✅ Fait | 100 % |
 | 1 | Initialisation (dépôt, apps, CI, README) | ✅ Fait (CI GitHub verte) | 100 % |
-| 2 | Base de données et identité | ✅ Fait (CI en cours) | 98 % |
-| 3 | Catalogue et tarifs | 🟡 En cours | 5 % |
+| 2 | Base de données et identité | ✅ Fait (CI verte) | 100 % |
+| 3 | Catalogue et tarifs | ✅ Fait (envoi GitHub en attente) | 95 % |
 | 4 | Réservations | ⬜ À faire | 0 % |
 | 5 | Caisse et factures | ⬜ À faire | 0 % |
 | 6 | Frontend (écrans métier) | ⬜ À faire | 0 % |
@@ -109,12 +109,29 @@
 - [x] Pint et Larastan (niveau 6) sans erreur
 - [x] Documentation : `SCHEMA.md`, décisions D-017 à D-025, QUESTIONS, CHANGELOG, README (comptes de test, connexion), CLAUDE.md
 - [x] Commit `ead3b11` envoyé sur `main`
-- [~] CI GitHub de la phase 2 : en cours d'exécution
+- [x] CI GitHub de la phase 2 **verte**, après correctif `2038984` (limite de téléchargement anonyme de GitHub : Composer authentifié et cache des dépendances)
 
-## Phase 3 — Catalogue et tarifs 🟡
+## Transverse — Identifiants publics UUID (demande du 19/11/2026, D-026)
+
+- [x] Trait `HasPublicUuid` (UUID v7) : liaison des routes sur l'UUID, clé entière jamais exposée
+- [x] Migration : colonne `uuid` unique et obligatoire sur les 11 tables d'entités ; UUID attribué aux lignes existantes ; retour arrière testé
+- [x] Modèles existants : `User`, `AuditLog`, `RoomType`, `Room`, `RoomRate`
+- [x] API Identity : `id` = UUID ; `/api/v1/users/{uuid}` ; un entier ou un identifiant invalide donne 404
+- [x] Tests : 4 tests dédiés, plus les tests de contraintes et d'administration adaptés (**66 sur 66 verts**)
+- [x] Défaut corrigé au passage : attributs par défaut du modèle `User` (le mode strict renvoyait une erreur 500 sur un utilisateur tout juste créé)
+- [x] RoomCatalog (phase 3) : types, chambres et tarifs en UUID, références par UUID dans les données envoyées
+- [ ] À appliquer aux prochains modules : Customers et Reservations (phase 4), Cashier et Billing (phase 5)
+- [ ] Frontend : routes `/…/:id` avec l'UUID (phase 6)
+
+## Phase 3 — Catalogue et tarifs ✅
 
 ### Code
-- [ ] Module RoomCatalog : énumérations (unité de facturation, maintenance, statut de tarif), modèles, factories
+- [x] Module RoomCatalog : énumérations (unité de facturation, maintenance, statut de tarif), modèles avec UUID, factories
+- [x] Index unique : deux versions d'un même tarif ne peuvent pas démarrer au même instant (migration `150000`)
+- [x] Services `RoomTypeService`, `RoomService`, `RateService` et requête d'historique et de grille
+- [x] Contrats publics `CurrentPriceProvider` et `RoomDirectory` et leurs implémentations
+- [x] Couche HTTP : 12 routes (types, chambres, maintenance, historique, grille, publication, retrait), validations françaises, ressources avec UUID
+- [x] Seeders : types VIP et Standard (tous environnements) ; catalogue de démonstration local (chambres 001, 002, 101, 102, 201 et 4 tarifs, dont VIP journée à 50 000 FCFA) ; exécutés sur la base locale
 - [ ] Types de chambre VIP et Standard : liste, création, modification (seeder de référence, tous environnements)
 - [ ] Chambres individuelles : numéro unique, type, capacité, notes ; liste avec recherche et filtres ; tri naturel (001, 002, 101)
 - [ ] Maintenance : passage en maintenance ou retour en service, avec note et audit
@@ -125,13 +142,25 @@
 - [ ] Contrats publics pour le module Reservations : `CurrentPriceProvider` (tarif en vigueur au moment de la confirmation) et `RoomDirectory`
 - [ ] Données de démonstration locales : chambres 101 VIP, 102 Standard… et tarifs de démonstration
 
-### Tests
-- [ ] Recette 1 : chambres 101 VIP et 102 Standard, numéro unique
-- [ ] Recette 5 : tarif VIP passé de 50 000 à 60 000 FCFA, ancien prix intact (version et réservation existante)
-- [ ] La caissière ne peut pas modifier un tarif (403)
-- [ ] Tarif programmé : appliqué seulement à partir de sa date d'effet
-- [ ] Contrats `CurrentPriceProvider` et `RoomDirectory`
-- [ ] Pint, Larastan, tous les tests verts ; commit, push et CI verte
+### Tests (20 tests RoomCatalog, 140 assertions)
+- [x] Recette 1 : chambres 101 VIP et 102 Standard, numéro unique (message français « Une chambre porte déjà ce numéro. »)
+- [x] Recette 5 : tarif VIP passé de 50 000 à 60 000 FCFA ; l'ancienne version et la réservation existante restent à 50 000, le nouveau tarif applicable est 60 000
+- [x] La caissière ne peut pas modifier un tarif (403) mais peut le consulter
+- [x] Tarif programmé : appliqué seulement à partir de sa date d'effet (avance dans le temps simulée)
+- [x] Chaîne de versions continue, sans trou ni chevauchement ; date passée refusée ; doublon de date refusé
+- [x] Retrait d'une version programmée ; retrait d'une version en vigueur refusé (409)
+- [x] Tri naturel des chambres (9, 10, 001, 002, 101), recherche, filtres par type (UUID) et par maintenance
+- [x] Routes en UUID uniquement : un entier donne 404
+- [x] Contrats `CurrentPriceProvider` et `RoomDirectory`
+- [x] Pint et Larastan (niveau 6) sans erreur ; **suite backend : 86 sur 86 verts** (374 assertions)
+- [x] Parcours réel vérifié avec curl :
+  - liste des chambres en UUID ;
+  - tarif VIP à 60 000 programmé pour demain, la grille affichant 50 000 en vigueur et 60 000 programmé ;
+  - publication par la caissière refusée (403) ;
+  - retrait de la version programmée (204) ;
+  - route avec un entier en 404.
+- [x] Documentation : D-026 à D-028, SCHEMA.md (UUID, index unique), CHANGELOG, README (identifiants, routes du catalogue), CLAUDE.md
+- [ ] Commit, push et CI verte : **en attente de ton accord**
 
 ## Phase 4 — Réservations ⬜
 
@@ -189,12 +218,12 @@
 - [ ] Deux caissières ne peuvent pas confirmer la même chambre pour des périodes incompatibles
 - [ ] Une chambre en maintenance ne peut pas être réservée
 - [ ] Un client avec 2 occupants paie le même tarif qu'avec 1, si la capacité est respectée
-- [ ] Tarif passé de 50 000 à 60 000 FCFA : l'ancienne facture reste à 50 000, la nouvelle réservation est à 60 000
+- [~] Tarif passé de 50 000 à 60 000 FCFA : l'ancienne facture reste à 50 000, la nouvelle réservation est à 60 000. Version tarifaire et réservation existante intactes (testé) ; facture en phase 5
 - [ ] Une avance de 20 000 sur 50 000 laisse un solde de 30 000, avec un reçu par versement
 - [ ] Une réduction de 10 % sur 50 000 donne 45 000, utilisateur et motif enregistrés
 - [ ] Les remboursements diminuent les encaissements nets sans effacer le paiement initial
 - [ ] Les indicateurs de caisse se rapprochent des transactions enregistrées
-- [~] Une caissière sans le droit nécessaire ne peut pas modifier un tarif : permission `rates.manage` absente du rôle caissière (testé) ; le blocage sur l'API des tarifs viendra en phase 3
+- [x] Une caissière sans le droit nécessaire ne peut pas modifier un tarif : permission absente du rôle et API des tarifs en 403 (testé en phases 2 et 3)
 - [ ] Factures imprimables en A4 ; données conservées après redémarrage
 
 ## Questions en attente de l'hôtel

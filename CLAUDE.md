@@ -10,7 +10,14 @@ JB Hôtel is a web app for managing rooms, reservations and the cash desk at a h
 - `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` is the master brief. It sets the mandatory phases 0–8 (work through them in order), the acceptance criteria and the collaboration rules. The other numbered files in `docs/` (01–05, 07–09) are the authoritative specs.
 - `docs/DECISIONS.md` records arbitrations (C-xx) and decisions (D-xx). `docs/QUESTIONS.md` lists the open business questions (Q-xx) for the hotel. Cite these IDs in code comments when you implement a provisional rule.
 - `docs/archive/JB_Hotel_conception_V2.zip` is an outdated V2 of docs 01–04. Ignore it.
-- Phases 0 and 1 are done: audit, scaffolding, error contract, health endpoint, CI. Phase 2 (database schema, Identity module, audit trail) is done. Phase 3 (room catalogue and rates) is next.
+- Phases 0 and 1 are done: audit, scaffolding, error contract, health endpoint, CI. Phase 2 (database schema, Identity module, audit trail) is done. Phase 3 (RoomCatalog: room types, rooms, versioned rates) is done. Phase 4 (Customers and Reservations) is next.
+- **Every route and link uses UUIDs (D-026, a user requirement).**
+  - Models use `App\Shared\Models\HasPublicUuid`; the entity tables already have a `uuid` column.
+  - Resources expose `'id' => $this->uuid` and never the integer key.
+  - Request payloads reference other entities by UUID: for example `room_type_id` holds a UUID, validated with `['uuid', Rule::exists('table', 'uuid')]` and resolved to the internal id in `toData()`.
+  - Frontend routes use `/…/:id` with the UUID.
+  - Integer keys stay internal: foreign keys, joins, cross-module contracts, audit.
+  - Roles are addressed by their code (`admin`, `caissiere`).
 - `docs/SCHEMA.md` describes the actual database schema and how it differs from `09_schema_reference.sql`. Update it with every migration.
 
 ## Commands
@@ -79,6 +86,9 @@ Code that already exists:
 - **Module layout.** Follow the Identity module: `app/Modules/Identity/{Domain,DTO,Application/Services,Http/{Controllers,Requests,Resources,Middleware},Models,Policies,Console}` plus an `IdentityServiceProvider`. Register each provider in `bootstrap/providers.php`. Load each module's `Http/routes.php` with `require` inside the v1 group of `routes/api.php`. Wrap protected routes in the `authenticated` middleware group (auth:sanctum + `EnsureUserIsActive`), then authorize with `->can()` and a policy, or with the Spatie `permission:` middleware. The ability names are the `PermissionName` enum values.
 - **User model.** It lives at `App\Modules\Identity\Models\User` (not `App\Models`). Use `primaryRole()`, not `role()`: a method named `role()` would shadow Spatie's `role()` query scope. Roles are in the `RoleName` enum, `admin` and `caissiere`. Never delete a user; deactivate it.
 - **Audit.** Inject `App\Shared\Contracts\AuditTrail` and call `record()` inside the same `DB::transaction` as the change. Pass before and after snapshots, never secrets.
+- **Cross-module contracts.** A module's public API lives in `app/Modules/<Module>/Contracts` (interfaces, readonly DTOs, shared enums), and other modules import only from there. Example: Reservations uses `RoomCatalog\Contracts\CurrentPriceProvider::currentRate($roomTypeId, BillingUnit, ?$at)`, which returns the version active **at confirmation time** and throws `rate_not_defined` (409). It also uses `RoomDirectory::find`/`findByUuid`, which return a `RoomSnapshot` with capacity and maintenance status. Implementations live in `Infrastructure/` and are bound in the module's service provider.
+- **Rates (D-027).** Never update `room_rates.amount_fcfa`. `RateService::publish` closes the previous version and keeps the chain contiguous; `withdraw` only removes a version that is still scheduled.
+- **Strict mode.** Give nullable columns that resources read a default in the model's `$attributes`, otherwise freshly created models throw `MissingAttributeException`. Eager-load the relations a resource reads.
 - **Tests.** Use `RefreshDatabase` and `$this->seed(RolesAndPermissionsSeeder::class)`, then `User::factory()->admin()` or `->cashier()` (the password is `UserFactory::PASSWORD`). A login test must send the `Origin: http://localhost:5173` and `Referer` headers so Sanctum opens a session. Call `$this->app['auth']->forgetGuards()` between requests when you check a logout. Tests skip CSRF, so verify the real flow with curl against `php artisan serve`.
 
 ### Frontend: features kept isolated

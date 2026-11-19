@@ -4,6 +4,7 @@ Ce document décrit le schéma réellement implémenté par les migrations (`bac
 
 - **Moteur :** MySQL 8+ InnoDB, en `utf8mb4_unicode_ci` (D-002). Le développement local se fait sur MariaDB 10.4 ; le code est compatible avec les deux moteurs.
 - **Montants :** entiers FCFA en `BIGINT UNSIGNED`, colonnes suffixées `_fcfa`.
+- **Identifiants publics :** chaque table d’entité possède une colonne `uuid` (UUID v7, unique, obligatoire). C’est le seul identifiant exposé par l’API et dans les URL ; la clé `id` entière reste interne (D-026).
 - **Dates et heures :** `DATETIME`, pas `TIMESTAMP`, pour éviter la limite de 2038 et les conversions de fuseau. Elles sont en heure locale de l'hôtel, `Africa/Bangui`.
 
 ## Principes d'intégrité
@@ -35,7 +36,7 @@ Ce document décrit le schéma réellement implémenté par les migrations (`bac
 |---|---|
 | `room_types` | `code` unique (`VIP`, `STANDARD`), `label`, `description` |
 | `rooms` | `number` unique, `room_type_id`, `capacity` (> 0), `maintenance_status` ∈ {`AVAILABLE`, `MAINTENANCE`}, `maintenance_note` |
-| `room_rates` | `room_type_id`, `billing_unit` ∈ {`HALF_DAY`, `DAY`}, `amount_fcfa`, `effective_from`, `effective_to` (> début ou nul), `reason`, `created_by` |
+| `room_rates` | `room_type_id`, `billing_unit` ∈ {`HALF_DAY`, `DAY`}, `amount_fcfa`, `effective_from`, `effective_to` (> début ou nul), `reason`, `created_by`. Index **unique** (`room_type_id`, `billing_unit`, `effective_from`) : deux versions ne démarrent pas au même instant (D-027). |
 
 ### Reservations
 | Table | Colonnes notables |
@@ -75,5 +76,6 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | Horodatages | Absents | `created_at`, `updated_at` (`DATETIME`) | Traçabilité |
 | Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions` | Paramètres, numérotation, droits, sessions |
 | Maintenance | `maintenance_status` | Statut courant seulement | Périodes planifiées en attente de Q-12 (D-019) |
+| Identifiants publics | Absents | Colonne `uuid` sur 11 tables | Les routes et les liens n’exposent jamais la clé entière (D-026) |
 
 > Le fichier `04_MCD_JB_Hotel.drawio` n'a pas encore été redessiné avec ces compléments. Ce document fait foi en attendant.

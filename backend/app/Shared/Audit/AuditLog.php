@@ -3,6 +3,7 @@
 namespace App\Shared\Audit;
 
 use App\Modules\Identity\Models\User;
+use App\Shared\Models\HasPublicUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -23,6 +24,8 @@ use LogicException;
  */
 class AuditLog extends Model
 {
+    use HasPublicUuid;
+
     public $timestamps = false;
 
     /** @var list<string> */

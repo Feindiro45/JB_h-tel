@@ -4,6 +4,7 @@ namespace App\Modules\Identity\Models;
 
 use App\Modules\Identity\Domain\RoleName;
 use App\Modules\Identity\Policies\UserPolicy;
+use App\Shared\Models\HasPublicUuid;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
@@ -28,9 +29,21 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasPublicUuid, HasRoles, Notifiable;
 
     protected string $guard_name = 'web';
+
+    /**
+     * Valeurs par défaut : une instance créée en mémoire possède tous les attributs lus par
+     * l'API (sinon le mode strict d'Eloquent lève une MissingAttributeException).
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'active' => true,
+        'last_login_at' => null,
+        'email_verified_at' => null,
+    ];
 
     /** @var list<string> */
     protected $fillable = [

@@ -15,7 +15,8 @@ final class UserResource extends JsonResource
         $role = $this->primaryRole();
 
         return [
-            'id' => $this->id,
+            // Identifiant public : jamais la clé primaire entière (D-026).
+            'id' => $this->uuid,
             'name' => $this->name,
             'email' => $this->email,
             'active' => $this->active,

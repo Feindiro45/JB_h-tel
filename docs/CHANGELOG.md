@@ -15,6 +15,22 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
   - **Seeders** : rôles, paramètres provisoires (`settings`) et comptes de démonstration (local uniquement).
   - Décisions D-017 à D-025.
 
+- **Identifiants publics UUID** (D-026) :
+  - colonne `uuid` sur les 11 tables d'entités ;
+  - routes et réponses de l'API uniquement en UUID ;
+  - un entier dans une route donne 404.
+- Phase 3, module **RoomCatalog** :
+  - types de chambre (VIP et Standard en référence) ;
+  - chambres individuelles avec tri naturel, recherche, filtres et maintenance tracée ;
+  - **tarifs versionnés** demi-journée et journée : publication immédiate ou programmée, chaîne de versions continue, retrait d'une version programmée, historique (ancien et nouveau tarif, auteur, motif) et grille des tarifs en vigueur ;
+  - contrats publics `CurrentPriceProvider` et `RoomDirectory` pour le module Reservations ;
+  - catalogue de démonstration (local uniquement) ;
+  - décisions D-027 et D-028.
+- CI : Composer authentifié auprès de GitHub et cache des dépendances.
+
+### Corrigé
+- Le modèle `User` a des attributs par défaut : un utilisateur tout juste créé ne provoque plus d'erreur 500 en mode strict.
+
 ### Modifié
 - Spécifications déplacées de la racine vers `docs/` ; ancienne version V2 archivée dans `docs/archive/`.
 - Phase 2 : le modèle `User` passe de `App\Models` à `App\Modules\Identity\Models` ; la colonne `users.role` du schéma 09 n'est pas créée (rôles Spatie).

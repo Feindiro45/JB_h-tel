@@ -15,4 +15,5 @@ Route::prefix('v1')
         Route::get('health', HealthController::class)->name('health');
 
         require app_path('Modules/Identity/Http/routes.php');
+        require app_path('Modules/RoomCatalog/Http/routes.php');
     });

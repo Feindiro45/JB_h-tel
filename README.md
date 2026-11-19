@@ -127,6 +127,19 @@ L'authentification utilise **Sanctum en mode SPA** : session par cookie et prote
 
 > Ouvre toujours le frontend avec la **même** adresse que l'API (`localhost` des deux côtés). Sinon le cookie de session n'est pas partagé.
 
+### Identifiants
+
+Tous les identifiants exposés par l'API et utilisés dans les liens sont des **UUID**, par exemple `/api/v1/rooms/01a1f3e7-8334-7008-8a1f-50a4a97a5b3c`. Un numéro séquentiel dans une route donne une erreur 404.
+
+### Catalogue (phase 3)
+
+| Route | Droit | Rôle |
+|---|---|---|
+| `GET /api/v1/room-types` · `GET /api/v1/rooms` · `GET /api/v1/rooms/{id}` | `rooms.view` | Types de chambre ; chambres avec `?search=`, `?room_type_id=`, `?maintenance_status=` |
+| `POST /api/v1/room-types` · `PATCH /api/v1/room-types/{id}` · `POST /api/v1/rooms` · `PATCH /api/v1/rooms/{id}` · `PUT /api/v1/rooms/{id}/maintenance` | `rooms.manage` | Gestion du catalogue et de la maintenance |
+| `GET /api/v1/room-rates` · `GET /api/v1/room-rates/grid` | `rates.view` | Historique des versions ; grille des tarifs en vigueur et programmés |
+| `POST /api/v1/room-rates` · `DELETE /api/v1/room-rates/{id}` | `rates.manage` | Publication d'une version ; retrait d'une version programmée |
+
 ## Documentation
 
 Spécifications (dans `docs/`) :
