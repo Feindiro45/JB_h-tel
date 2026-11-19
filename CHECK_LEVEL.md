@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 — phase 2 terminée (60 tests verts) ; envoi GitHub en attente de ton accord
+**Dernière mise à jour :** 19/11/2026 — phase 2 envoyée sur GitHub ; phase 3 démarrée
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -17,8 +17,8 @@
 |---|---|---|---|
 | 0 | Audit et questions bloquantes | ✅ Fait | 100 % |
 | 1 | Initialisation (dépôt, apps, CI, README) | ✅ Fait (CI GitHub verte) | 100 % |
-| 2 | Base de données et identité | ✅ Fait (envoi GitHub en attente) | 95 % |
-| 3 | Catalogue et tarifs | ⬜ À faire | 0 % |
+| 2 | Base de données et identité | ✅ Fait (CI en cours) | 98 % |
+| 3 | Catalogue et tarifs | 🟡 En cours | 5 % |
 | 4 | Réservations | ⬜ À faire | 0 % |
 | 5 | Caisse et factures | ⬜ À faire | 0 % |
 | 6 | Frontend (écrans métier) | ⬜ À faire | 0 % |
@@ -108,15 +108,30 @@
 - [x] Parcours réel vérifié avec curl sur le serveur : cookie CSRF, connexion refusée sans jeton (419), connexion (200), profil (200), accès refusé à la caissière (403), déconnexion puis 401
 - [x] Pint et Larastan (niveau 6) sans erreur
 - [x] Documentation : `SCHEMA.md`, décisions D-017 à D-025, QUESTIONS, CHANGELOG, README (comptes de test, connexion), CLAUDE.md
-- [ ] Commit, push et CI verte : **en attente de ton accord**
+- [x] Commit `ead3b11` envoyé sur `main`
+- [~] CI GitHub de la phase 2 : en cours d'exécution
 
-## Phase 3 — Catalogue et tarifs ⬜
+## Phase 3 — Catalogue et tarifs 🟡
 
-- [ ] Types de chambre VIP et Standard
-- [ ] Chambres individuelles : numéro unique, type, capacité, maintenance
-- [!] Maintenance planifiée par période (Q-12)
-- [ ] Tarifs versionnés demi-journée et journée, date d'effet, historique (ancien, nouveau, auteur, motif)
-- [ ] Test : les anciens prix restent intacts après une modification de tarif
+### Code
+- [ ] Module RoomCatalog : énumérations (unité de facturation, maintenance, statut de tarif), modèles, factories
+- [ ] Types de chambre VIP et Standard : liste, création, modification (seeder de référence, tous environnements)
+- [ ] Chambres individuelles : numéro unique, type, capacité, notes ; liste avec recherche et filtres ; tri naturel (001, 002, 101)
+- [ ] Maintenance : passage en maintenance ou retour en service, avec note et audit
+- [!] Maintenance planifiée par période (Q-12) : statut courant seulement pour l'instant (D-019)
+- [ ] Tarifs versionnés demi-journée et journée : publication immédiate ou programmée, sans chevauchement de versions, aucune modification de montant
+- [ ] Retrait d'une version programmée qui n'est pas encore entrée en vigueur
+- [ ] Historique : ancien tarif, nouveau tarif, auteur, date d'effet, motif ; grille des tarifs en vigueur
+- [ ] Contrats publics pour le module Reservations : `CurrentPriceProvider` (tarif en vigueur au moment de la confirmation) et `RoomDirectory`
+- [ ] Données de démonstration locales : chambres 101 VIP, 102 Standard… et tarifs de démonstration
+
+### Tests
+- [ ] Recette 1 : chambres 101 VIP et 102 Standard, numéro unique
+- [ ] Recette 5 : tarif VIP passé de 50 000 à 60 000 FCFA, ancien prix intact (version et réservation existante)
+- [ ] La caissière ne peut pas modifier un tarif (403)
+- [ ] Tarif programmé : appliqué seulement à partir de sa date d'effet
+- [ ] Contrats `CurrentPriceProvider` et `RoomDirectory`
+- [ ] Pint, Larastan, tous les tests verts ; commit, push et CI verte
 
 ## Phase 4 — Réservations ⬜
 
