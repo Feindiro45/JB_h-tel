@@ -71,8 +71,9 @@ final class InvoiceList
             ->when(isset($filters['status']), fn (Builder $q) => $q->where('status', $filters['status']))
             ->when(isset($filters['from']), fn (Builder $q) => $q->where('issued_at', '>=', $filters['from']))
             ->when(isset($filters['until']), fn (Builder $q) => $q->where('issued_at', '<', $filters['until']))
-            ->when(isset($filters['search']), fn (Builder $q) => $q->where(
-                'invoice_number', 'like', '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], (string) $filters['search']).'%',
-            ));
+            ->when(isset($filters['search']), function (Builder $q) use ($filters): void {
+                $term = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], (string) $filters['search']).'%';
+                $q->where(fn (Builder $w) => $w->where('invoice_number', 'like', $term)->orWhere('snapshot_json->customer->full_name', 'like', $term));
+            });
     }
 }

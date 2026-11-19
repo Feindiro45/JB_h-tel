@@ -1,6 +1,9 @@
+import { LocalTable } from '../../shared/ui/LocalTable'
+import { Icon } from '../../shared/ui/Icon'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { cashAgentsQuery } from '../../shared/api/lookups'
 import type { CashMovement, Receivable } from '../../shared/api/types'
 import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
 import { SelectField, TextField } from '../../shared/ui/fields'
@@ -15,6 +18,10 @@ import {
 } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
 import { cashJournalQuery, receivablesQuery } from './api'
+import { Pagination } from '../../shared/ui/Pagination'
+import { useTable } from '../../shared/ui/useTable'
+import { useAutoFilters } from '../../shared/ui/useAutoFilters'
+import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
 import { PaymentActions } from './PaymentActions'
 import { PaymentDialog } from './PaymentDialog'
 
@@ -29,19 +36,42 @@ function periodLabel(from: string, to: string): string {
  */
 export function CashierPage() {
   const { can } = useCurrentUser()
+  const agents = useQuery(cashAgentsQuery)
   const today = todayIso()
-  const [period, setPeriod] = useState({ from: today, to: today })
+  const {
+    draft: period,
+    filters: appliedPeriod,
+    change: setPeriod,
+    pending,
+    valid,
+  } = useAutoFilters({ from: today, to: today }, { requiredPeriod: true, maxDays: 92 })
   const [agentId, setAgentId] = useState('')
   const [paying, setPaying] = useState<Receivable | null>(null)
 
-  const all = useQuery(cashJournalQuery(period.from, period.to, ''))
+  const all = useQuery(cashJournalQuery(appliedPeriod.from, appliedPeriod.to, ''))
   const filtered = useQuery({
-    ...cashJournalQuery(period.from, period.to, agentId),
+    ...cashJournalQuery(appliedPeriod.from, appliedPeriod.to, agentId),
     enabled: agentId !== '',
   })
   const journal = agentId ? filtered : all
   const receivables = useQuery(receivablesQuery)
   const data = journal.data
+  const [movementSearch, setMovementSearch] = useState('')
+  const [balanceSearch, setBalanceSearch] = useState('')
+  const movements = useTable(
+    (data?.movements ?? []).filter((r) =>
+      `${r.customer?.full_name} ${r.room?.number} ${r.receipt_number} ${r.type_label} ${r.method_label}`
+        .toLowerCase()
+        .includes(movementSearch.toLowerCase()),
+    ),
+  )
+  const balances = useTable(
+    (receivables.data?.data ?? []).filter((r) =>
+      `${r.customer} ${r.phone} ${r.room.number} ${r.status_label}`
+        .toLowerCase()
+        .includes(balanceSearch.toLowerCase()),
+    ),
+  )
   const quick: [string, { from: string; to: string }][] = [
     ['Aujourd’hui', { from: today, to: today }],
     ['Hier', { from: addDays(today, -1), to: addDays(today, -1) }],
@@ -52,17 +82,19 @@ export function CashierPage() {
   return (
     <>
       <PageHeading
+        icon="wallet"
         eyebrow="Finances"
         title="Caisse"
-        description={`Mouvements de caisse ${periodLabel(period.from, period.to)}.`}
+        description={`Mouvements de caisse ${periodLabel(appliedPeriod.from, appliedPeriod.to)}.`}
         actions={
           <button type="button" className="secondary" onClick={() => window.print()}>
+            <Icon name="print" size={17} />
             Imprimer le journal
           </button>
         }
       />
 
-      <div className="filterbar" style={{ padding: '0 0 14px' }}>
+      <div className="filterbar">
         <div className="segmented" role="group" aria-label="Période rapide">
           {quick.map(([label, value]) => (
             <button
@@ -71,6 +103,7 @@ export function CashierPage() {
               aria-pressed={period.from === value.from && period.to === value.to}
               onClick={() => setPeriod(value)}
             >
+              <Icon name="calendar" size={17} />
               {label}
             </button>
           ))}
@@ -80,7 +113,7 @@ export function CashierPage() {
           type="date"
           value={period.from}
           max={today}
-          onChange={(e) => e.target.value && setPeriod({ from: e.target.value, to: period.to })}
+          onChange={(e) => setPeriod({ from: e.target.value })}
         />
         <TextField
           label="Au"
@@ -88,16 +121,17 @@ export function CashierPage() {
           value={period.to}
           min={period.from}
           max={today}
-          onChange={(e) => e.target.value && setPeriod({ from: period.from, to: e.target.value })}
+          onChange={(e) => setPeriod({ to: e.target.value })}
         />
         <SelectField label="Agent" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
           <option value="">Tous les agents</option>
-          {all.data?.by_agent.map((agent) => (
+          {agents.data?.map((agent) => (
             <option key={agent.id} value={agent.id}>
-              {agent.label}
+              {agent.name}
             </option>
           ))}
         </SelectField>
+        <AutoFilterStatus pending={pending} valid={valid} />
       </div>
 
       {!data ? (
@@ -106,24 +140,28 @@ export function CashierPage() {
         <>
           <section className="metrics" aria-label="Totaux de la période">
             <Metric
+              tone="green"
               label="Encaissé"
               value={formatFcfa(data.totals.collected_fcfa)}
               hint={`${data.totals.payments_count} versement(s) valide(s)`}
               icon="cash"
             />
             <Metric
+              tone="blue"
               label="Remboursé"
               value={formatFcfa(data.totals.refunded_fcfa)}
               hint={`${data.totals.refunds_count} remboursement(s)`}
               icon="arrow"
             />
             <Metric
+              tone="mint"
               label="Net en caisse"
               value={formatFcfa(data.totals.net_fcfa)}
               hint="Encaissé − remboursé"
               icon="chart"
             />
             <Metric
+              tone="amber"
               label="Annulés"
               value={formatFcfa(data.totals.cancelled_fcfa)}
               hint="Listés pour mémoire, non comptés"
@@ -133,10 +171,10 @@ export function CashierPage() {
 
           <div className="dashboard-grid">
             <Panel title="Par moyen de paiement">
-              <Breakdown rows={data.by_method} />
+              <Breakdown label="moyens de paiement" rows={data.by_method} />
             </Panel>
             <Panel title="Par agent" subtitle="Encaissements reçus et remboursements effectués">
-              <Breakdown rows={data.by_agent} />
+              <Breakdown label="agents de caisse" rows={data.by_agent} />
             </Panel>
           </div>
 
@@ -145,7 +183,23 @@ export function CashierPage() {
             subtitle="Encaissements et remboursements, dans l’ordre chronologique"
             action={<Badge tone="green" label={`${data.movements.length} mouvement(s)`} />}
           >
-            <Movements rows={data.movements} />
+            <div className="filterbar">
+              <TextField
+                label="Rechercher un mouvement"
+                value={movementSearch}
+                onChange={(e) => {
+                  setMovementSearch(e.target.value)
+                  movements.onPage(1)
+                }}
+              />
+            </div>
+            <div className="screen-only">
+              <Movements rows={movements.rows} />
+            </div>
+            <div className="print-only" hidden>
+              <Movements rows={data.movements} />
+            </div>
+            <Pagination {...movements} />
           </Panel>
         </>
       )}
@@ -159,6 +213,16 @@ export function CashierPage() {
           )
         }
       >
+        <div className="filterbar">
+          <TextField
+            label="Rechercher un solde"
+            value={balanceSearch}
+            onChange={(e) => {
+              setBalanceSearch(e.target.value)
+              balances.onPage(1)
+            }}
+          />
+        </div>
         {receivables.isPending ? (
           <LoadingBlock lines={2} />
         ) : receivables.data && receivables.data.data.length > 0 ? (
@@ -185,7 +249,7 @@ export function CashierPage() {
                 </tr>
               </thead>
               <tbody>
-                {receivables.data.data.map((row) => (
+                {balances.rows.map((row) => (
                   <tr key={row.id}>
                     <td>
                       <strong>{row.customer}</strong>
@@ -213,10 +277,12 @@ export function CashierPage() {
                           onClick={() => setPaying(row)}
                           aria-label={`Encaisser le séjour de ${row.customer}`}
                         >
+                          <Icon name="wallet" size={17} />
                           Encaisser
                         </button>
                       )}
                       <Link className="text-button" to={`/reservations/${row.id}`}>
+                        <Icon name="eye" size={17} />
                         Ouvrir →
                       </Link>
                     </td>
@@ -230,8 +296,8 @@ export function CashierPage() {
             Tous les séjours en cours sont réglés.
           </EmptyState>
         )}
+        <Pagination {...balances} />
       </Panel>
-
       {paying && (
         <PaymentDialog
           reservationId={paying.id}
@@ -245,42 +311,50 @@ export function CashierPage() {
 
 function Breakdown({
   rows,
+  label,
 }: {
+  label: string
   rows: { label: string; collected_fcfa: number; refunded_fcfa: number; net_fcfa: number }[]
 }) {
-  if (rows.length === 0)
-    return <EmptyState title="Aucun mouvement">Rien sur cette période.</EmptyState>
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Libellé</th>
-            <th scope="col" className="num">
-              Encaissé
-            </th>
-            <th scope="col" className="num">
-              Remboursé
-            </th>
-            <th scope="col" className="num">
-              Net
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.label}>
-              <th scope="row">{row.label}</th>
-              <td className="num">{formatFcfa(row.collected_fcfa)}</td>
-              <td className="num">{formatFcfa(row.refunded_fcfa)}</td>
-              <td className="num">
-                <strong>{formatSignedFcfa(row.net_fcfa)}</strong>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <LocalTable
+      label={label}
+      rows={rows}
+      searchText={(r) => `${r.label} ${r.collected_fcfa} ${r.refunded_fcfa} ${r.net_fcfa}`}
+    >
+      {(visibleRows) => (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Libellé</th>
+                <th scope="col" className="num">
+                  Encaissé
+                </th>
+                <th scope="col" className="num">
+                  Remboursé
+                </th>
+                <th scope="col" className="num">
+                  Net
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row) => (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  <td className="num">{formatFcfa(row.collected_fcfa)}</td>
+                  <td className="num">{formatFcfa(row.refunded_fcfa)}</td>
+                  <td className="num">
+                    <strong>{formatSignedFcfa(row.net_fcfa)}</strong>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </LocalTable>
   )
 }
 

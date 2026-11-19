@@ -20,3 +20,7 @@ backups/
 
 # Prototype de référence fourni (design), conservé hors du dépôt
 /JB_Hotel_Prototype/
+
+# Rendus de contrôle et exemple PDF local
+/tmp/pdfs/
+/output/pdf/

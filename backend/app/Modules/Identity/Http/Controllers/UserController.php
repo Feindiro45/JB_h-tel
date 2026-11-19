@@ -8,6 +8,7 @@ use App\Modules\Identity\Http\Requests\StoreUserRequest;
 use App\Modules\Identity\Http\Requests\UpdateUserRequest;
 use App\Modules\Identity\Http\Resources\UserResource;
 use App\Modules\Identity\Models\User;
+use App\Shared\Http\PerPage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -31,7 +32,7 @@ final class UserController
             ->when($role !== null, fn ($query) => $query->role($role->value))
             ->when($request->has('active'), fn ($query) => $query->where('active', $request->boolean('active')))
             ->orderBy('name')
-            ->paginate(25)
+            ->paginate(PerPage::from($request))
             ->withQueryString();
 
         return UserResource::collection($users);

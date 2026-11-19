@@ -145,7 +145,8 @@ final class CashJournal
             ->when(isset($filters['agent_id']), fn (Builder $q) => $q->where('cashier_id', $filters['agent_id']))
             ->when(isset($filters['search']), function (Builder $q) use ($filters): void {
                 $term = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], (string) $filters['search']).'%';
-                $q->where(fn (Builder $w) => $w->where('receipt_number', 'like', $term)->orWhere('reference', 'like', $term));
+                $ids = $this->reservations->idsForCustomers($this->customers->searchIds((string) $filters['search']));
+                $q->where(fn (Builder $w) => $w->where('receipt_number', 'like', $term)->orWhere('reference', 'like', $term)->orWhereIn('reservation_id', $ids));
             })
             ->orderByDesc('received_at')->orderByDesc('id')
             ->paginate($perPage);

@@ -1,3 +1,6 @@
+import { LocalTable } from '../../shared/ui/LocalTable'
+import { PageOverview } from '../../shared/ui/PageOverview'
+import { Icon } from '../../shared/ui/Icon'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
@@ -45,11 +48,13 @@ export function ReservationDetailPage() {
   if (!reservation.data) {
     return (
       <PageHeading
+        icon="calendar"
         eyebrow="Réservations"
         title="Réservation introuvable"
         actions={
           <Link className="secondary" to="/reservations">
-            ← Réservations
+            <Icon name="back" size={17} />
+            <span className="sr-only">←</span> Réservations
           </Link>
         }
       />
@@ -119,18 +124,57 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
   return (
     <>
       <PageHeading
+        icon="calendar"
         eyebrow="Réservations"
         title={r.customer?.full_name ?? 'Réservation'}
         description={`Chambre ${r.room?.number} · ${r.room?.room_type.label} · ${formatDay(r.period.start_date)} → ${formatDay(r.period.end_date)}`}
         actions={<ReservationStatusBadge status={r.status} label={r.status_label} />}
       />
 
+      <PageOverview
+        items={[
+          {
+            label: 'Montant du séjour',
+            value: formatFcfa(r.price.net_fcfa),
+            hint: 'Prix enregistré de la réservation',
+            icon: 'document',
+          },
+          {
+            label: 'Remise',
+            value: formatFcfa(r.price.discount_fcfa),
+            hint: 'Réduction enregistrée',
+            icon: 'percent',
+          },
+          {
+            label: 'Encaissé net',
+            value: can('payments.view')
+              ? summary
+                ? formatFcfa(summary.net_paid_fcfa)
+                : undefined
+              : 'Accès limité',
+            hint: 'Versements moins remboursements',
+            icon: 'wallet',
+          },
+          {
+            label: 'Solde',
+            value: can('payments.view')
+              ? summary
+                ? formatFcfa(summary.balance_fcfa)
+                : undefined
+              : 'Accès limité',
+            hint: 'Situation actuelle du séjour',
+            icon: 'cash',
+          },
+        ]}
+      />
       <div className="toolbar">
         <Link className="secondary" to="/reservations">
-          ← Réservations
+          <Icon name="back" size={17} />
+          <span className="sr-only">←</span> Réservations
         </Link>
         {r.status === 'PENDING' && can('reservations.update') && (
           <button type="button" className="primary" onClick={() => setDialog('confirm')}>
+            <Icon name="check" size={17} />
             Confirmer la réservation
           </button>
         )}
@@ -139,6 +183,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           // Confort uniquement : le serveur refuse de toute façon une arrivée anticipée (409).
           (r.period.start_date <= todayIso() ? (
             <button type="button" className="primary" onClick={() => setDialog('check-in')}>
+              <Icon name="login" size={17} />
               Enregistrer l’arrivée
             </button>
           ) : (
@@ -148,15 +193,18 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           ))}
         {r.status === 'IN_PROGRESS' && can('reservations.check_in_out') && (
           <button type="button" className="primary" onClick={() => setDialog('check-out')}>
+            <Icon name="logout" size={17} />
             Enregistrer le départ
           </button>
         )}
         {open && can('reservations.update') && (
           <>
             <button type="button" className="secondary" onClick={() => setDialog('extend')}>
+              <Icon name="clock" size={17} />
               Prolonger
             </button>
             <button type="button" className="secondary" onClick={() => setDialog('occupants')}>
+              <Icon name="edit" size={17} />
               Modifier les occupants
             </button>
           </>
@@ -166,6 +214,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           r.status !== 'CANCELLED' &&
           can('payments.record') && (
             <button type="button" className="secondary" onClick={() => setDialog('payment')}>
+              <Icon name="wallet" size={17} />
               Encaisser
             </button>
           )}
@@ -173,11 +222,13 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           !hasActiveInvoice &&
           can('invoices.issue') && (
             <button type="button" className="secondary" onClick={() => setDialog('invoice')}>
+              <Icon name="document" size={17} />
               Émettre une facture
             </button>
           )}
         {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.cancel') && (
           <button type="button" className="danger" onClick={() => setDialog('cancel')}>
+            <Icon name="close" size={17} />
             Annuler la réservation
           </button>
         )}
@@ -249,56 +300,66 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         <Panel title="Encaissements du séjour">
           {payments.isPending ? (
             <LoadingBlock lines={2} />
-          ) : payments.data && payments.data.data.length > 0 ? (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Reçu</th>
-                    <th scope="col">Date</th>
-                    <th scope="col">Moyen</th>
-                    <th scope="col">Agent</th>
-                    <th scope="col">État</th>
-                    <th scope="col" className="num">
-                      Montant
-                    </th>
-                    <th scope="col">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.data.data.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.receipt_number}</td>
-                      <td>{formatDateTime(p.received_at)}</td>
-                      <td>{p.method_label}</td>
-                      <td>{p.cashier.name}</td>
-                      <td>
-                        <Badge
-                          tone={p.status === 'VALID' ? 'green' : 'red'}
-                          label={p.status_label}
-                        />
-                        {p.refunded_fcfa > 0 && (
-                          <small> · remboursé {formatFcfa(p.refunded_fcfa)}</small>
-                        )}
-                      </td>
-                      <td className="num">{formatFcfa(p.amount_fcfa)}</td>
-                      <td className="num">
-                        <PaymentActions
-                          payment={{
-                            ...p,
-                            refundable_fcfa:
-                              p.status === 'VALID' ? p.amount_fcfa - p.refunded_fcfa : 0,
-                            has_refunds: p.refunds.length > 0,
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          ) : payments.data ? (
+            <LocalTable
+              label="encaissements du séjour"
+              rows={payments.data.data}
+              searchText={(r) =>
+                `${r.receipt_number} ${formatDateTime(r.received_at)} ${r.method_label} ${r.cashier.name} ${r.status_label} ${r.amount_fcfa}`
+              }
+            >
+              {(visibleRows) => (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Reçu</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Moyen</th>
+                        <th scope="col">Agent</th>
+                        <th scope="col">État</th>
+                        <th scope="col" className="num">
+                          Montant
+                        </th>
+                        <th scope="col">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleRows.map((p) => (
+                        <tr key={p.id}>
+                          <td>{p.receipt_number}</td>
+                          <td>{formatDateTime(p.received_at)}</td>
+                          <td>{p.method_label}</td>
+                          <td>{p.cashier.name}</td>
+                          <td>
+                            <Badge
+                              tone={p.status === 'VALID' ? 'green' : 'red'}
+                              label={p.status_label}
+                            />
+                            {p.refunded_fcfa > 0 && (
+                              <small> · remboursé {formatFcfa(p.refunded_fcfa)}</small>
+                            )}
+                          </td>
+                          <td className="num">{formatFcfa(p.amount_fcfa)}</td>
+                          <td className="num">
+                            <PaymentActions
+                              payment={{
+                                ...p,
+                                refundable_fcfa:
+                                  p.status === 'VALID' ? p.amount_fcfa - p.refunded_fcfa : 0,
+                                has_refunds: p.refunds.length > 0,
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </LocalTable>
           ) : (
             <EmptyState title="Aucun encaissement">Le séjour n’a pas encore été réglé.</EmptyState>
           )}
@@ -307,77 +368,92 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
 
       {can('invoices.view') && (
         <Panel title="Factures et avoirs">
-          {invoices.data && invoices.data.length > 0 ? (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Document</th>
-                    <th scope="col">Date</th>
-                    <th scope="col">Statut</th>
-                    <th scope="col" className="num">
-                      Montant net
-                    </th>
-                    <th scope="col">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.data.map((invoice) => (
-                    <tr key={invoice.id}>
-                      <td>
-                        {invoice.type_label} {invoice.number}
-                      </td>
-                      <td>{formatDateTime(invoice.issued_at)}</td>
-                      <td>
-                        <Badge
-                          tone={
-                            invoice.type === 'CREDIT_NOTE'
-                              ? 'amber'
-                              : invoice.status === 'CREDITED'
-                                ? 'red'
-                                : 'green'
-                          }
-                          label={invoice.type === 'CREDIT_NOTE' ? 'Avoir' : invoice.status_label}
-                        />
-                      </td>
-                      <td className="num">{formatFcfa(invoice.net_fcfa)}</td>
-                      <td className="num">
-                        <a
-                          className="text-button"
-                          href={invoicePdfUrl(invoice.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          PDF A4 ↗
-                        </a>
-                        <a
-                          className="text-button"
-                          href={invoice.verification_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Vérification ↗
-                        </a>
-                        {invoice.type === 'INVOICE' &&
-                          invoice.status === 'ISSUED' &&
-                          can('invoices.credit') && (
-                            <button
-                              type="button"
+          {invoices.data ? (
+            <LocalTable
+              label="factures du séjour"
+              rows={invoices.data}
+              searchText={(r) =>
+                `${r.number} ${r.type_label} ${r.status_label} ${formatDateTime(r.issued_at)} ${r.net_fcfa}`
+              }
+            >
+              {(visibleRows) => (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Document</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Statut</th>
+                        <th scope="col" className="num">
+                          Montant net
+                        </th>
+                        <th scope="col">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleRows.map((invoice) => (
+                        <tr key={invoice.id}>
+                          <td>
+                            {invoice.type_label} {invoice.number}
+                          </td>
+                          <td>{formatDateTime(invoice.issued_at)}</td>
+                          <td>
+                            <Badge
+                              tone={
+                                invoice.type === 'CREDIT_NOTE'
+                                  ? 'amber'
+                                  : invoice.status === 'CREDITED'
+                                    ? 'red'
+                                    : 'green'
+                              }
+                              label={
+                                invoice.type === 'CREDIT_NOTE' ? 'Avoir' : invoice.status_label
+                              }
+                            />
+                          </td>
+                          <td className="num">{formatFcfa(invoice.net_fcfa)}</td>
+                          <td className="num">
+                            <a
                               className="text-button"
-                              onClick={() => setCrediting(invoice)}
-                              aria-label={`Émettre un avoir pour ${invoice.number}`}
+                              href={invoicePdfUrl(invoice.id)}
+                              target="_blank"
+                              rel="noopener"
                             >
-                              Avoir
-                            </button>
-                          )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                              <Icon name="download" size={17} />
+                              PDF A4 ↗
+                            </a>
+                            <a
+                              className="text-button"
+                              href={invoice.verification_url}
+                              target="_blank"
+                              rel="noopener"
+                            >
+                              <Icon name="shield" size={17} />
+                              Vérification ↗
+                            </a>
+                            {invoice.type === 'INVOICE' &&
+                              invoice.status === 'ISSUED' &&
+                              can('invoices.credit') && (
+                                <button
+                                  type="button"
+                                  className="text-button"
+                                  onClick={() => setCrediting(invoice)}
+                                  aria-label={`Émettre un avoir pour ${invoice.number}`}
+                                >
+                                  <Icon name="undo" size={17} />
+                                  Avoir
+                                </button>
+                              )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </LocalTable>
           ) : (
             <EmptyState title="Aucune facture">
               La facture s’émet une fois la réservation confirmée.
@@ -390,35 +466,45 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         title="Historique du séjour"
         subtitle="Journal des opérations, de leurs auteurs et des montants"
       >
-        {history.data && history.data.length > 0 ? (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Date et heure</th>
-                  <th scope="col">Auteur</th>
-                  <th scope="col">Opération</th>
-                  <th scope="col" className="num">
-                    Montant après
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.data.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>{formatDateTime(entry.occurred_at)}</td>
-                    <td>{entry.actor?.name ?? 'Système'}</td>
-                    <td>{entry.label}</td>
-                    <td className="num">
-                      {typeof entry.after?.net_fcfa === 'number'
-                        ? formatFcfa(entry.after.net_fcfa)
-                        : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {history.data ? (
+          <LocalTable
+            label="historique du séjour"
+            rows={history.data}
+            searchText={(r) =>
+              `${formatDateTime(r.occurred_at)} ${r.actor?.name ?? 'Système'} ${r.label}`
+            }
+          >
+            {(visibleRows) => (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Date et heure</th>
+                      <th scope="col">Auteur</th>
+                      <th scope="col">Opération</th>
+                      <th scope="col" className="num">
+                        Montant après
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>{formatDateTime(entry.occurred_at)}</td>
+                        <td>{entry.actor?.name ?? 'Système'}</td>
+                        <td>{entry.label}</td>
+                        <td className="num">
+                          {typeof entry.after?.net_fcfa === 'number'
+                            ? formatFcfa(entry.after.net_fcfa)
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </LocalTable>
         ) : (
           <LoadingBlock lines={2} />
         )}

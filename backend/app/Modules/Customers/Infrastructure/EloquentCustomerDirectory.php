@@ -37,6 +37,17 @@ final class EloquentCustomerDirectory implements CustomerDirectory
             ->all();
     }
 
+    public function searchIds(string $term): array
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return [];
+        }
+
+        return Customer::query()->matching($term)->limit(self::SEARCH_LIMIT)->pluck('id')
+            ->map(fn ($id) => (int) $id)->values()->all();
+    }
+
     private function toSnapshot(Customer $customer): CustomerSnapshot
     {
         return new CustomerSnapshot($customer->id, $customer->uuid, $customer->fullName(), $customer->phone, $customer->address, $customer->email, $customer->email_notifications);

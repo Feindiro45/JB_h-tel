@@ -4,6 +4,55 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Relecture finale avant envoi — 19/11/2026
+- Relecture des écrans d’administration, des filtres et des rapports produits en parallèle, puis de toute la suite : 183 tests backend, 74 tests frontend, 4 tests navigateur, Pint, Larastan, lint, Prettier, TypeScript et build verts.
+- Corrigé : la modification d’une catégorie de chambre renvoyait son code, que le serveur refuse en modification ; chaque enregistrement échouait en 422. Le code n’est plus envoyé, il apparaît dans le titre, et sa saisie à la création suit le format du serveur. Test ajouté.
+- Contrats réels de l’administration et des filtres rejoués avec une vraie session sur la base de recette `jb_hotel_e2e` (60 contrôles) : catégories, chambres, maintenance, tarifs immédiat et daté puis retrait, utilisateurs, droits, paramètres, audit, recherche par client, lignes par page et refus de la caissière.
+- Suivi : lignes UUID et catalogue de la phase 3 restées non cochées alors qu’elles étaient faites et testées, désormais cochées.
+
+### Vues d’ensemble et tableaux complets — 19/11/2026
+- Synthèses réelles sur les pages métier et fiches, périmètres des compteurs précisés, espacement accru entre éléments et icônes sémantiques dans les champs.
+- Boutons verts et bleus, alternés lorsqu’ils sont voisins ; cartes différenciées. Aside conservé.
+- Filtres et paginations propres aux tableaux secondaires (caisse, dashboard, catégories, tarifs, détails de séjour, planning, rapports et reçu). Recherche locale immédiate, états vides et impression complète des lignes reçues.
+- Chambres occupées en rouge, y compris le graphique et les cartes ; occupation courante affichée et filtrable dans la liste des chambres, sous permission.
+
+
+### Page blanche du serveur de développement — 19/11/2026
+- Reproduction de l’erreur d’export `ReservationDetailPage` sur le serveur actif : Vite conservait une transformation vide, alors que le fichier contenait son export.
+- Redémarrage du serveur frontend et réoptimisation forcée ; affichage rétabli sur le port 5173.
+- Ajout de `npm run check:dev` pour vérifier le chargement réel sur un serveur déjà lancé, sans connexion ni réinitialisation de base. Quatre routes et un rechargement vérifiés, lint vert.
+
+
+### Facture vert/or et filtres automatiques — 19/11/2026
+- PDF inspiré de « Facture élégante du JB Hôtel.webp » : bandeau illustré, monogramme or, icônes, blocs client/séjour, tableau vert, totaux, statut, versements, QR et pied de page numéroté ; même charte pour les avoirs.
+- Données figées et historiques conservées. Aucune TVA, échéance, prestation offerte, signature ni cachet ajoutés depuis l’image de référence. Illustration dérivée de l’image déjà utilisée par l’application.
+- Recherches serveur différées de 300 ms, choix et dates valides immédiats, retour en première page, suppression des boutons Filtrer/Rechercher des listes. Périodes invalides retenues pendant correction, filtres clients/réservations effaçables ensemble.
+- Tests du comportement des filtres, parcours navigateur étendu à la recherche et à l’effacement sans validation. Facture et avoir d’une page, document long de trois pages contrôlés ; QR décodés depuis les PDF rendus. Aside conservé.
+
+
+### Référence visuelle et boutons — 19/11/2026
+- Style du contenu aligné sur l’image fournie : fil d’Ariane, titres avec icônes, cartes pastel, filtres, onglets, tableaux et actions. L’aside est explicitement conservé.
+- Page Factures et reçus réorganisée autour des indicateurs réels, des filtres et de la liste ; type des pièces et icônes ajoutés, impression accessible.
+- Boutons harmonisés avec icônes, actions sensibles distinctes, confirmations et chargements ; fenêtre de connexion et dialogues cohérents avec la même charte.
+- Navigation clavier des onglets conservée malgré leur nouvelle disposition ; affichage monétaire zéro normalisé.
+
+
+### Design des paginations — 19/11/2026
+- Pied de liste commun avec boutons numérotés, page active vert profond et accent doré, ellipses, plage de résultats et sélecteur compact.
+- Disposition adaptée à la largeur du panneau, navigation accessible et contrôle aux formats 1440/768/390/320 px ; test navigateur des changements de page, de taille et des résultats vides.
+- Correction du débordement mobile des libellés masqués des tableaux ; pagination exclue de l’impression.
+
+
+### Compléments du 19/11/2026 — Administration, filtres, rapports et livraison locale
+- Écrans d’administration complets : chambres/catégories et maintenance, grille/historique et publication/retrait des tarifs, comptes et droits, paramètres signalés comme provisoires/validés, audit filtré avec détail avant/après.
+- Filtres client, catégorie et forfait sur les séjours, recherche client sur reçus et instantanés de facture, provenance des clients, annuaires d’agents en UUID, pagination commune et taille de page.
+- Rapports financiers filtrés, courbe quotidienne, ventilation par catégorie, soldes et occupation actuels, exports CSV/PDF protégés, rapprochement avec le journal et traitement correct des avoirs/remboursements/annulations.
+- Moyens de paiement chargés depuis la configuration ; correction d’une erreur de syntaxe préexistante dans la recherche client et des liens PDF qui supprimaient le Referer nécessaire à Sanctum.
+- Playwright : parcours réels sur base isolée, contrôle CSRF, droits, responsive et Axe WCAG ; ajout à la CI MySQL 8.4.
+- Sauvegarde native, empreinte SHA-256 et restauration contrôlée dans une base vide distincte ; MCD draw.io aligné sur les 27 tables réelles ; matrice de recette et guide d’exploitation.
+- Les validations métier/fiscales, SMTP et papier restent en attente ; aucune mise en production.
+
+
 ### Ajouté
 - Phase 0 : audit des spécifications ; `docs/DECISIONS.md` (contradictions et arbitrages), `docs/QUESTIONS.md` (questions métier à valider) ; suivi d'avancement `CHECK_LEVEL.md`.
 - Phase 1 : dépôt git ; application `backend/` (Laravel 12, Sanctum, API `/api/v1`, contrat d'erreur JSON en français, endpoint de santé) ; application `frontend/` (React 19 + TypeScript + Vite, routeur, TanStack Query, client API typé, modale d'erreur accessible) ; `infra/docker-compose.yml` (MySQL 8.4) ; CI GitHub Actions ; README.

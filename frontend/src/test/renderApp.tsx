@@ -26,7 +26,23 @@ export function mockApi(handlers: Record<string, Handler>): ApiCall[] {
     const method = init?.method ?? 'GET'
     const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
     calls.push({ method, path: url.pathname, query: Object.fromEntries(url.searchParams), body })
-    const handler = handlers[`${method} ${url.pathname}`]
+    const defaultHandlers: Record<string, Reply> = {
+      'GET /api/v1/payment-methods': {
+        body: {
+          data: [
+            { value: 'CASH', label: 'Espèces' },
+            { value: 'MOBILE_MONEY', label: 'Mobile money' },
+            { value: 'CARD', label: 'Carte bancaire' },
+            { value: 'BANK_TRANSFER', label: 'Virement' },
+          ],
+        },
+      },
+      'GET /api/v1/cash-agents': {
+        body: { data: [{ id: '0190a000-0000-7000-8000-000000000001', name: 'Grâce' }] },
+      },
+      'GET /api/v1/room-types': { body: { data: [] } },
+    }
+    const handler = { ...defaultHandlers, ...handlers }[`${method} ${url.pathname}`]
     const reply: Reply = handler
       ? typeof handler === 'function'
         ? handler({ url, body })
@@ -104,7 +120,20 @@ export function admin(overrides: Partial<CurrentUser> = {}): CurrentUser {
     email: 'admin@jbhotel.local',
     role: 'admin',
     role_label: 'Administrateur',
-    permissions: [...CASHIER_PERMISSIONS, 'payments.cancel', 'refunds.create', 'invoices.credit'],
+    permissions: [
+      ...CASHIER_PERMISSIONS,
+      'payments.cancel',
+      'refunds.create',
+      'invoices.credit',
+      'users.view',
+      'users.manage',
+      'roles.manage',
+      'rooms.manage',
+      'rates.manage',
+      'settings.manage',
+      'audit.view',
+      'reports.export',
+    ],
     ...overrides,
   })
 }

@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 — phase 6B terminée (caisse, factures et reçus, reçu imprimable) : 171 tests backend et 55 tests frontend verts ; prochaine étape : 6C (administration)
+**Dernière mise à jour :** 19/11/2026 (relecture finale) — phases 6C, 6D et 7 terminées ; livraison locale vérifiée : **183 tests backend (1 281 assertions), 74 tests frontend, 4 tests navigateur (2 parcours réels, pagination et charte visuelle), 60 contrôles de contrats réels pour l’administration et les filtres**. Relecture finale : modification de catégorie corrigée (le code figé était renvoyé, 422). Sauvegarde restaurée (27 tables), PDF A4 et affichages bureau/tablette/mobile contrôlés. Charte de contenu, vues d’ensemble généralisées, boutons voisins verts/bleus, champs avec icônes, filtres/pagination par tableau et facture vert/or appliqués ; chambres occupées en rouge et aside conservé. Facture, avoir et document long rendus et inspectés, QR décodés. Suite navigateur finale : quatre tests réussis, y compris recherche et effacement automatiques. Incident de page blanche du serveur actif corrigé : cache Vite régénéré, contrôle `check:dev` vert sur quatre routes et rechargement. Validation hôtel et nouvelle CI MySQL 8.4 encore attendues.
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -20,10 +20,10 @@
 | 2 | Base de données et identité | ✅ Fait (CI verte) | 100 % |
 | 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
 | 4 | Clients et réservations | ✅ Fait (CI verte) | 100 % |
-| 5 | Caisse, factures, QR code, notifications | ✅ Fait (5A à 5D) | 100 % |
-| 6 | Frontend (écrans métier) | 🟡 En cours (6A et 6B faites ; 6C à faire) | 70 % |
-| 7 | Reporting | ⬜ À faire | 0 % |
-| 8 | Qualité et livraison | ⬜ À faire | 0 % |
+| 5 | Caisse, factures, QR code, notifications | ✅ Fait (5A à 5E) | 100 % |
+| 6 | Frontend (écrans métier) | ✅ 6A à 6K terminées, recette locale verte | 100 % |
+| 7 | Reporting | ✅ Implémenté, tests API verts | 100 % |
+| 8 | Qualité et livraison | 🟡 Livraison locale vérifiée ; recette hôtel et CI distante restantes | 90 % |
 
 ## Phase 0 — Audit et questions bloquantes ✅
 
@@ -86,7 +86,7 @@
 - [x] Rollback complet et réapplication testés sur MariaDB
 - [x] Tests automatisés des contraintes (insertions invalides refusées, suppressions bloquées) : **6 tests verts**
 - [x] `docs/SCHEMA.md` : schéma réel et écarts avec 09 et le MCD
-- [ ] Redessiner `04_MCD_JB_Hotel.drawio` avec les compléments (en attendant, `SCHEMA.md` fait foi)
+- [x] `04_MCD_JB_Hotel.drawio` redessiné depuis le schéma réel : 27 tables, 27 relations, UUID, Spatie, paramètres et audits ; `SCHEMA.md` mis à jour
 
 ### Identité et droits
 - [x] Catalogue de 27 permissions et 2 rôles (`admin`, `caissiere`) avec leurs libellés français
@@ -121,8 +121,8 @@
 - [x] Défaut corrigé au passage : attributs par défaut du modèle `User` (le mode strict renvoyait une erreur 500 sur un utilisateur tout juste créé)
 - [x] RoomCatalog (phase 3) : types, chambres et tarifs en UUID, références par UUID dans les données envoyées
 - [x] Customers et Reservations (phase 4) : clients, réservations et occupants en UUID ; chambre et client référencés par UUID
-- [ ] À appliquer en phase 5 : Cashier et Billing (paiements, remboursements, factures)
-- [ ] Frontend : routes `/…/:id` avec l'UUID (phase 6)
+- [x] Cashier et Billing (phase 5) : paiements, remboursements, factures et avoirs en UUID (tests des phases 5A à 5C)
+- [x] Frontend : routes `/…/:id` avec l'UUID (`/reservations/:id`, `/clients/:id`, `/documents/recus/:id`), phase 6
 
 ## Phase 3 — Catalogue et tarifs ✅
 
@@ -133,15 +133,15 @@
 - [x] Contrats publics `CurrentPriceProvider` et `RoomDirectory` et leurs implémentations
 - [x] Couche HTTP : 12 routes (types, chambres, maintenance, historique, grille, publication, retrait), validations françaises, ressources avec UUID
 - [x] Seeders : types VIP et Standard (tous environnements) ; catalogue de démonstration local (chambres 001, 002, 101, 102, 201 et 4 tarifs, dont VIP journée à 50 000 FCFA) ; exécutés sur la base locale
-- [ ] Types de chambre VIP et Standard : liste, création, modification (seeder de référence, tous environnements)
-- [ ] Chambres individuelles : numéro unique, type, capacité, notes ; liste avec recherche et filtres ; tri naturel (001, 002, 101)
-- [ ] Maintenance : passage en maintenance ou retour en service, avec note et audit
+- [x] Types de chambre VIP et Standard : liste, création, modification (seeder de référence, tous environnements)
+- [x] Chambres individuelles : numéro unique, type, capacité, notes ; liste avec recherche et filtres ; tri naturel (001, 002, 101)
+- [x] Maintenance : passage en maintenance ou retour en service, avec note et audit
 - [!] Maintenance planifiée par période (Q-12) : statut courant seulement pour l'instant (D-019)
-- [ ] Tarifs versionnés demi-journée et journée : publication immédiate ou programmée, sans chevauchement de versions, aucune modification de montant
-- [ ] Retrait d'une version programmée qui n'est pas encore entrée en vigueur
-- [ ] Historique : ancien tarif, nouveau tarif, auteur, date d'effet, motif ; grille des tarifs en vigueur
-- [ ] Contrats publics pour le module Reservations : `CurrentPriceProvider` (tarif en vigueur au moment de la confirmation) et `RoomDirectory`
-- [ ] Données de démonstration locales : chambres 101 VIP, 102 Standard… et tarifs de démonstration
+- [x] Tarifs versionnés demi-journée et journée : publication immédiate ou programmée, sans chevauchement de versions, aucune modification de montant
+- [x] Retrait d'une version programmée qui n'est pas encore entrée en vigueur
+- [x] Historique : ancien tarif, nouveau tarif, auteur, date d'effet, motif ; grille des tarifs en vigueur
+- [x] Contrats publics pour le module Reservations : `CurrentPriceProvider` (tarif en vigueur au moment de la confirmation) et `RoomDirectory`
+- [x] Données de démonstration locales : chambres 101 VIP, 102 Standard… et tarifs de démonstration
 
 ### Tests (20 tests RoomCatalog, 140 assertions)
 - [x] Recette 1 : chambres 101 VIP et 102 Standard, numéro unique (message français « Une chambre porte déjà ce numéro. »)
@@ -252,7 +252,15 @@
 - [!] Serveur d'envoi (SMTP) et adresse d'expédition de l'hôtel à fournir (Q-22) ; en local, les e-mails sont écrits dans `storage/logs`
 - [x] Tests : **8 tests** (parcours complet de 10 e-mails, PDF joint, reçu, désinscription, aucun envoi sans e-mail ni en cas d'échec) ; vérifié en réel (file d'attente traitée, e-mail produit)
 
-## Phase 6 — Frontend (écrans) 🟡
+### 5E — Design du PDF de facture depuis la référence (19/11/2026) ✅
+
+- [x] Palette vert profond/or, monogramme, image déjà présente dans le projet, blocs client/séjour, icônes, tableau, totaux, versements, QR et pied de page.
+- [x] Coordonnées, lignes, remises, versements et montants issus de l’instantané figé ; aucun ajout de TVA, échéance, prestation incluse, cachet ou signature fictifs.
+- [x] Facture et avoir de démonstration sur une page A4 ; cas long de 36 lignes et noms longs sur trois pages, en-têtes répétés et pages numérotées. Les cinq pages de contrôle ont été inspectées.
+- [x] QR des trois documents décodés depuis leurs pages PDF rendues ; image compressée et polices sous-ensemblées, exemple de facture d’environ 168 Ko.
+- [x] Suite backend : 183 tests / 1 281 assertions ; immuabilité, génération PDF, avoirs, QR et pièces jointes vérifiés. Facture du parcours réel : une page, avance de 20 000 FCFA et solde de 30 000 FCFA contrôlés ; QR décodé et comparé à son adresse exacte.
+
+## Phase 6 — Frontend (écrans) ✅
 
 > Design repris du prototype `JB_Hotel_Prototype` (charte vert profond et or, barre latérale, cartes, badges), puis amélioré et branché sur l'API réelle.
 
@@ -282,28 +290,114 @@
 - [x] Tests : 7 tests backend ; **55 tests frontend** (+8 : caisse, raccourcis de période, remboursement plafonné et motivé, factures et totaux, avoir réservé à l'administrateur, onglets au clavier, reçu imprimable, reçu annulé)
 - [x] Contrats des nouveaux appels vérifiés contre le serveur réel (caissière puis administrateur) : net du jour, soldes, remboursement refusé à la caissière (403), annulation refusée après remboursement (409), avoir
 
-### 6C — Administration (à faire)
-- [ ] Chambres et catégories, maintenance
-- [ ] Tarifs : grille, historique, publication, retrait
-- [ ] Utilisateurs et accès : comptes, rôles, permissions
-- [ ] Paramètres et journal d'audit (endpoints à créer)
-- [ ] Responsive (poste de caisse puis tablette) et WCAG 2.2 AA
+### 6C — Administration
+- [x] API : paramètres `GET /settings`, `PUT /settings/{clé}` (seuls les paramètres réglables, avec contrôle et audit) ; `GET /payment-methods` pour les listes de moyens — 4 tests
+- [x] API : journal d'audit `GET /audit-logs` (filtres, libellés français, liens en UUID, sans identifiant interne) — 2 tests
+- [x] Chambres et catégories : création, modification, maintenance avec note
+- [x] Tarifs : grille en vigueur et programmée, publication (immédiate ou datée, motif), retrait d'un tarif programmé, historique
+- [x] Utilisateurs et accès : liste, création, modification, activation et désactivation, droits de la caissière
+- [x] Paramètres : lecture de toutes les règles (validées ou provisoires), modification des règles réglables
+- [x] Journal d'audit : consultation filtrée, détail avant et après
+- [x] Tests backend et frontend verts ; parcours réel Playwright : connexion, chambre, client, réservation, avance, facture, consultation des écrans et exports ; 2 E2E réussis
+- [x] Responsive : captures bureau, tablette 768 px et mobile 390 px, sans débordement global ; Axe sans violation sur les nouveaux écrans (tags WCAG 2 A/AA, 2.1 AA, 2.2 AA). Recette humaine complète et certification non présumées
+- [x] Relecture finale : la modification d'une catégorie renvoyait son code, refusé par le serveur (422 à chaque enregistrement). Le code n'est plus envoyé en modification et il est contrôlé au format du serveur à la création ; test ajouté
+- [x] Contrats réels de l'administration et des filtres, rejoués avec une vraie session Sanctum sur un serveur branché sur `jb_hotel_e2e` (jamais la base de travail) : **60 contrôles verts**. Couverts : catégories (modification sans code, code refusé en 422), chambres, maintenance, tarifs immédiat et daté au format du navigateur, grille, historique filtré avec ancien tarif, retrait (204), utilisateurs (filtres, création, désactivation sans mot de passe), droits de la caissière, paramètres (réglable modifié, non réglable 409), audit sans identifiant interne, recherche par client sur réservations, reçus, factures et clients, lignes par page (10 respecté, valeur hors liste ramenée à 25), refus de la caissière (403). Limiteur de débit observé (429) en relançant trop vite
 
-## Phase 7 — Reporting ⬜
+### 6D — Filtres complets et pagination dans chaque module (demande du 19/11/2026)
+- [x] API : recherche par client sur les réservations, les reçus et les factures ; catégorie et forfait sur les réservations ; e-mail, ville et pays sur les clients
+- [x] API : nombre de lignes par page (10, 25, 50, 100) sur toutes les listes paginées ; liste des agents de caisse pour les filtres
+- [x] Pagination commune : page précédente et suivante, nombre de résultats, lignes par page
+- [x] Filtres et pagination : réservations, clients, séjours d'un client, caisse (mouvements, soldes), reçus, factures, chambres, catégories, tarifs, utilisateurs, journal d'audit
+- [x] Tests backend et frontend
 
-- [ ] API d'agrégation, indicateurs définis (facturé ≠ encaissé ≠ chiffre d'affaires)
-- [ ] Filtres par période, type, chambre et caissière
-- [ ] Graphiques, ventilation VIP et Standard, journal de caisse
-- [ ] Export CSV et PDF
-- [ ] Rapprochement des encaissements, paiements et remboursements
+### 6E — Design des paginations (demande du 19/11/2026) ✅
 
-## Phase 8 — Qualité et livraison ⬜
+- [x] Pied de liste commun assorti à la charte : fond discret, séparation du tableau, page active vert profond avec accent doré, boutons et sélecteur harmonisés.
+- [x] Navigation directe par numéros, premières/dernières pages et points de suspension sur les grandes listes ; boutons précédent/suivant avec états désactivés.
+- [x] Compteur de plage (« 31–40 sur 217 résultats »), état vide, sélection 10/25/50/100 et retour à la première page après changement de taille.
+- [x] Adaptation à la largeur du composant : une ligne sur grand écran, disposition compacte sur tablette/mobile ; captures inspectées à 1440, 768, 390 et 320 px.
+- [x] Accessibilité : noms explicites, page courante annoncée, compteur dynamique, focus visible ; Axe sans violation sur les quatre formats.
+- [x] Correction d’un débordement des libellés masqués des tableaux sur mobile ; pagination masquée à l’impression.
+- [x] Contrôles : 63 tests frontend, lint, TypeScript et build verts ; suite navigateur complète : **3 tests réussis**, dont le test dédié de pagination (navigation, dernière page, taille, état vide et responsive).
 
-- [ ] Migrations propres sur MySQL 8
-- [ ] Tests unitaires, d'intégration et de bout en bout
-- [ ] Sécurité et contrôle d'accès
-- [ ] Impression et restauration de sauvegarde
-- [ ] Matrice exigences → tests → résultats
+### 6F — Design commun du contenu depuis la référence fournie (19/11/2026) ✅
+
+- [x] Référence : « Tableau de bord financier de l’hôtel.webp ». Application à la zone de contenu uniquement, conformément à la demande de conserver l’aside.
+- [x] Aside conservé : même JSX, navigation, marque, largeur, couleurs et espacements ; thème CSS limité à `.workspace`, aux modales et au panneau de connexion.
+- [x] Fil d’Ariane, titres avec icône sur fond menthe, cartes d’indicateurs pastel, surfaces claires, filtres encadrés et tableaux à en-tête vert pâle.
+- [x] Factures et reçus : indicateurs au-dessus des onglets, filtres séparés, type de document, icônes de lignes, actions compactes et impression. Les montants et les compteurs proviennent de l’API ; aucune variation fictive n’a été ajoutée.
+- [x] Application aux pages métier, à l’administration, aux fiches, à la connexion et aux formulaires ; styles d’impression conservés.
+- [x] Navigation au clavier des onglets conservée après changement de leur disposition ; aucun « −0 FCFA » à l’affichage.
+- [x] Recette : **63 tests frontend et 4 tests navigateur verts** ; Axe sans violation sur les 17 pages principales/fiches contrôlées et le formulaire de chambre ; 31 captures de connexion, pages, fiches et formulaire, dont des contrôles à 1752/768/390/320 px.
+
+### 6G — Design et icônes des boutons (19/11/2026) ✅
+
+- [x] Boutons principaux, secondaires, actions de tableau et boutons de dialogue harmonisés : bordures, relief discret, survol, appui, focus et états désactivés.
+- [x] Icônes adaptées : création, modification, maintenance, consultation, filtres, impression, PDF, exports, encaissement, remboursement, retrait, annulation et vérification.
+- [x] Icônes décoratives masquées aux lecteurs d’écran ; libellés et permissions conservés, actions sensibles distinctes et confirmations maintenues.
+- [x] Icône de chargement sur la connexion et les confirmations, fermeture explicite des modales et respect des préférences de mouvement réduit.
+- [x] Contrôle des boutons des 17 pages/fiches et du formulaire : présence d’icônes, Axe, navigation clavier et opérations existantes vérifiés ; aside exclu et comparé à son JSX d’origine (identique), dimensions/couleurs contrôlées en navigateur.
+
+### 6H — Filtres automatiques (19/11/2026) ✅
+
+- [x] Réservations, clients, factures, reçus, utilisateurs, caisse, rapports et audit : filtres sans bouton de validation ; les catalogues, disponibilités et recherches locales étaient déjà automatiques.
+- [x] Recherche serveur après 300 ms de pause ; choix et dates valides appliqués immédiatement. Annulation des délais remplacés et retour en page 1 après changement de filtre.
+- [x] Effacement de tous les filtres clients/réservations en conservant le nombre de lignes par page ; les résultats déjà disponibles peuvent être repris du cache.
+- [x] Périodes incomplètes, inversées ou trop longues : derniers critères valides conservés, indication accessible ; bornes de 92 jours pour la caisse et 366 pour les rapports.
+- [x] Cinq tests du comportement partagé : dernière saisie, choix immédiat, pagination, effacement, période invalide et borne facultative ; 68 tests frontend, lint, format et build verts.
+- [x] Suite navigateur finale : quatre tests réussis, avec recherche et effacement automatiques, responsive et Axe. Aucun changement de l’aside, contrôlé en JSX et en navigateur.
+
+### Incident — Page blanche du serveur local (19/11/2026) ✅
+
+- [x] Erreur reproduite sur le serveur réellement utilisé, `http://localhost:5173` : export `ReservationDetailPage` absent du module servi.
+- [x] Cause vérifiée : fichier source complet avec export présent, mais transformation vide conservée dans la mémoire du processus Vite. Contrôle de 83 modules : un seul module vide.
+- [x] Serveur Vite redémarré avec `--force`, dépendances réoptimisées ; aucun changement nécessaire au composant.
+- [x] `npm run check:dev` ajouté : navigateur anonyme sur le serveur actif, quatre routes et rechargement sans erreur JavaScript ni page blanche ; aucune réinitialisation de base.
+- [x] Commande exécutée avec succès et lint vert. Les tests métier de la session précédente restent à 183 backend / 68 frontend / 4 navigateur ; ils n’ont pas été rejoués pour cette réparation de serveur.
+
+### 6I — Vues d’ensemble, espacement et champs illustrés (19/11/2026) ✅
+
+- [x] Synthèses sur les listes, fiches et pages d’administration ; les pages caisse, factures, tableau de bord et rapports conservent leurs indicateurs réels.
+- [x] Indicateurs issus des données reçues, avec périmètre explicite : catalogue complet, résultats filtrés, page affichée ou premier jour du planning. Aucune extrapolation ni variation fictive.
+- [x] Espacement augmenté entre cartes, panneaux, champs et boutons ; icônes adaptées dans les champs texte, dates, heures, mots de passe, montants, listes et commentaires.
+- [x] Deux couleurs d’action, vert et bleu, avec alternance entre voisins ; la couleur secondaire demandée est le bleu. Cartes voisines différenciées, états désactivés/focus/chargement conservés et actions destructives distinctes.
+- [x] Aside conservé : JSX identique à la référence Git et styles limités au contenu/dialogues/connexion.
+
+### 6J — Filtres et pagination par tableau (19/11/2026) ✅
+
+- [x] Recherche automatique et pagination indépendantes sur les tableaux secondaires : arrivées, départs, réservations récentes, données des graphiques, grille tarifaire, catégories, ventilations de caisse, historique/documents/encaissements d’un séjour et tableaux du reçu.
+- [x] Planning : recherche dans les chambres et pagination en complément de la période/catégorie. Rapports : contrôles propres aux données quotidiennes et à la ventilation par catégorie.
+- [x] Les listes distantes conservent leurs filtres et leur pagination serveur. Les petits tableaux utilisent les lignes intégralement fournies par l’API, sans nouvelle requête ni recalcul des totaux métier.
+- [x] Recherche locale insensible aux accents et à la casse, retour en page 1, plage de résultats et choix du nombre de lignes.
+- [x] Impression des tableaux locaux sur toutes les lignes reçues, avec rétablissement du filtre et de la page ensuite ; commandes masquées à l’impression.
+- [x] Contrôles finaux : 73 tests frontend, lint, format, TypeScript et build verts ; parcours métier et pagination validés (3 tests), puis contrôle visuel final (1 test) sur 17 pages/fiches et le formulaire. Axe, icônes, espacement, boutons voisins, filtres/pagination de chaque tableau et responsive contrôlés. Serveur actif vérifié avec `check:dev`.
+
+### 6K — Chambres occupées en rouge (19/11/2026) ✅
+
+- [x] Occupée en rouge dans les pastilles, cartes concernées, planning et graphique d’occupation ; libre en vert, réservée en bleu, maintenance en ambre.
+- [x] Liste des chambres : colonne et filtre d’occupation actuelle à partir de l’API d’occupation existante, sans stocker un état dérivé.
+- [x] Consultation d’occupation conditionnée au droit `reservations.view` ; droits serveur conservés, aucun résultat supposé libre en l’absence de données.
+- [x] Test d’intégration de l’affichage rouge et du filtre d’occupation ; tests du tableau local (recherche, pagination, impression) et distinction total/page dans la synthèse clients.
+
+## Phase 7 — Reporting ✅
+
+- [x] API d'agrégation, indicateurs définis (facturé ≠ encaissé ≠ chiffre d'affaires)
+- [x] Filtres par période, type, chambre et caissière
+- [x] Graphiques, ventilation VIP et Standard, journal de caisse
+- [x] Export CSV et PDF
+- [x] Rapprochement des encaissements, paiements et remboursements
+
+## Phase 8 — Qualité et livraison 🟡 (livraison locale vérifiée)
+
+- [~] Migrations propres : suites locales sur MariaDB ; MySQL 8.4 prévu dans la CI (Docker absent du poste, nouvelle exécution distante non réalisée)
+- [x] Tests : **183 backend / 74 frontend / 4 tests navigateur / 60 contrats réels (administration et filtres)** ; Pint, Larastan niveau 6, lint, Prettier, TypeScript et build verts (relecture finale du 19/11/2026)
+- [x] Contrôle d’accès : permissions API et routes frontend, CSRF réel, UUID des annuaires, export réservé à `reports.export`, données d’audit sans secrets et erreurs françaises ; tests verts
+- [x] Sauvegarde et restauration réelle vérifiées : `php infra/database-backup.php --verify`, 27 tables avec nombres de lignes identiques et empreinte SHA-256 ; cible de contrôle distincte et refus d’une base déjà remplie
+- [x] PDF A4 : export navigateur téléchargé, deux pages rendues et inspectées ; journal imprimé complet même si la liste est paginée à l’écran
+- [!] Impression sur l’imprimante de l’hôtel et validation visuelle humaine finale à réaliser sur place
+- [x] Matrice exigences → tests → résultats : `docs/RECETTE.md` ; guide de configuration, livraison et sauvegarde : `docs/EXPLOITATION.md`
+- [x] CI étendue : MySQL 8.4, Playwright/Chromium et Axe ; diagnostics conservés en cas d’échec
+- [~] Nouvelle exécution GitHub Actions à vérifier après envoi des changements ; aucune CI distante ni aucun déploiement déclenché pendant cette session
 
 ## Critères d'acceptation (fiche 06)
 
@@ -314,7 +408,7 @@
 - [x] Une avance de 20 000 sur 50 000 laisse un solde de 30 000, avec un reçu par versement (testé)
 - [x] Une réduction de 10 % sur 50 000 donne 45 000, utilisateur et motif enregistrés (testé ; au-delà de 10 %, refus pour la caissière)
 - [x] Les remboursements diminuent les encaissements nets sans effacer le paiement initial (testé)
-- [ ] Les indicateurs de caisse se rapprochent des transactions enregistrées
+- [x] Les indicateurs de caisse se rapprochent des transactions enregistrées (FinancialReportTest : journal, série quotidienne et catégories ; remboursements, annulations et avoirs)
 - [x] Une caissière sans le droit nécessaire ne peut pas modifier un tarif : permission absente du rôle et API des tarifs en 403 (testé en phases 2 et 3)
 - [~] Factures imprimables en A4 ; données conservées après redémarrage. PDF A4 généré côté serveur (testé) et données en base MySQL/MariaDB ; recette d'impression papier à faire en phase 8
 
@@ -326,3 +420,11 @@ Voir `docs/QUESTIONS.md`. Questions **P1**, qui bloquent la mise en production :
 - Q-07 : réservations non payées ;
 - Q-08 : remboursements ;
 - Q-09 : facturation en RCA.
+
+
+## Livraison de cette session
+
+- Administration et rapports accessibles dans l’application locale : `http://localhost:5173`.
+- Les modifications déjà présentes avant la session ont été conservées et complétées. Aucun commit, envoi Git ni déploiement effectué.
+- Les données de travail n’ont pas été réinitialisées. Les E2E utilisent exclusivement `jb_hotel_e2e` ; la restauration de contrôle utilise `jb_hotel_restore_test`.
+- Restent externes à la livraison locale : validation P1 par l’hôtel, SMTP réel (Q-22), mentions légales, impression papier et confirmation de la nouvelle CI sur MySQL 8.4.

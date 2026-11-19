@@ -5,6 +5,7 @@ namespace App\Modules\Customers\Models;
 use App\Shared\Models\HasPublicUuid;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -56,6 +57,23 @@ class Customer extends Model
     ];
 
     /** « NOM Prénoms », tel qu'affiché sur les écrans et les factures. */
+    /**
+     * Recherche d'un client (nom, prénoms, téléphone, e-mail, pièce), commune au répertoire et
+     * aux filtres « client » des autres modules (contrat CustomerDirectory::searchIds).
+     *
+     * @param  Builder<Customer>  $query
+     */
+    public function scopeMatching(Builder $query, string $term): void
+    {
+        $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+        $query->where(fn (Builder $q) => $q
+            ->where('name', 'like', $like)
+            ->orWhere('first_name', 'like', $like)
+            ->orWhere('phone', 'like', $like)
+            ->orWhere('email', 'like', $like)
+            ->orWhere('identification_number', 'like', $like));
+    }
+
     public function fullName(): string
     {
         return trim($this->name.' '.($this->first_name ?? ''));

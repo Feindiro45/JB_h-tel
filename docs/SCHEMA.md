@@ -78,4 +78,4 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | Maintenance | `maintenance_status` | Statut courant seulement | Périodes planifiées en attente de Q-12 (D-019) |
 | Identifiants publics | Absents | Colonne `uuid` sur 11 tables | Les routes et les liens n’exposent jamais la clé entière (D-026) |
 
-> Le fichier `04_MCD_JB_Hotel.drawio` n'a pas encore été redessiné avec ces compléments. Ce document fait foi en attendant.
+> Le fichier `04_MCD_JB_Hotel.drawio` a été régénéré le 19/11/2026 depuis le schéma réel : 27 tables et 27 relations de clés étrangères, y compris UUID, Spatie, paramètres, audits et tables techniques. Les associations polymorphes de Spatie restent documentées par leurs colonnes, sans fausse clé étrangère.

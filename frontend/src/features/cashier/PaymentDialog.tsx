@@ -1,10 +1,11 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { paymentMethodsQuery } from '../../shared/api/lookups'
 import { useState } from 'react'
 import { SelectField, TextField } from '../../shared/ui/fields'
 import { Modal } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatFcfa } from '../../shared/utils/format'
-import { CASH_KEYS, PAYMENT_METHODS, recordPayment } from './api'
+import { CASH_KEYS, recordPayment } from './api'
 
 /** Encaissement (intégral, avance ou solde). Le serveur refuse tout trop-perçu (D-014). */
 export function PaymentDialog({
@@ -16,6 +17,7 @@ export function PaymentDialog({
   balance: number
   onClose: () => void
 }) {
+  const methods = useQuery(paymentMethodsQuery)
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [amount, setAmount] = useState(String(Math.max(0, balance)))
@@ -27,7 +29,9 @@ export function PaymentDialog({
     mutationFn: () =>
       recordPayment(reservationId, {
         amount_fcfa: Number(amount),
-        method,
+        method: methods.data?.some((m) => m.value === method)
+          ? method
+          : (methods.data?.[0]?.value ?? ''),
         reference: reference.trim() || null,
       }),
     onSuccess: (payment) => {
@@ -57,7 +61,9 @@ export function PaymentDialog({
       onClose={onClose}
       onSubmit={submit}
       submitLabel="Enregistrer l’encaissement"
+      submitIcon="wallet"
       submitting={mutation.isPending}
+      submitDisabled={!methods.data?.length}
       size="small"
     >
       <div className="fields">
@@ -73,10 +79,14 @@ export function PaymentDialog({
         />
         <SelectField
           label="Moyen de paiement"
-          value={method}
+          value={
+            methods.data?.some((m) => m.value === method)
+              ? method
+              : (methods.data?.[0]?.value ?? '')
+          }
           onChange={(e) => setMethod(e.target.value)}
         >
-          {PAYMENT_METHODS.map((item) => (
+          {(methods.data ?? []).map((item) => (
             <option key={item.value} value={item.value}>
               {item.label}
             </option>

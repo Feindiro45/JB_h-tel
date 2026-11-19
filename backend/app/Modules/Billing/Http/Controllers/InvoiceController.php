@@ -13,6 +13,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Contracts\ReservationDue;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Shared\Exceptions\BusinessRuleException;
+use App\Shared\Http\PerPage;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,7 +48,7 @@ final class InvoiceController
             'search' => isset($validated['search']) ? trim((string) $validated['search']) : null,
         ], fn ($value) => $value !== null && $value !== '');
 
-        $page = $list->page($filters);
+        $page = $list->page($filters, PerPage::from($request));
         /** @var list<Invoice> $items */
         $items = $page->items();
 

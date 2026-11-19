@@ -12,6 +12,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:e2e": "php ../backend/tests/Support/prepare_e2e.php && playwright test",
+    "check:dev": "node scripts/check-dev.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -24,6 +26,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.1",
     "@testing-library/jest-dom": "^8.0.0",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.13",

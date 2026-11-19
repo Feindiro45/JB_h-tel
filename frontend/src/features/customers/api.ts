@@ -23,11 +23,19 @@ export const customerKeys = {
   reservations: (id: string) => ['customers', id, 'reservations'] as const,
 }
 
-export const customersQuery = (search: string, page = 1) =>
+export const customersQuery = (
+  search: string,
+  page = 1,
+  perPage = 25,
+  filters: Record<string, string> = {},
+) =>
   queryOptions({
-    queryKey: customerKeys.list(search, page),
+    queryKey: [...customerKeys.list(search, page), perPage, filters],
     queryFn: ({ signal }) =>
-      api.get<Paginated<Customer>>('/api/v1/customers', { query: { search, page }, signal }),
+      api.get<Paginated<Customer>>('/api/v1/customers', {
+        query: { search, page, per_page: perPage, ...filters },
+        signal,
+      }),
     placeholderData: (previous) => previous,
   })
 

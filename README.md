@@ -72,7 +72,11 @@ cd backend  && php artisan serve     # API : http://localhost:8000  (santé : /a
 cd frontend && npm run dev           # Interface : http://localhost:5173
 ```
 
-Ouvre http://localhost:5173 et connecte-toi (comptes de démonstration créés par `php artisan migrate:fresh --seed`). Écrans disponibles (phases 6A et 6B) : vue d'ensemble, réservations et fiche réservation, nouvelle réservation guidée, disponibilités, clients, caisse, factures et reçus (reçu imprimable A4) ; l'état du système est sous Administration. Le menu suit les droits du compte connecté.
+Ouvre http://localhost:5173 et connecte-toi (comptes de démonstration créés par `php artisan migrate:fresh --seed`). Écrans disponibles : vue d'ensemble, réservations et fiche réservation, nouvelle réservation guidée, disponibilités, clients, caisse, factures et reçus (reçu imprimable A4) ; l'état du système est sous Administration. L’administration propose chambres/catégories, tarifs versionnés, utilisateurs/droits, paramètres et audit. Les rapports financiers proposent filtres et exports CSV/PDF ; les listes disposent d’une pagination et de filtres. Le menu suit les droits du compte connecté.
+
+Les filtres s’appliquent automatiquement : sélections et dates valides immédiatement, recherches serveur après 300 ms sans frappe. Les périodes invalides conservent les derniers résultats valides pendant la correction. Les boutons « Filtrer » ne sont plus nécessaires.
+
+Les factures et avoirs PDF reprennent la charte vert/or de la référence fournie. Le modèle est `backend/resources/views/billing/invoice.blade.php`, l’illustration locale `backend/resources/images/jb-hotel.jpg`. Les coordonnées et montants restent ceux de l’instantané d’émission ; aucune règle fiscale n’a été déduite de l’image. Un exemple sans valeur comptable est disponible localement sous `output/pdf/`, hors Git.
 
 ## Commandes
 
@@ -91,6 +95,8 @@ Ouvre http://localhost:5173 et connecte-toi (comptes de démonstration créés p
 | Commande | Rôle |
 |---|---|
 | `npm test` | Tous les tests (Vitest) |
+| `npm run check:dev` | Contrôler le serveur déjà lancé sur 5173, sans connexion ni réinitialisation de base |
+| `npm run test:e2e` | Parcours navigateur réel sur la base isolée `jb_hotel_e2e` (réinitialisée) |
 | `npx vitest run src/shared/api/errors.test.ts` | Un fichier de test |
 | `npx vitest run -t "message réseau"` | Les tests dont le nom correspond |
 | `npm run lint` | Lint (oxlint) |
@@ -237,3 +243,31 @@ Suivi du projet :
 - [Décisions](docs/DECISIONS.md)
 - [Questions ouvertes](docs/QUESTIONS.md)
 - [Journal des modifications](docs/CHANGELOG.md)
+
+
+## Recette et exploitation
+
+- [Matrice exigences → tests → résultats](docs/RECETTE.md).
+- [Configuration, livraison et sauvegardes](docs/EXPLOITATION.md).
+- Sauvegarde : `php infra/database-backup.php` ; restauration de contrôle : ajouter `--verify` (cible `jb_hotel_restore_test` obligatoirement vide).
+- Rapports : `GET /api/v1/reports/financial?from=AAAA-MM-JJ&to=AAAA-MM-JJ&room_type_id=&room_id=&agent_id=` ; ajouter `format=csv` ou `format=pdf` avec le droit `reports.export`.
+- Administration : `/api/v1/settings`, `/api/v1/audit-logs` ; annuaires publics des agents autorisés : `/api/v1/cash-agents`, `/api/v1/report-agents`, `/api/v1/audit-actors` (UUID et nom uniquement, chacun protégé par son droit de consultation).
+
+La mise en production attend toujours la validation par l’hôtel des questions métier P1, des mentions fiscales, du SMTP et de l’impression papier. Aucune de ces validations n’est présumée acquise.
+
+
+## Charte de l’interface
+
+La zone de contenu suit la référence visuelle fournie par l’hôtel : titres avec icônes, cartes pastel, filtres encadrés, tableaux clairs et boutons harmonisés avec des icônes adaptées aux actions. La barre latérale existante est conservée. Le thème du contenu est isolé dans `frontend/src/content-theme.css` ; les permissions, les données métier et les documents PDF du serveur restent inchangés.
+
+
+### Page blanche pendant le développement
+
+Si la console indique qu’un module « ne fournit pas un export » alors que cet export existe dans le fichier, le processus Vite peut avoir conservé une transformation vide. Arrêter uniquement le serveur frontend, puis le relancer avec `npm run dev -- --force` et recharger le navigateur. Vérifier ensuite avec `npm run check:dev` : ce contrôle vise le serveur déjà actif, contrairement aux E2E qui en créent un neuf. `DEV_CHECK_URL` permet de changer l’adresse du contrôle. Les données de travail ne doivent pas être réinitialisées pour corriger cet incident.
+
+
+### Présentation des listes et synthèses
+
+Chaque page métier présente une synthèse avec le périmètre de ses indicateurs. Les boutons voisins alternent vert et bleu ; les champs comportent des icônes décoratives. Les chambres occupées apparaissent en rouge à partir de l’occupation calculée.
+
+Les tableaux secondaires ont une recherche et une pagination indépendantes (`shared/ui/LocalTable`). Les filtres locaux portent sur les données déjà reçues ; les totaux de la page conservent leur périmètre indiqué. Les tableaux locaux impriment toutes leurs lignes reçues et rétablissent ensuite l’affichage filtré/paginé. Les listes distantes restent paginées par l’API.

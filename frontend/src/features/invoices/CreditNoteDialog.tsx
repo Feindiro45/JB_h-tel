@@ -41,6 +41,7 @@ export function CreditNoteDialog({
         reason.trim() ? mutation.mutate() : setError('Le motif de l’avoir est obligatoire.')
       }
       submitLabel="Émettre l’avoir"
+      submitIcon="undo"
       submitting={mutation.isPending}
       danger
       size="small"

@@ -91,11 +91,15 @@ export function LoginPage() {
                 onClick={() => setShowPassword((value) => !value)}
                 aria-pressed={showPassword}
               >
+                <Icon name={showPassword ? 'eyeOff' : 'eye'} size={17} />
                 {showPassword ? 'Masquer' : 'Afficher'}
               </button>
             </div>
             <button type="submit" className="primary" disabled={mutation.isPending}>
-              <Icon name="login" />
+              <Icon
+                name={mutation.isPending ? 'loader' : 'login'}
+                className={mutation.isPending ? 'is-spinning' : undefined}
+              />
               {mutation.isPending ? 'Connexion…' : 'Se connecter'}
             </button>
           </form>

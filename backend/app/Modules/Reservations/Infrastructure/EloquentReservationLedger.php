@@ -39,6 +39,16 @@ final class EloquentReservationLedger implements ReservationLedger
             ->all();
     }
 
+    public function idsForCustomers(array $customerIds): array
+    {
+        if ($customerIds === []) {
+            return [];
+        }
+
+        return Reservation::query()->whereIn('customer_id', array_values(array_unique($customerIds)))->pluck('id')
+            ->map(fn ($id) => (int) $id)->values()->all();
+    }
+
     public function lockForPayment(int $reservationId): ?ReservationDue
     {
         $reservation = Reservation::query()->lockForUpdate()->find($reservationId);

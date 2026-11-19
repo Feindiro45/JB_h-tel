@@ -1,3 +1,4 @@
+import { Icon } from '../../shared/ui/Icon'
 import { useMutation } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import type { ExtensionPreview, Reservation } from '../../shared/api/types'
@@ -178,7 +179,8 @@ export function ExtendDialog({
           style={{ marginTop: 10 }}
           onClick={() => setPreview(null)}
         >
-          ← Modifier la demande
+          <Icon name="back" size={17} />
+          <span className="sr-only">←</span> Modifier la demande
         </button>
       </Modal>
     )

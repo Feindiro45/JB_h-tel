@@ -6,6 +6,7 @@ use App\Modules\Customers\Application\Services\CustomerService;
 use App\Modules\Customers\Http\Requests\CustomerRequest;
 use App\Modules\Customers\Http\Resources\CustomerResource;
 use App\Modules\Customers\Models\Customer;
+use App\Shared\Http\PerPage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -20,15 +21,13 @@ final class CustomerController
         $search = $request->string('search')->trim()->toString();
 
         $customers = Customer::query()
-            ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('first_name', 'like', "%{$search}%")
-                ->orWhere('phone', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('identification_number', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($query) => $query->matching($search))
+            ->when($request->filled('email'), fn ($q) => $q->where('email', 'like', '%'.$request->string('email')->trim()->toString().'%'))
+            ->when($request->filled('origin_city'), fn ($q) => $q->where('origin_city', 'like', '%'.$request->string('origin_city')->trim()->toString().'%'))
+            ->when($request->filled('origin_country'), fn ($q) => $q->where('origin_country', 'like', '%'.$request->string('origin_country')->trim()->toString().'%'))
             ->orderBy('name')
             ->orderBy('first_name')
-            ->paginate(25)
+            ->paginate(PerPage::from($request))
             ->withQueryString();
 
         return CustomerResource::collection($customers);

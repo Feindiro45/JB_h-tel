@@ -17,6 +17,7 @@ use App\Modules\Reservations\Models\Reservation;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Shared\Audit\AuditLog;
 use App\Shared\Exceptions\BusinessRuleException;
+use App\Shared\Http\PerPage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -31,6 +32,13 @@ final class ReservationController
     /** Liste filtrable : statut, chambre, client (UUID), période qui chevauche `from`–`to`. */
     public function index(Request $request, RoomDirectory $rooms, CustomerDirectory $customers): JsonResponse
     {
+        $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'search' => ['nullable', 'string', 'max:160'], 'room_type_id' => ['nullable', 'uuid'],
+            'billing_unit' => ['nullable', 'in:DAY,HALF_DAY'],
+        ]);
+        $typeId = $request->filled('room_type_id') ? $rooms->roomTypeIdByUuid($request->string('room_type_id')->toString()) : null;
+        $typeRooms = $request->filled('room_type_id') ? array_map(fn ($r) => $r->id, array_values(array_filter($rooms->all(), fn ($r) => $r->roomTypeId === $typeId))) : [];
         $status = ReservationStatus::tryFrom($request->string('status')->toString());
         $room = $request->filled('room_id') ? $rooms->findByUuid($request->string('room_id')->toString()) : null;
         $customer = $request->filled('customer_id') ? $customers->findByUuid($request->string('customer_id')->toString()) : null;
@@ -44,10 +52,13 @@ final class ReservationController
             ->when($status !== null, fn ($q) => $q->where('status', $status?->value))
             ->when($room !== null, fn ($q) => $q->where('room_id', $room?->id))
             ->when($customer !== null, fn ($q) => $q->where('customer_id', $customer?->id))
+            ->when($request->filled('search'), fn ($q) => $q->whereIn('customer_id', $customers->searchIds($request->string('search')->trim()->toString())))
+            ->when($request->filled('room_type_id'), fn ($q) => $q->whereIn('room_id', $typeRooms))
+            ->when($request->filled('billing_unit'), fn ($q) => $q->where('billing_unit', $request->string('billing_unit')->toString()))
             ->when($request->filled('from'), fn ($q) => $q->where('blocked_until', '>', $request->date('from')))
             ->when($request->filled('to'), fn ($q) => $q->where('blocked_from', '<', $request->date('to')?->addDay()))
             ->orderByDesc('blocked_from')
-            ->paginate(25)
+            ->paginate(PerPage::from($request))
             ->withQueryString();
 
         return new JsonResponse([

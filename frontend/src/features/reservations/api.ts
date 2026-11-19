@@ -15,11 +15,15 @@ import type {
 } from '../../shared/api/types'
 
 export interface ReservationFilters {
+  search?: string
+  room_type_id?: string
+  billing_unit?: string
   status?: string
   room_id?: string
   customer_id?: string
   from?: string
   to?: string
+  per_page?: number
   page?: number
 }
 

@@ -1,5 +1,9 @@
+import { PageOverview } from '../../shared/ui/PageOverview'
+import { useAutoFilters } from '../../shared/ui/useAutoFilters'
+import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
+import { Icon } from '../../shared/ui/Icon'
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import type { Reservation } from '../../shared/api/types'
 import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
@@ -9,22 +13,20 @@ import { EmptyState, LoadingBlock, PageHeading, Panel } from '../../shared/ui/la
 import { Pagination } from '../../shared/ui/Pagination'
 import { formatDay, formatFcfa, initials } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
-import { roomsQuery } from '../catalog'
+import { roomsQuery, roomTypesQuery } from '../catalog'
 import { reservationsQuery, type ReservationFilters } from './api'
 import { NewReservationDialog } from './NewReservationDialog'
 
 export function ReservationsPage() {
   const { can } = useCurrentUser()
   const rooms = useQuery(roomsQuery)
-  const [filters, setFilters] = useState<ReservationFilters>({ page: 1 })
-  const [draft, setDraft] = useState<ReservationFilters>({})
+  const types = useQuery(roomTypesQuery)
+  const { filters, draft, change, reset, pending, valid } = useAutoFilters<ReservationFilters>({
+    page: 1,
+    per_page: 25,
+  })
   const [creating, setCreating] = useState(false)
   const list = useQuery(reservationsQuery(filters))
-
-  function apply(event: FormEvent) {
-    event.preventDefault()
-    setFilters({ ...draft, page: 1 })
-  }
 
   const rows = list.data?.data ?? []
   const meta = list.data?.meta
@@ -32,16 +34,46 @@ export function ReservationsPage() {
   return (
     <>
       <PageHeading
+        icon="calendar"
         eyebrow="Exploitation"
         title="Réservations"
         description="Suivez les demandes, les arrivées et les départs de vos clients."
         actions={
           can('reservations.create') && (
             <button type="button" className="primary" onClick={() => setCreating(true)}>
-              + Nouvelle réservation
+              <Icon name="plus" size={17} />
+              <span className="sr-only">+</span> Nouvelle réservation
             </button>
           )
         }
+      />
+      <PageOverview
+        items={[
+          {
+            label: 'Réservations',
+            value: meta?.total,
+            hint: 'Ensemble des résultats filtrés',
+            icon: 'calendar',
+          },
+          {
+            label: 'En attente',
+            value: list.data ? rows.filter((r) => r.status === 'PENDING').length : undefined,
+            hint: 'Sur la page affichée',
+            icon: 'clock',
+          },
+          {
+            label: 'Confirmées',
+            value: list.data ? rows.filter((r) => r.status === 'CONFIRMED').length : undefined,
+            hint: 'Sur la page affichée',
+            icon: 'check',
+          },
+          {
+            label: 'Séjours en cours',
+            value: list.data ? rows.filter((r) => r.status === 'IN_PROGRESS').length : undefined,
+            hint: 'Sur la page affichée',
+            icon: 'rooms',
+          },
+        ]}
       />
       <Panel
         title="Séjours enregistrés"
@@ -49,11 +81,42 @@ export function ReservationsPage() {
           meta && <Badge tone="green" label={`${meta.total} séjour${meta.total > 1 ? 's' : ''}`} />
         }
       >
-        <form className="filterbar" onSubmit={apply} aria-label="Filtrer les réservations">
+        <form
+          className="filterbar"
+          onSubmit={(e) => e.preventDefault()}
+          aria-label="Filtrer les réservations"
+        >
+          <TextField
+            label="Client"
+            type="search"
+            value={draft.search ?? ''}
+            onChange={(e) => change({ search: e.target.value }, true)}
+          />
+          <SelectField
+            label="Catégorie"
+            value={draft.room_type_id ?? ''}
+            onChange={(e) => change({ room_type_id: e.target.value })}
+          >
+            <option value="">Toutes</option>
+            {types.data?.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="Forfait"
+            value={draft.billing_unit ?? ''}
+            onChange={(e) => change({ billing_unit: e.target.value })}
+          >
+            <option value="">Tous</option>
+            <option value="HALF_DAY">Demi-journée</option>
+            <option value="DAY">Journée</option>
+          </SelectField>
           <SelectField
             label="Statut"
             value={draft.status ?? ''}
-            onChange={(e) => setDraft({ ...draft, status: e.target.value || undefined })}
+            onChange={(e) => change({ status: e.target.value || undefined })}
           >
             <option value="">Tous</option>
             {Object.entries(RESERVATION_STATUS_LABELS).map(([value, label]) => (
@@ -65,7 +128,7 @@ export function ReservationsPage() {
           <SelectField
             label="Chambre"
             value={draft.room_id ?? ''}
-            onChange={(e) => setDraft({ ...draft, room_id: e.target.value || undefined })}
+            onChange={(e) => change({ room_id: e.target.value || undefined })}
           >
             <option value="">Toutes</option>
             {rooms.data?.map((room) => (
@@ -78,32 +141,31 @@ export function ReservationsPage() {
             label="Du"
             type="date"
             value={draft.from ?? ''}
-            onChange={(e) => setDraft({ ...draft, from: e.target.value || undefined })}
+            onChange={(e) => change({ from: e.target.value || undefined })}
           />
           <TextField
             label="Au"
             type="date"
             value={draft.to ?? ''}
-            onChange={(e) => setDraft({ ...draft, to: e.target.value || undefined })}
+            onChange={(e) => change({ to: e.target.value || undefined })}
           />
-          <button type="submit" className="secondary">
-            Filtrer
-          </button>
-          {Object.values(draft).some(Boolean) && (
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setDraft({})
-                setFilters({ page: 1 })
-              }}
-            >
+          <AutoFilterStatus pending={pending} valid={valid} />
+          {Object.entries(draft).some(
+            ([key, value]) => !['page', 'per_page'].includes(key) && Boolean(value),
+          ) && (
+            <button type="button" className="text-button" onClick={reset}>
+              <Icon name="close" size={17} />
               Effacer
             </button>
           )}
         </form>
         {list.isPending ? <LoadingBlock /> : <ReservationTable rows={rows} />}
-        <Pagination meta={meta} onPage={(page) => setFilters({ ...filters, page })} />
+        <Pagination
+          meta={meta}
+          onPage={(page) => change({ page })}
+          perPage={filters.per_page}
+          onPerPage={(per_page) => change({ per_page })}
+        />
       </Panel>
       {creating && <NewReservationDialog onClose={() => setCreating(false)} />}
     </>
@@ -161,6 +223,7 @@ export function ReservationTable({ rows }: { rows: Reservation[] }) {
               <td className="num">{formatFcfa(row.price.net_fcfa)}</td>
               <td className="num">
                 <Link className="text-button" to={`/reservations/${row.id}`}>
+                  <Icon name="eye" size={17} />
                   Ouvrir →
                 </Link>
               </td>

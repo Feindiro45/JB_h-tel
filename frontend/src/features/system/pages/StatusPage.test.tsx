@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '../../../app/queryClient'
 import { StatusPage } from './StatusPage'
@@ -32,9 +32,13 @@ describe('StatusPage', () => {
 
     renderPage()
 
-    expect(await screen.findByText('Opérationnelle')).toBeInTheDocument()
-    expect(screen.getByText('Disponible')).toBeInTheDocument()
-    expect(screen.getByText('19 novembre 2026 à 12:30')).toBeInTheDocument()
+    const services = within(screen.getByRole('region', { name: 'Services' }))
+    expect(await services.findByText('Opérationnelle')).toBeInTheDocument()
+    expect(services.getByText('Disponible')).toBeInTheDocument()
+    expect(services.getByText('19 novembre 2026 à 12:30')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Vue d’ensemble' })).toHaveTextContent(
+      'Opérationnelle',
+    )
   })
 
   it('signale une API injoignable et déclenche la modale d’erreur', async () => {
@@ -42,7 +46,9 @@ describe('StatusPage', () => {
 
     const onError = renderPage()
 
-    expect(await screen.findByText('Injoignable')).toBeInTheDocument()
+    expect(
+      await within(screen.getByRole('region', { name: 'Services' })).findByText('Injoignable'),
+    ).toBeInTheDocument()
     expect(onError).toHaveBeenCalledOnce()
   })
 })

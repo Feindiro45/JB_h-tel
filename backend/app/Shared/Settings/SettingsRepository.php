@@ -23,6 +23,12 @@ final class SettingsRepository
         return array_key_exists($key, $this->cache) ? $this->cache[$key] : $default;
     }
 
+    /** Oublie les valeurs lues : à appeler après une modification, pour la suite de la requête. */
+    public function refresh(): void
+    {
+        $this->cache = null;
+    }
+
     public function int(string $key, int $default): int
     {
         $value = $this->get($key, $default);

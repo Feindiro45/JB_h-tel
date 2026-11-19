@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useId, useRef, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useFocusTrap } from './useFocusTrap'
@@ -63,6 +64,7 @@ export function ErrorDialog({ title, message, details = [], onClose }: ErrorDial
         </div>
         <div className="modal__actions">
           <button ref={closeButtonRef} type="button" className="primary" onClick={onClose}>
+            <Icon name="close" size={18} />
             Fermer
           </button>
         </div>

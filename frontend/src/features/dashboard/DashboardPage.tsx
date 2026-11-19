@@ -1,3 +1,5 @@
+import { LocalTable } from '../../shared/ui/LocalTable'
+import { Icon } from '../../shared/ui/Icon'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -18,10 +20,10 @@ import { NewReservationDialog, occupancyQuery } from '../reservations'
 import { dashboardQuery } from './api'
 
 const DONUT_COLORS: Record<string, string> = {
-  OCCUPIED: '#047857',
-  RESERVED: '#77b9aa',
-  FREE: '#d9e8df',
-  MAINTENANCE: '#e5a85d',
+  OCCUPIED: '#c93644',
+  RESERVED: '#3975cb',
+  FREE: '#24985b',
+  MAINTENANCE: '#c58a2c',
 }
 
 /** Vue d'ensemble de la réception (design du prototype), données réelles de l'API. */
@@ -41,13 +43,15 @@ export function DashboardPage() {
   return (
     <>
       <PageHeading
+        icon="dashboard"
         eyebrow={`Réception · ${formatDay(todayIso())}`}
         title="Vue d’ensemble"
         description={`Bonjour ${user?.name.split(' ')[0] ?? ''}, voici les séjours et les mouvements de caisse du jour.`}
         actions={
           can('reservations.create') && (
             <button type="button" className="primary" onClick={() => setCreating(true)}>
-              + Nouvelle réservation
+              <Icon name="plus" size={17} />
+              <span className="sr-only">+</span> Nouvelle réservation
             </button>
           )
         }
@@ -58,24 +62,28 @@ export function DashboardPage() {
       ) : dashboard.data ? (
         <section className="metrics" aria-label="Indicateurs du jour">
           <Metric
+            tone="green"
             label="Encaissé aujourd’hui"
             value={formatFcfa(dashboard.data.collected_today_fcfa)}
             hint="Versements validés − remboursements"
             icon="cash"
           />
           <Metric
+            tone="blue"
             label="Facturé ce mois"
             value={formatFcfa(dashboard.data.invoiced_month_fcfa)}
             hint="Factures émises − avoirs"
             icon="document"
           />
           <Metric
+            tone="mint"
             label="Soldes à recevoir"
             value={formatFcfa(dashboard.data.receivables_fcfa)}
             hint="Réservations non annulées"
             icon="chart"
           />
           <Metric
+            tone="red"
             label="Chambres occupées"
             value={`${occupied} / ${rooms.length}`}
             hint="Séjours en cours maintenant"
@@ -128,6 +136,7 @@ export function DashboardPage() {
         title="Réservations récentes"
         action={
           <Link className="text-button" to="/reservations">
+            <Icon name="calendar" size={17} />
             Toutes les réservations →
           </Link>
         }
@@ -162,17 +171,37 @@ function CollectedChart({ days }: { days: { date: string; net_fcfa: number }[] }
           ))}
         </div>
       </div>
-      <table className="sr-only">
-        <caption>Encaissé net par jour</caption>
-        <tbody>
-          {days.map((day) => (
-            <tr key={day.date}>
-              <th scope="row">{formatDay(day.date)}</th>
-              <td>{formatFcfa(day.net_fcfa)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <details>
+        <summary>Données des encaissements</summary>
+        <LocalTable
+          label="encaissements quotidiens"
+          rows={days}
+          searchText={(r) => `${formatDay(r.date)} ${r.net_fcfa}`}
+        >
+          {(visibleRows) => (
+            <div className="table-wrap">
+              {' '}
+              <table>
+                <caption>Encaissé net par jour</caption>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Encaissé net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map((day) => (
+                    <tr key={day.date}>
+                      <th scope="row">{formatDay(day.date)}</th>
+                      <td>{formatFcfa(day.net_fcfa)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </LocalTable>
+      </details>
     </>
   )
 }
@@ -248,36 +277,47 @@ function MovementsTable({
   if (!rows) return <LoadingBlock lines={2} />
   if (rows.length === 0) return <EmptyState title="Rien à signaler">{empty}</EmptyState>
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Client</th>
-            <th scope="col">Chambre</th>
-            <th scope="col">Heure</th>
-            <th scope="col">
-              <span className="sr-only">Action</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td>
-                <Person name={row.customer} sub={row.room.type} />
-              </td>
-              <td>{row.room.number}</td>
-              <td>{row[timeKey] ?? 'Heure libre'}</td>
-              <td className="num">
-                <Link className="text-button" to={`/reservations/${row.id}`}>
-                  Ouvrir →
-                </Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <LocalTable
+      label={timeKey === 'start_time' ? 'arrivées du jour' : 'départs du jour'}
+      rows={rows}
+      searchText={(r) =>
+        `${r.customer} ${r.room.number} ${r.room.type} ${r[timeKey] ?? 'Heure libre'}`
+      }
+    >
+      {(visibleRows) => (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Client</th>
+                <th scope="col">Chambre</th>
+                <th scope="col">Heure</th>
+                <th scope="col">
+                  <span className="sr-only">Action</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row) => (
+                <tr key={row.id}>
+                  <td>
+                    <Person name={row.customer} sub={row.room.type} />
+                  </td>
+                  <td>{row.room.number}</td>
+                  <td>{row[timeKey] ?? 'Heure libre'}</td>
+                  <td className="num">
+                    <Link className="text-button" to={`/reservations/${row.id}`}>
+                      <Icon name="eye" size={17} />
+                      Ouvrir →
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </LocalTable>
   )
 }
 
@@ -290,43 +330,54 @@ function RecentTable({ rows }: { rows?: DashboardRow[] }) {
       </EmptyState>
     )
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Client</th>
-            <th scope="col">Chambre</th>
-            <th scope="col">Arrivée</th>
-            <th scope="col">Statut</th>
-            <th scope="col" className="num">
-              Montant net
-            </th>
-            <th scope="col">
-              <span className="sr-only">Action</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td>
-                <Person name={row.customer} sub={row.room.type} />
-              </td>
-              <td>{row.room.number}</td>
-              <td>{formatDay(row.start_date)}</td>
-              <td>
-                <ReservationStatusBadge status={row.status} label={row.status_label} />
-              </td>
-              <td className="num">{formatFcfa(row.net_fcfa)}</td>
-              <td className="num">
-                <Link className="text-button" to={`/reservations/${row.id}`}>
-                  Ouvrir →
-                </Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <LocalTable
+      label="réservations récentes"
+      rows={rows}
+      searchText={(r) =>
+        `${r.customer} ${r.room.number} ${r.room.type} ${r.status_label} ${formatDay(r.start_date)} ${r.net_fcfa}`
+      }
+    >
+      {(visibleRows) => (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Client</th>
+                <th scope="col">Chambre</th>
+                <th scope="col">Arrivée</th>
+                <th scope="col">Statut</th>
+                <th scope="col" className="num">
+                  Montant net
+                </th>
+                <th scope="col">
+                  <span className="sr-only">Action</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row) => (
+                <tr key={row.id}>
+                  <td>
+                    <Person name={row.customer} sub={row.room.type} />
+                  </td>
+                  <td>{row.room.number}</td>
+                  <td>{formatDay(row.start_date)}</td>
+                  <td>
+                    <ReservationStatusBadge status={row.status} label={row.status_label} />
+                  </td>
+                  <td className="num">{formatFcfa(row.net_fcfa)}</td>
+                  <td className="num">
+                    <Link className="text-button" to={`/reservations/${row.id}`}>
+                      <Icon name="eye" size={17} />
+                      Ouvrir →
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </LocalTable>
   )
 }

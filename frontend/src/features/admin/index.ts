@@ -1,0 +1,5 @@
+export { RoomsPage } from './RoomsPage'
+export { RatesPage } from './RatesPage'
+export { UsersPage } from './UsersPage'
+export { SettingsPage } from './SettingsPage'
+export { AuditPage } from './AuditPage'

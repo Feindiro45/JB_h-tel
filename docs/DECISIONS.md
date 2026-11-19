@@ -253,8 +253,73 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
 - **Listes des documents :**
   - **reçus (`GET /payments`)** : la réservation, le client et la chambre sont lus par les contrats publics, en une requête groupée par module ;
   - **factures et avoirs (`GET /invoices`)** : ces informations sont lues dans l'**instantané figé** de chaque document, c'est-à-dire ce qui a été facturé. Les totaux suivent la règle « factures − avoirs ».
-  - La recherche porte sur le numéro (et sur la référence pour un reçu). Une recherche par nom de client sur les factures demanderait de chercher dans l'instantané JSON, ce que MariaDB et MySQL ne font pas de la même façon (D-002) ; elle n'est pas proposée en V1.
+  - La recherche porte sur le numéro, la référence pour un reçu et le client (complément de la phase 6D). Pour les factures, la recherche du nom porte sur l’instantané JSON à travers le générateur SQL de Laravel, vérifié localement sur MariaDB et couvert par la CI MySQL.
 - **Reçu imprimé :**
   - il est imprimé en A4 par le navigateur (CSS d'impression), avec l'en-tête de l'hôtel (`jbhotel.hotel`, provisoire, Q-09) ;
   - la « situation du séjour » indiquée sur le reçu est celle **du moment de l'impression**, datée sur le reçu : elle n'est pas figée au jour du versement ;
   - un reçu annulé porte la mention « Encaissement annulé », avec son motif.
+
+
+### D-042 — Administration et paramètres
+- Écrans chambres/catégories, versions tarifaires, comptes, droits, paramètres et audit branchés sur les API existantes. Les droits serveur restent obligatoires ; l’administrateur et le dernier compte actif restent protégés.
+- Seuls le plafond de remise caissière et les moyens de paiement sont réglables. Les autres règles affichent leur statut et leur référence. Aucun écran ne transforme une politique provisoire en règle validée.
+- Les moyens acceptés sont chargés par `/payment-methods` pour les nouveaux règlements. L’historique conserve les anciens moyens.
+
+### D-043 — Rapports financiers : périmètres explicites, provisoires avant validation comptable
+- Période inclusive, de 1 à 366 jours, en heure de Bangui ; montants entiers FCFA.
+- Encaissé net : paiements valides par `received_at`, moins remboursements par `processed_at`. Le filtre agent désigne le caissier pour un versement et l’auteur pour un remboursement.
+- Facturé net : toutes les factures moins tous les avoirs par `issued_at`, filtre agent sur l’émetteur. Une facture créditée reste comptée dans les factures, puis son avoir est déduit une seule fois.
+- Réservations, montants réservés et remises : séjours confirmés/en cours/terminés débutant dans la période ; agent = créateur. Le montant réservé n’est pas un chiffre d’affaires comptable.
+- Soldes : situation actuelle de ces séjours, tous mouvements compris, même hors période. Occupation : instantané actuel, priorité occupée → maintenance → réservée → libre, tous agents confondus. Aucun historique d’occupation n’est inventé.
+- Chambre et catégorie : catalogue actuel ; montants des factures : instantanés figés. Cette distinction figure dans le rapport et ses exports.
+- Les séries quotidiennes et catégories doivent se rapprocher de l’encaissé net. Exports réservés à `reports.export`, distinct de `reports.view`. CSV UTF-8 avec BOM et neutralisation des libellés pouvant être interprétés comme formules.
+
+### D-044 — Pagination et recette isolée
+- Listes paginées par le serveur : choix 10/25/50/100, 25 par défaut ; valeurs non autorisées ramenées au défaut. Petits catalogues, historique client et journal borné déjà chargés intégralement : filtrage puis pagination locale sans tronquer les données reçues. Les totaux restent calculés sur l’ensemble filtré.
+- Recette navigateur sur `jb_hotel_e2e`, ports 8011/5174 et cookie dédié, sans modification de la base de travail. Réinitialisation limitée à cette base nommée explicitement.
+- Sauvegarde SQL et restauration de contrôle dans `jb_hotel_restore_test`, uniquement si vide ; empreinte et comparaison des nombres de lignes. La restauration en production reste une opération d’exploitation distincte.
+
+
+### D-045 — Référence visuelle du contenu et conservation de l’aside (demande du 19/11/2026)
+- L’image « Tableau de bord financier de l’hôtel.webp » guide les surfaces claires, les icônes de titre, les indicateurs pastel, les onglets, les filtres et les tableaux.
+- L’utilisateur a explicitement demandé de ne pas toucher l’aside : son JSX, ses liens et ses styles sont conservés. Le nouveau thème est limité à la zone de contenu, aux dialogues et à la connexion ; il ne s’applique qu’à l’écran pour préserver les documents imprimés.
+- Les éléments de démonstration de l’image ne sont pas des données métier : aucun pourcentage de variation, notification, classement étoilé ou compteur n’est inventé. Les indicateurs restent ceux que l’API calcule réellement.
+
+### D-046 — Boutons et icônes (demande du 19/11/2026)
+- Une famille commune de boutons principaux, secondaires, actions compactes et actions sensibles, avec survol, appui, focus visible, état désactivé et chargement.
+- Les icônes expriment l’action et complètent un libellé accessible : plus/création, crayon/modification, outil/maintenance, œil/consultation, entonnoir/filtre, imprimante, téléchargement, portefeuille/encaissement, retour/remboursement et croix/annulation.
+- Les confirmations et les autorisations restent en place. Les icônes sont décoratives pour les lecteurs d’écran et les animations respectent le mouvement réduit. L’aside reste exclu.
+
+
+### D-047 — Facture inspirée de la référence (19/11/2026)
+- La référence « Facture élégante du JB Hôtel.webp » guide le PDF A4 : vert profond et or, en-tête illustré, sections client et séjour, tableau, montants et QR. L’image existante du projet est réutilisée en JPEG compressé sous `backend/resources/images/`.
+- Les données proviennent uniquement du snapshot d’émission ; les versements, remboursements, remises et mentions de correction restent visibles. Les factures existantes ne sont pas recalculées.
+- Les coordonnées de démonstration, la TVA à 0 %, l’échéance, les services inclus, les étoiles, le cachet et la signature de la référence ne constituent pas des règles ou données réelles. Ils ne sont pas ajoutés. Les règles fiscales de Q-09 restent à valider.
+- Les avoirs partagent la charte et indiquent la facture corrigée et le motif. En-têtes répétés, numéros de page et bloc de clôture groupé pour les documents longs.
+
+### D-048 — Application automatique des filtres (19/11/2026)
+- Saisie textuelle pour une recherche serveur : délai de 300 ms, remplacé à chaque frappe. Choix et dates valides : application immédiate ; pas de bouton de validation.
+- Chaque changement de filtre revient à la première page ; un changement explicite de page reste possible. Effacer annule également une recherche différée et conserve la taille de page choisie.
+- Pendant une période incomplète/inversée, ou dépassant les bornes existantes de la caisse (92 jours) et des rapports (366 jours), conserver la dernière requête valide et annoncer l’état. Les filtres facultatifs des listes acceptent une seule borne.
+- Les clés et signaux d’annulation de TanStack Query continuent de distinguer les requêtes ; une remise à zéro peut utiliser des résultats frais déjà en cache. Les filtres locaux restent immédiats.
+
+
+### D-049 — Synthèses sur chaque page métier (19/11/2026)
+- Le modèle de cartes de la caisse est généralisé aux listes, détails et pages d’administration. Les comptes sont calculés exclusivement sur les données retournées.
+- Distinguer le total filtré de l’API des nombres calculés sur la page courante. Les indications « sur la page affichée », « ensemble du catalogue » ou « premier jour du planning » restent visibles. Aucun total global n’est déduit d’une page partielle.
+- En attente des données : tiret ; absence de permission : accès limité. Les nouvelles synthèses ne sont pas ajoutées au document papier du reçu.
+
+### D-050 — Boutons voisins et champs (19/11/2026)
+- Actions en vert et bleu ; le bleu est la deuxième couleur demandée. Dans les groupes d’actions du contenu, alterner les couleurs des boutons/liens voisins selon les éléments effectivement présents ; les dialogues conservent un bouton de validation et un bouton de retour distincts.
+- Actions destructives signalées en rouge, focus et état actif conservés. L’alternance n’affecte ni l’aside ni les commandes de pagination qui portent leurs propres états de navigation.
+- Espacements renforcés entre cartes, formulaires et actions. Icônes décoratives par sens du champ, libellés et descriptions accessibles conservés ; une icône explicite peut être précisée dans le formulaire.
+
+### D-051 — Chaque tableau dispose de ses contrôles (19/11/2026)
+- Les listes distantes conservent le filtrage/pagination serveur. Les tableaux secondaires entièrement chargés utilisent `LocalTable` : recherche immédiate, pagination indépendante et retour en première page après une recherche.
+- Une recherche locale ne recalcule pas les indicateurs comptables de la page, qui gardent leur périmètre annoncé. Les données quotidiennes des graphiques sont consultables avec leurs propres contrôles.
+- À l’impression : masquer les commandes et rendre toutes les lignes déjà chargées du tableau local, puis restaurer filtre et page. Cela ne remplace pas les exports serveur pour une liste distante.
+
+### D-052 — Occupation rouge et source de vérité (19/11/2026)
+- Une chambre occupée est rouge dans la pastille, le planning, les cartes d’occupation et le graphique. Libre : vert ; réservée : bleu ; maintenance : ambre. Les libellés restent indispensables.
+- La liste administrative reprend l’occupation courante calculée par l’API existante et propose un filtre. Charger cette information uniquement avec `reservations.view` ; aucune absence de donnée ne signifie « libre ».
+- L’état d’occupation reste calculé ; aucune colonne d’occupation n’est ajoutée en base.

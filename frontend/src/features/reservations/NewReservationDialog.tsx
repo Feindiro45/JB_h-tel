@@ -1,4 +1,6 @@
+import { Icon } from '../../shared/ui/Icon'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { paymentMethodsQuery } from '../../shared/api/lookups'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toUserError } from '../../shared/api/errors'
@@ -9,7 +11,7 @@ import { Modal } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatFcfa, todayIso } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
-import { PAYMENT_METHODS, recordPayment } from '../cashier'
+import { recordPayment } from '../cashier'
 import { createCustomer, customersQuery } from '../customers'
 import {
   createReservation,
@@ -28,6 +30,7 @@ type PaymentMode = 'deferred' | 'full' | 'partial'
  * sur la période ; le prix est un devis du serveur (seule source d'autorité).
  */
 export function NewReservationDialog({ onClose }: { onClose: () => void }) {
+  const methods = useQuery(paymentMethodsQuery)
   const { can } = useCurrentUser()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -86,6 +89,10 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
   // Une chambre choisie qui n'est plus libre (dates modifiées) est désélectionnée d'office.
   const roomId = rooms.data?.some(({ room }) => room.id === chosenRoomId) ? chosenRoomId : ''
 
+  const paymentMethod = methods.data?.some((m) => m.value === payment.method)
+    ? payment.method
+    : (methods.data?.[0]?.value ?? '')
+
   const payload: ReservationInput = {
     room_id: roomId,
     customer_id: customer?.id ?? null,
@@ -128,7 +135,7 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
       if (payment.mode !== 'deferred') {
         const amount = payment.mode === 'full' ? reservation.price.net_fcfa : Number(payment.amount)
         try {
-          await recordPayment(reservation.id, { amount_fcfa: amount, method: payment.method })
+          await recordPayment(reservation.id, { amount_fcfa: amount, method: paymentMethod })
         } catch (error) {
           paymentError = error
         }
@@ -168,6 +175,8 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
       if (!(Number(discount.value) > 0)) next.discount_value = 'Saisissez la valeur de la remise.'
       if (!discount.reason.trim()) next.discount_reason = 'Le motif de la remise est obligatoire.'
     }
+    if (payment.mode !== 'deferred' && !paymentMethod)
+      next.payment = 'Choisissez un moyen de paiement accepté.'
     if (payment.mode === 'partial') {
       const amount = Number(payment.amount)
       if (!Number.isInteger(amount) || amount < 1) next.payment_amount = 'Montant entier en FCFA.'
@@ -186,6 +195,7 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
       subtitle="Client, occupants, période, chambre, prix et règlement."
       onClose={onClose}
       onSubmit={() => validate() && submit.mutate()}
+      submitIcon="calendar"
       submitLabel="Créer la réservation"
       submitting={submit.isPending}
     >
@@ -227,6 +237,7 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
               <div className="total">
                 <span>{customer.full_name}</span>
                 <button type="button" className="text-button" onClick={() => setCustomer(null)}>
+                  <Icon name="edit" size={17} />
                   Changer
                 </button>
               </div>
@@ -259,6 +270,7 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
                           if (!primary) setPrimary(item.full_name)
                         }}
                       >
+                        <Icon name="people" size={17} />
                         <span>{item.full_name}</span>
                         <small>{item.phone}</small>
                       </button>
@@ -496,10 +508,10 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
             <div className="fields">
               <SelectField
                 label="Moyen de paiement"
-                value={payment.method}
+                value={paymentMethod}
                 onChange={(e) => setPayment({ ...payment, method: e.target.value })}
               >
-                {PAYMENT_METHODS.map((method) => (
+                {(methods.data ?? []).map((method) => (
                   <option key={method.value} value={method.value}>
                     {method.label}
                   </option>

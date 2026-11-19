@@ -9,6 +9,9 @@ export default defineConfig({
     strictPort: true,
   },
   test: {
+    include: ['src/**/*.test.{ts,tsx}'],
+    maxWorkers: 2,
+    testTimeout: 15000,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     restoreMocks: true,

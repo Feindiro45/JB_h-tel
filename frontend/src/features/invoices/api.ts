@@ -39,6 +39,7 @@ export interface InvoiceFilters {
   from?: string
   to?: string
   search?: string
+  per_page?: number
   page?: number
 }
 

@@ -32,8 +32,8 @@ export function ReservationStatusBadge({ status, label }: { status: string; labe
 const ROOM_TONES: Record<string, BadgeTone> = {
   FREE: 'green',
   RESERVED: 'blue',
-  OCCUPIED: 'amber',
-  MAINTENANCE: 'red',
+  OCCUPIED: 'red',
+  MAINTENANCE: 'amber',
 }
 
 export function RoomStateBadge({ state }: { state: string }) {

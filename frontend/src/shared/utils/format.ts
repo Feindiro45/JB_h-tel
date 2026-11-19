@@ -11,7 +11,7 @@ export function formatFcfa(amount: number): string {
   if (!Number.isSafeInteger(amount)) {
     throw new RangeError(`Montant FCFA non entier : ${amount}`)
   }
-  return `${integerFormatter.format(amount)} FCFA`
+  return `${integerFormatter.format(amount === 0 ? 0 : amount)} FCFA`
 }
 
 /** Montant signé lisible : « − 5 000 FCFA » pour une sortie de caisse (vrai signe moins). */

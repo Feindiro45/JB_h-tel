@@ -40,11 +40,13 @@ export async function recordPayment(
 }
 
 export interface PaymentFilters {
+  agent_id?: string
   from?: string
   to?: string
   method?: string
   status?: string
   search?: string
+  per_page?: number
   page?: number
 }
 

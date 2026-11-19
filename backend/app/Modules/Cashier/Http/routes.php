@@ -3,13 +3,17 @@
 use App\Modules\Cashier\Http\Controllers\CashJournalController;
 use App\Modules\Cashier\Http\Controllers\PaymentController;
 use App\Modules\Identity\Domain\PermissionName;
+use App\Modules\Identity\Models\User;
 use Illuminate\Support\Facades\Route;
 
 /* Module Cashier — chargé dans le groupe /api/v1. Routes en UUID (D-026). */
 
 Route::middleware('authenticated')->group(function (): void {
+    Route::get('payment-methods', [PaymentController::class, 'methods'])->name('payment-methods');
+
     Route::middleware('permission:'.PermissionName::PaymentsView->value)->group(function (): void {
         Route::get('cash-journal', [CashJournalController::class, 'journal'])->name('cash-journal');
+        Route::get('cash-agents', fn () => response()->json(['data' => User::query()->orderBy('name')->get(['uuid', 'name'])->map(fn (User $user) => ['id' => $user->uuid, 'name' => $user->name])]));
         Route::get('payments', [CashJournalController::class, 'index'])->name('payments.list');
         Route::get('reservations/{reservation}/payments', [PaymentController::class, 'index'])->name('payments.index');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');

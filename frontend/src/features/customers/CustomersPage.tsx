@@ -1,5 +1,9 @@
+import { PageOverview } from '../../shared/ui/PageOverview'
+import { useAutoFilters } from '../../shared/ui/useAutoFilters'
+import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
+import { Icon } from '../../shared/ui/Icon'
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Badge } from '../../shared/ui/Badge'
 import { TextField } from '../../shared/ui/fields'
@@ -13,33 +17,66 @@ import { CustomerFormDialog } from './CustomerFormDialog'
 export function CustomersPage() {
   const { can } = useCurrentUser()
   const navigate = useNavigate()
-  const [draft, setDraft] = useState('')
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
+  const { draft, filters, change, reset, pending, valid } = useAutoFilters({
+    search: '',
+    email: '',
+    origin_city: '',
+    origin_country: '',
+    page: 1,
+    per_page: 25,
+  })
+  const { search, page, per_page: perPage, ...extra } = filters
   const [creating, setCreating] = useState(false)
-  const list = useQuery(customersQuery(search, page))
+  const list = useQuery(customersQuery(search, page, perPage, extra))
   const rows = list.data?.data ?? []
   const meta = list.data?.meta
-
-  function apply(event: FormEvent) {
-    event.preventDefault()
-    setSearch(draft.trim())
-    setPage(1)
-  }
 
   return (
     <>
       <PageHeading
+        icon="people"
         eyebrow="Exploitation"
         title="Clients"
         description="Retrouvez un client par son nom, son téléphone ou son e-mail."
         actions={
           can('customers.manage') && (
             <button type="button" className="primary" onClick={() => setCreating(true)}>
-              + Nouveau client
+              <Icon name="plus" size={17} />
+              <span className="sr-only">+</span> Nouveau client
             </button>
           )
         }
+      />
+      <PageOverview
+        items={[
+          {
+            label: 'Clients',
+            value: meta?.total,
+            hint: 'Ensemble des résultats filtrés',
+            icon: 'people',
+          },
+          {
+            label: 'Avec téléphone',
+            value: list.data ? rows.filter((c) => c.phone).length : undefined,
+            hint: 'Clients de la page affichée',
+            icon: 'phone',
+          },
+          {
+            label: 'Avec e-mail',
+            value: list.data ? rows.filter((c) => c.email).length : undefined,
+            hint: 'Clients de la page affichée',
+            icon: 'mail',
+          },
+          {
+            label: 'Pays représentés',
+            value: list.data
+              ? new Set(rows.map((c) => c.origin_country?.trim().toLowerCase()).filter(Boolean))
+                  .size
+              : undefined,
+            hint: 'Provenances renseignées sur cette page',
+            icon: 'globe',
+          },
+        ]}
       />
       <Panel
         title="Répertoire"
@@ -49,7 +86,7 @@ export function CustomersPage() {
       >
         <form
           className="filterbar"
-          onSubmit={apply}
+          onSubmit={(e) => e.preventDefault()}
           role="search"
           aria-label="Rechercher un client"
         >
@@ -57,22 +94,29 @@ export function CustomersPage() {
             label="Recherche"
             type="search"
             placeholder="Nom, téléphone ou e-mail"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            value={draft.search}
+            onChange={(e) => change({ search: e.target.value }, true)}
           />
-          <button type="submit" className="secondary">
-            Rechercher
-          </button>
-          {search && (
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setDraft('')
-                setSearch('')
-                setPage(1)
-              }}
-            >
+          <TextField
+            label="E-mail"
+            type="search"
+            value={draft.email}
+            onChange={(e) => change({ email: e.target.value }, true)}
+          />
+          <TextField
+            label="Ville"
+            value={draft.origin_city}
+            onChange={(e) => change({ origin_city: e.target.value }, true)}
+          />
+          <TextField
+            label="Pays"
+            value={draft.origin_country}
+            onChange={(e) => change({ origin_country: e.target.value }, true)}
+          />
+          <AutoFilterStatus pending={pending} valid={valid} />
+          {[draft.search, draft.email, draft.origin_city, draft.origin_country].some(Boolean) && (
+            <button type="button" className="text-button" onClick={reset}>
+              <Icon name="close" size={17} />
               Effacer
             </button>
           )}
@@ -126,6 +170,7 @@ export function CustomersPage() {
                     <td>{customer.created_at ? formatDate(customer.created_at) : '—'}</td>
                     <td className="num">
                       <Link className="text-button" to={`/clients/${customer.id}`}>
+                        <Icon name="eye" size={17} />
                         Ouvrir →
                       </Link>
                     </td>
@@ -135,7 +180,12 @@ export function CustomersPage() {
             </table>
           </div>
         )}
-        <Pagination meta={meta} onPage={setPage} />
+        <Pagination
+          meta={meta}
+          onPage={(page) => change({ page })}
+          perPage={perPage}
+          onPerPage={(per_page) => change({ per_page })}
+        />
       </Panel>
       {creating && (
         <CustomerFormDialog

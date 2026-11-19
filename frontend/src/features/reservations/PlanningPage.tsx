@@ -1,3 +1,6 @@
+import { LocalTable } from '../../shared/ui/LocalTable'
+import { PageOverview } from '../../shared/ui/PageOverview'
+import { Icon } from '../../shared/ui/Icon'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { RoomStateBadge } from '../../shared/ui/Badge'
@@ -23,16 +26,36 @@ export function PlanningPage() {
   return (
     <>
       <PageHeading
+        icon="rooms"
         eyebrow="Exploitation"
         title="Disponibilités"
         description="Consultez l’état de chaque chambre et préparez les arrivées."
         actions={
           can('reservations.create') && (
             <button type="button" className="primary" onClick={() => setCreating(true)}>
-              + Nouvelle réservation
+              <Icon name="plus" size={17} />
+              <span className="sr-only">+</span> Nouvelle réservation
             </button>
           )
         }
+      />
+      <PageOverview
+        items={(
+          [
+            ['FREE', 'Libres', 'check', 'green'],
+            ['RESERVED', 'Réservées', 'calendar', 'blue'],
+            ['OCCUPIED', 'Occupées', 'rooms', 'red'],
+            ['MAINTENANCE', 'Maintenance', 'tool', 'amber'],
+          ] as const
+        ).map(([state, label, icon, tone]) => ({
+          label,
+          icon,
+          tone,
+          value: planning.data
+            ? planning.data.data.filter((r) => r.days[planning.data.days[0]] === state).length
+            : undefined,
+          hint: 'Premier jour du planning affiché',
+        }))}
       />
       <Panel
         title="Planning par chambre"
@@ -64,39 +87,51 @@ export function PlanningPage() {
         </div>
         {planning.isPending ? (
           <LoadingBlock />
-        ) : planning.data && planning.data.data.length > 0 ? (
-          <div className="table-wrap">
-            <table className="planning">
-              <thead>
-                <tr>
-                  <th scope="col">Chambre</th>
-                  {planning.data.days.map((day) => (
-                    <th key={day} scope="col" className={day === today ? 'today' : undefined}>
-                      {formatWeekday(day)}
-                      {day === today && <span className="sr-only"> (aujourd’hui)</span>}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {planning.data.data.map(({ room, days: states }) => (
-                  <tr key={room.id}>
-                    <th scope="row">
-                      <strong>{room.number}</strong>
-                      <small style={{ display: 'block' }}>
-                        {room.room_type.label} · {room.capacity} pers.
-                      </small>
-                    </th>
-                    {planning.data.days.map((day) => (
-                      <td key={day}>
-                        <RoomStateBadge state={states[day]} />
-                      </td>
+        ) : planning.data ? (
+          <LocalTable
+            label="planning des chambres"
+            rows={planning.data.data}
+            searchText={(r) =>
+              `${r.room.number} ${r.room.room_type.label} ${Object.values(r.days)
+                .map((state) => planning.data?.labels[state])
+                .join(' ')}`
+            }
+          >
+            {(visibleRows) => (
+              <div className="table-wrap">
+                <table className="planning">
+                  <thead>
+                    <tr>
+                      <th scope="col">Chambre</th>
+                      {planning.data.days.map((day) => (
+                        <th key={day} scope="col" className={day === today ? 'today' : undefined}>
+                          {formatWeekday(day)}
+                          {day === today && <span className="sr-only"> (aujourd’hui)</span>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map(({ room, days: states }) => (
+                      <tr key={room.id}>
+                        <th scope="row">
+                          <strong>{room.number}</strong>
+                          <small style={{ display: 'block' }}>
+                            {room.room_type.label} · {room.capacity} pers.
+                          </small>
+                        </th>
+                        {planning.data.days.map((day) => (
+                          <td key={day}>
+                            <RoomStateBadge state={states[day]} />
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </LocalTable>
         ) : (
           <EmptyState title="Aucune chambre">Aucune chambre ne correspond à ce filtre.</EmptyState>
         )}

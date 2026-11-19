@@ -25,6 +25,14 @@ final class PaymentController
         private readonly ReservationLedger $reservations,
     ) {}
 
+    /** Moyens de paiement acceptés (paramètre `payments.methods`), pour les listes des écrans. */
+    public function methods(PaymentMethods $methods): JsonResponse
+    {
+        return new JsonResponse([
+            'data' => array_map(fn (string $method) => ['value' => $method, 'label' => PaymentMethods::label($method)], $methods->accepted()),
+        ]);
+    }
+
     public function index(string $reservation): JsonResponse
     {
         $due = $this->reservation($reservation);

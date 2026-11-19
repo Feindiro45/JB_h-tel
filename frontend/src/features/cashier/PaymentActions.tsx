@@ -1,4 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Icon } from '../../shared/ui/Icon'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { paymentMethodsQuery } from '../../shared/api/lookups'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { SelectField, TextAreaField, TextField } from '../../shared/ui/fields'
@@ -6,7 +8,7 @@ import { Modal } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatFcfa } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
-import { CASH_KEYS, PAYMENT_METHODS, cancelPayment, refundPayment } from './api'
+import { CASH_KEYS, cancelPayment, refundPayment } from './api'
 
 export interface PaymentActionTarget {
   id: string
@@ -45,6 +47,7 @@ export function PaymentActions({ payment }: { payment: PaymentActionTarget }) {
         to={`/documents/recus/${payment.id}`}
         aria-label={`Reçu ${payment.receipt_number}`}
       >
+        <Icon name="document" size={17} />
         Reçu
       </Link>
       {valid && payment.refundable_fcfa > 0 && can('refunds.create') && (
@@ -54,16 +57,18 @@ export function PaymentActions({ payment }: { payment: PaymentActionTarget }) {
           onClick={() => setDialog('refund')}
           aria-label={`Rembourser le reçu ${payment.receipt_number}`}
         >
+          <Icon name="undo" size={17} />
           Rembourser
         </button>
       )}
       {valid && !payment.has_refunds && can('payments.cancel') && (
         <button
           type="button"
-          className="text-button"
+          className="text-button text-button--danger"
           onClick={() => setDialog('cancel')}
           aria-label={`Annuler le reçu ${payment.receipt_number}`}
         >
+          <Icon name="close" size={17} />
           Annuler
         </button>
       )}
@@ -82,6 +87,7 @@ export function RefundDialog({
   payment: PaymentActionTarget
   onClose: () => void
 }) {
+  const methods = useQuery(paymentMethodsQuery)
   const refresh = useCashRefresh()
   const { notify } = useToast()
   const [amount, setAmount] = useState(String(payment.refundable_fcfa))
@@ -121,6 +127,7 @@ export function RefundDialog({
       onClose={onClose}
       onSubmit={submit}
       submitLabel="Enregistrer le remboursement"
+      submitIcon="undo"
       submitting={mutation.isPending}
       danger
       size="small"
@@ -144,7 +151,7 @@ export function RefundDialog({
           onChange={(e) => setMethod(e.target.value)}
         >
           <option value="">Comme le versement ({payment.method_label})</option>
-          {PAYMENT_METHODS.map((item) => (
+          {(methods.data ?? []).map((item) => (
             <option key={item.value} value={item.value}>
               {item.label}
             </option>

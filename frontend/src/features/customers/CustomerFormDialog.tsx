@@ -65,6 +65,7 @@ export function CustomerFormDialog({
       subtitle="Ne collectez que les informations utiles au séjour."
       onClose={onClose}
       onSubmit={submit}
+      submitIcon={customer ? 'check' : 'plus'}
       submitLabel={customer ? 'Enregistrer les modifications' : 'Enregistrer le client'}
       submitting={mutation.isPending}
     >

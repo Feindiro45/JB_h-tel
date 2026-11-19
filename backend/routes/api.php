@@ -21,4 +21,5 @@ Route::prefix('v1')
         require app_path('Modules/Cashier/Http/routes.php');
         require app_path('Modules/Billing/Http/routes.php');
         require app_path('Modules/Reporting/Http/routes.php');
+        require app_path('Modules/Settings/Http/routes.php');
     });

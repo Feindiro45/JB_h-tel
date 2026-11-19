@@ -6,18 +6,25 @@ export function PageHeading({
   title,
   description,
   actions,
+  icon = 'document',
 }: {
   eyebrow: string
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
+  icon?: IconName
 }) {
   return (
     <header className="page-heading">
-      <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
-        {description && <p className="description">{description}</p>}
+      <div className="page-heading__intro">
+        <span className="page-heading__icon" aria-hidden="true">
+          <Icon name={icon} size={34} />
+        </span>
+        <div>
+          <p className="eyebrow">{eyebrow}</p>
+          <h1>{title}</h1>
+          {description && <p className="description">{description}</p>}
+        </div>
       </div>
       {actions && <div className="heading-actions">{actions}</div>}
     </header>
@@ -54,20 +61,26 @@ export function Metric({
   value,
   hint,
   icon,
+  tone,
 }: {
   label: string
   value: string
   hint: string
   icon: IconName
+  tone?: 'green' | 'amber' | 'blue' | 'mint' | 'red'
 }) {
   return (
-    <article className="metric">
-      <div>
-        <Icon name={icon} />
-        <span>{label}</span>
+    <article
+      className={`metric metric--${tone ?? ({ document: 'amber', chart: 'blue', rooms: 'mint' } as Record<string, string>)[icon] ?? 'green'}`}
+    >
+      <span className="metric__icon">
+        <Icon name={icon} size={30} />
+      </span>
+      <div className="metric__content">
+        <p className="metric__label">{label}</p>
+        <strong className="metric__value">{value}</strong>
+        <p className="metric__hint">{hint}</p>
       </div>
-      <strong>{value}</strong>
-      <p>{hint}</p>
     </article>
   )
 }

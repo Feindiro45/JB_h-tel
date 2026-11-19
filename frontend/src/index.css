@@ -533,6 +533,7 @@ small,
 
 /* ---------- Tableaux ---------- */
 .table-wrap {
+  position: relative;
   overflow: auto;
 }
 
@@ -647,6 +648,153 @@ td .text-button {
 .badge--neutral {
   background: #eef2f0;
   color: #44554f;
+}
+
+/* ---------- Pagination ---------- */
+.pagination {
+  container: pagination / inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  padding: 18px 22px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, #fbfdfb, #f5f8f6);
+  border-radius: 0 0 var(--radius) var(--radius);
+  font-size: 0.8rem;
+}
+.pagination__summary {
+  flex: 1 1 160px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pagination__summary strong {
+  color: var(--dark);
+  font-weight: 750;
+}
+.pagination__controls,
+.pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.pagination__controls {
+  justify-content: center;
+}
+.pagination__pages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pagination__page,
+.pagination__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background 160ms,
+    border-color 160ms,
+    color 160ms,
+    box-shadow 160ms;
+}
+.pagination__arrow {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.pagination__arrow svg {
+  flex-shrink: 0;
+}
+.pagination__page:hover:not([aria-current]),
+.pagination__arrow:hover:not(:disabled) {
+  color: var(--primary-hover);
+  border-color: #bfd9cc;
+  background: #eaf3ed;
+}
+.pagination__page[aria-current='page'] {
+  color: white;
+  background: var(--dark);
+  border-color: var(--dark);
+  box-shadow:
+    0 3px 7px #12352d20,
+    inset 0 2px 0 var(--gold);
+}
+.pagination__arrow:disabled {
+  color: #7b8881;
+  background: transparent;
+  border-color: transparent;
+  opacity: 1;
+}
+.pagination__ellipsis {
+  width: 22px;
+  text-align: center;
+  color: var(--muted);
+}
+.pagination__size {
+  display: flex;
+  flex: 1 1 160px;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pagination__size select {
+  width: auto;
+  min-width: 66px;
+  min-height: 42px;
+  border-radius: 9px;
+  color: var(--dark);
+  border-color: var(--line-strong);
+  font-weight: 700;
+  cursor: pointer;
+}
+@container pagination (max-width: 850px) {
+  .pagination__summary {
+    order: 1;
+    flex: 1 1 40%;
+  }
+  .pagination__size {
+    order: 2;
+    flex: 1 1 40%;
+  }
+  .pagination__controls {
+    order: 3;
+    flex: 1 0 100%;
+  }
+}
+@container pagination (max-width: 560px) {
+  .pagination__arrow span {
+    display: none;
+  }
+}
+@container pagination (max-width: 480px) {
+  .pagination__distant,
+  .pagination__ellipsis,
+  .pagination__size-label {
+    display: none;
+  }
+  .pagination__summary {
+    font-size: 0.76rem;
+  }
+  .pagination__page,
+  .pagination__arrow {
+    min-width: 40px;
+    height: 40px;
+    padding-inline: 8px;
+  }
 }
 
 /* ---------- Filtres, formulaires ---------- */
@@ -1486,5 +1634,65 @@ fieldset legend {
   .paper,
   .metric {
     box-shadow: none;
+  }
+}
+
+.audit-state {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+.report-chart {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  height: 160px;
+  padding: 16px;
+  overflow-x: auto;
+}
+.report-chart > div {
+  height: 100%;
+  flex: 1;
+  min-width: 3px;
+  display: flex;
+  align-items: end;
+}
+.report-chart span {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+}
+@media print {
+  .report-chart {
+    break-inside: avoid;
+  }
+  .pagination,
+  .filterbar {
+    display: none;
+  }
+}
+
+.report-chart {
+  background: linear-gradient(
+    to bottom,
+    transparent calc(50% - 1px),
+    #bccfc7 50%,
+    transparent calc(50% + 1px)
+  );
+}
+.report-chart > div {
+  position: relative;
+}
+.report-chart span {
+  position: absolute;
+}
+.print-only {
+  display: none;
+}
+@media print {
+  .screen-only {
+    display: none;
+  }
+  .print-only {
+    display: block;
   }
 }

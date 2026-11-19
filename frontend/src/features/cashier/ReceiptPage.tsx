@@ -1,3 +1,6 @@
+import { LocalTable } from '../../shared/ui/LocalTable'
+import { PageOverview } from '../../shared/ui/PageOverview'
+import { Icon } from '../../shared/ui/Icon'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import { Badge } from '../../shared/ui/Badge'
@@ -19,11 +22,13 @@ export function ReceiptPage() {
   if (!r) {
     return (
       <PageHeading
+        icon="document"
         eyebrow="Documents"
         title="Reçu introuvable"
         actions={
           <Link className="secondary" to="/documents?onglet=recus">
-            ← Factures et reçus
+            <Icon name="back" size={17} />
+            <span className="sr-only">←</span> Factures et reçus
           </Link>
         }
       />
@@ -39,20 +44,52 @@ export function ReceiptPage() {
   return (
     <div className="print-only-paper">
       <PageHeading
+        icon="document"
         eyebrow="Documents"
         title="Reçu de paiement"
         description={r.receipt_number}
         actions={
           <button type="button" className="primary" onClick={() => window.print()}>
+            <Icon name="print" size={17} />
             Imprimer / PDF
           </button>
         }
       />
+      <PageOverview
+        items={[
+          {
+            label: 'Versement',
+            value: formatFcfa(r.amount_fcfa),
+            hint: r.method_label,
+            icon: 'cash',
+          },
+          {
+            label: 'Remboursé',
+            value: formatFcfa(r.refunded_fcfa),
+            hint: 'Remboursements sur ce versement',
+            icon: 'undo',
+          },
+          {
+            label: 'Encaissé net',
+            value: formatFcfa(r.summary.net_paid_fcfa),
+            hint: 'Situation actuelle du séjour',
+            icon: 'wallet',
+          },
+          {
+            label: 'Solde du séjour',
+            value: formatFcfa(r.summary.balance_fcfa),
+            hint: 'Tous les versements du séjour compris',
+            icon: 'document',
+          },
+        ]}
+      />
       <div className="toolbar">
         <Link className="secondary" to="/documents?onglet=recus">
-          ← Factures et reçus
+          <Icon name="back" size={17} />
+          <span className="sr-only">←</span> Factures et reçus
         </Link>
         <Link className="secondary" to={`/reservations/${r.reservation.id}`}>
+          <Icon name="eye" size={17} />
           Ouvrir la réservation
         </Link>
       </div>
@@ -83,30 +120,42 @@ export function ReceiptPage() {
           <Pair label="Séjour">{r.reservation.status_label}</Pair>
         </div>
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Moyen de paiement</th>
-                <th scope="col">Référence</th>
-                <th scope="col">Reçu par</th>
-                <th scope="col" className="num">
-                  Montant
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{r.method_label}</td>
-                <td>{r.reference ?? '—'}</td>
-                <td>{r.cashier.name}</td>
-                <td className="num">
-                  <strong>{formatFcfa(r.amount_fcfa)}</strong>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <LocalTable
+          label="paiement de ce reçu"
+          rows={[r]}
+          searchText={(p) =>
+            `${p.method_label} ${p.reference ?? ''} ${p.cashier.name} ${p.amount_fcfa}`
+          }
+        >
+          {(visibleRows) => (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Moyen de paiement</th>
+                    <th scope="col">Référence</th>
+                    <th scope="col">Reçu par</th>
+                    <th scope="col" className="num">
+                      Montant
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.method_label}</td>
+                      <td>{p.reference ?? '—'}</td>
+                      <td>{p.cashier.name}</td>
+                      <td className="num">
+                        <strong>{formatFcfa(p.amount_fcfa)}</strong>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </LocalTable>
 
         {r.status !== 'VALID' && (
           <p className="notice" role="note" style={{ marginTop: 14 }}>
@@ -118,33 +167,43 @@ export function ReceiptPage() {
         )}
 
         {r.refunds.length > 0 && (
-          <div className="table-wrap" style={{ marginTop: 14 }}>
-            <table>
-              <caption style={{ textAlign: 'left', fontWeight: 700, padding: '6px 0' }}>
-                Remboursements sur ce versement
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Date</th>
-                  <th scope="col">Motif</th>
-                  <th scope="col">Traité par</th>
-                  <th scope="col" className="num">
-                    Montant
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.refunds.map((refund) => (
-                  <tr key={refund.id}>
-                    <td>{formatDateTime(refund.processed_at)}</td>
-                    <td>{refund.reason}</td>
-                    <td>{refund.processed_by.name}</td>
-                    <td className="num">− {formatFcfa(refund.amount_fcfa)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <LocalTable
+            label="remboursements du reçu"
+            rows={r.refunds}
+            searchText={(p) =>
+              `${formatDateTime(p.processed_at)} ${p.reason} ${p.processed_by.name} ${p.amount_fcfa}`
+            }
+          >
+            {(visibleRows) => (
+              <div className="table-wrap" style={{ marginTop: 14 }}>
+                <table>
+                  <caption style={{ textAlign: 'left', fontWeight: 700, padding: '6px 0' }}>
+                    Remboursements sur ce versement
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th scope="col">Motif</th>
+                      <th scope="col">Traité par</th>
+                      <th scope="col" className="num">
+                        Montant
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map((refund) => (
+                      <tr key={refund.id}>
+                        <td>{formatDateTime(refund.processed_at)}</td>
+                        <td>{refund.reason}</td>
+                        <td>{refund.processed_by.name}</td>
+                        <td className="num">− {formatFcfa(refund.amount_fcfa)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </LocalTable>
         )}
 
         <div className="paper-total">

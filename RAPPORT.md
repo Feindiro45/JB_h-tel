@@ -1,99 +1,73 @@
 # Rapport de travail — JB Hôtel
 
-**Date :** 19/11/2026.
+**Date :** 19 novembre 2026, fin de soirée.
+**Objet :** relecture finale des phases 6C (administration), 6D (filtres et pagination) et 7 (rapports), puis envoi sur GitHub.
 
-**Où en est le projet :**
-- ✅ **Le backend (API) est complet pour les phases 0 à 5** : comptes, chambres, tarifs, clients, réservations, caisse, factures, QR code, e-mails.
-- ✅ **Écrans de la réception (6A)** : connexion, vue d'ensemble, réservations, disponibilités, clients.
-- ✅ **Écrans de la caisse et des documents (6B, cette session)** : caisse, factures et reçus, reçu imprimable.
-- ⏭️ Ensuite : l'**administration** (6C) : chambres, tarifs, utilisateurs, paramètres, journal d'audit.
+## Ce qui est livré
 
-Le suivi détaillé, case par case, est dans [CHECK_LEVEL.md](CHECK_LEVEL.md).
+**Administration (phase 6C).**
+- Chambres et catégories : création, modification, maintenance avec note, occupation actuelle affichée et filtrable.
+- Tarifs : grille en vigueur et programmée, publication immédiate ou datée avec motif, retrait d’un tarif programmé, historique avec l’ancien et le nouveau tarif.
+- Utilisateurs : liste filtrée, création, modification, activation et désactivation, droits de la caissière.
+- Paramètres : toutes les règles affichées avec leur statut (validée ou provisoire). Seuls le plafond de remise de la caissière et les moyens de paiement sont modifiables.
+- Journal d’audit : filtres par domaine, auteur et période, détail avant et après, sans identifiant interne.
 
----
+**Filtres et pagination (phase 6D).**
+- Recherche par client dans les réservations, les reçus et les factures.
+- Filtres par catégorie et par forfait sur les réservations ; par e-mail, ville et pays sur les clients.
+- 10, 25, 50 ou 100 lignes par page sur toutes les listes du serveur. Les tableaux secondaires ont leur propre recherche et leur propre pagination.
 
-## 1. Les nouveaux écrans (phase 6B)
+**Rapports (phase 7).** Facturé, encaissé et réservé y sont présentés séparément, avec des filtres et des exports CSV et PDF réservés au droit d’export.
 
-Ouvre **http://localhost:5173** et connecte-toi avec un compte de démonstration : `admin@jbhotel.local` ou `caissiere@jbhotel.local`. Le mot de passe est celui affiché lors du `php artisan migrate:fresh --seed`.
+## Relecture finale
 
-| Écran | Ce qu'il fait |
+Une autre session a travaillé en même temps que moi dans le dépôt. J’ai attendu qu’elle termine, puis j’ai relu les écrans d’administration et je les ai comparés aux règles de validation du serveur.
+
+**Défaut trouvé et corrigé.** La modification d’une catégorie de chambre renvoyait son code, alors que le serveur interdit de le changer. Chaque enregistrement échouait donc avec « données invalides ». Désormais :
+- le code n’est plus envoyé lors d’une modification ;
+- il est rappelé dans le titre du formulaire ;
+- à la création, sa saisie est contrôlée au même format que le serveur (majuscules, chiffres ou « _ »).
+
+Un test reproduit le cas.
+
+**Suivi corrigé.** Des lignes du suivi (UUID de la caisse et des factures, catalogue de la phase 3) étaient restées non cochées alors que ces travaux sont faits et testés depuis longtemps. Elles sont maintenant cochées.
+
+## Vérifications effectuées
+
+| Contrôle | Résultat |
 |---|---|
-| **Caisse** | Choix de la période, avec des raccourcis : aujourd'hui, hier, 7 derniers jours, ce mois. On y voit l'**encaissé**, le **remboursé**, le **net en caisse** et les encaissements **annulés**. Les montants sont ventilés **par moyen de paiement** (espèces, mobile money…) et **par agent**, et tous les mouvements sont listés dans l'ordre. Le panneau **« Soldes à encaisser »** liste les séjours pas encore réglés, avec un bouton « Encaisser » direct. Le journal s'imprime. |
-| **Factures et reçus** | Deux onglets. **Factures et avoirs** : filtres, totaux « factures − avoirs », PDF, page de vérification et **avoir** motivé. **Reçus de paiement** : recherche par numéro de reçu ou par référence mobile money, filtres, et pour chaque reçu son impression, son remboursement et son annulation. |
-| **Reçu imprimable** | Format A4, avec l'en-tête de l'hôtel, le client, la chambre, le moyen de paiement, la référence, l'agent, les remboursements éventuels et le **reste à payer**. Le bouton « Imprimer / PDF » permet aussi d'enregistrer le reçu en PDF. |
-| **Fiche réservation** | Chaque encaissement a maintenant ses liens : **Reçu**, **Rembourser**, **Annuler**. Chaque facture a un bouton **Avoir**. |
+| Tests backend (MariaDB `jb_hotel_test`) | 183 réussis, 1 281 assertions |
+| Pint, Larastan niveau 6 | sans erreur |
+| Tests frontend | 74 réussis (+1 : modification de catégorie) |
+| Lint, Prettier, TypeScript, build | verts (avertissement non bloquant : bundle d’environ 508 Ko) |
+| Tests navigateur (base isolée `jb_hotel_e2e`) | 4 réussis, puis le parcours principal rejoué après la correction |
+| Contrats réels de l’administration et des filtres | 60 contrôles verts avec une vraie session, sur `jb_hotel_e2e` |
+| Serveur de développement actif (5173) | `check:dev` vert, version corrigée servie |
 
-**Ce qui dépend du rôle :**
-- la **caissière** encaisse, voit la caisse et les documents, et imprime les reçus ;
-- le **remboursement**, l'**annulation d'un encaissement** et l'**avoir** sont réservés à l'**administrateur** (règle provisoire, Q-08). Le serveur refuse ces opérations à la caissière même si elle tentait de passer outre l'écran.
+Les contrats réels couvrent :
+- catégories et chambres ;
+- maintenance et retour en service ;
+- tarif immédiat puis tarif daté (au format du navigateur), grille, historique et retrait ;
+- création et désactivation d’un utilisateur sans mot de passe ;
+- droits de la caissière ;
+- paramètre réglable modifié, paramètre non réglable refusé ;
+- audit ;
+- recherche par client dans quatre listes ;
+- lignes par page, une valeur non prévue étant ramenée à 25 ;
+- refus pour la caissière.
 
-**Garde-fous :**
-- un remboursement ne peut pas dépasser ce qui reste remboursable sur le reçu, et le motif est obligatoire ;
-- un encaissement déjà remboursé en partie ne peut plus être annulé ;
-- un encaissement annulé reste visible avec son motif, mais n'est plus compté dans la caisse.
+Le limiteur de débit a aussi été observé en relançant trop vite.
 
-**Les chiffres concordent partout :** « encaissé net » (versements valides − remboursements) et « soldes à recevoir » sont calculés de la même façon dans la caisse, dans la vue d'ensemble et dans la fiche réservation.
+Aucune base de travail n’a été réinitialisée. Les comptes et tarifs de contrôle ont été créés uniquement dans la base de recette.
 
-## 2. Ce qui a été vérifié
+## Ce qui reste
 
-- **Tests :** backend **171/171** (+7), frontend **55/55** (+8). Larastan (niveau 6), Pint, oxlint, Prettier, TypeScript et le build de production ne signalent aucune erreur.
-- **En conditions réelles,** j'ai rejoué le parcours contre le serveur : la caissière, puis l'administrateur.
+- **Validation par l’hôtel** des questions P1 (Q-01, Q-02, Q-03, Q-07, Q-08, Q-09) avant la mise en production.
+- **Serveur d’envoi d’e-mails** (Q-22) et **mentions légales** de la facture.
+- **Impression sur l’imprimante de l’hôtel**, et ta revue visuelle sur http://localhost:5173.
+- **CI GitHub** sur MySQL 8.4, à confirmer après cet envoi.
+- **Modification d’une réservation** (changement de chambre ou de dates, hors prolongation) : pas encore faite.
 
-  | Étape | Résultat |
-  |---|---|
-  | Deux versements (20 000 en espèces, 10 000 en mobile money) | + 30 000 dans le net du jour |
-  | La caissière tente un remboursement | Refusé (403) |
-  | L'administrateur rembourse 5 000 | Accepté |
-  | Annulation du versement déjà remboursé | Refusée, avec un message clair |
-  | Annulation du versement mobile money | Acceptée |
-  | Avoir sur la facture | Facture « Annulée par avoir » |
-  | Bilan | Net du jour + 15 000 ; solde du séjour passé de 30 000 à 45 000 |
+## Remarque d’architecture, sans effet sur le fonctionnement
 
-**Je n'ai pas pu regarder l'écran moi-même** : je n'ai pas de navigateur dans cette session. Merci de vérifier en particulier l'**impression du reçu** (Ctrl+P sur un reçu) et de me dire ce qu'il faut ajuster.
-
-## 3. Comment lancer
-
-```bash
-# Terminal 1 : API          (déjà lancé)
-cd backend && php artisan serve          # http://localhost:8000
-# Terminal 2 : frontend     (déjà lancé)
-cd frontend && npm run dev               # http://localhost:5173
-# Terminal 3 : envoi des e-mails
-cd backend && php artisan queue:work     # en local, les e-mails sont écrits dans backend/storage/logs/laravel.log
-# Tests
-cd backend && php artisan test           # 171 tests, environ 2 min
-cd frontend && npm test                  # 55 tests, environ 15 s
-```
-
-## 4. Questions à poser à l'hôtel (bloquantes pour la mise en production)
-
-| # | Question | Ce que fait l'application aujourd'hui |
-|---|---|---|
-| Q-01 | Que couvre exactement une « journée » ? | La caissière choisit la quantité. |
-| Q-02 / Q-03 | Quelle période bloquer quand aucune heure n'est saisie ? | Toute la journée (l'écran le signale). |
-| Q-07 | Une réservation non payée peut-elle être confirmée ? Une réservation en attente expire-t-elle ? | Oui ; pas d'expiration. |
-| Q-08 | Qui peut rembourser, annuler un encaissement ou émettre un avoir ? | L'administrateur seulement. |
-| Q-09 | Quelles sont les obligations de facturation en RCA (NIF, RCCM, TVA) ? Quel en-tête sur les reçus ? | En-tête « JB Hôtel », sans taxe. Les champs `HOTEL_*` sont prêts. |
-| Q-21 | Le prix appliqué est celui **du jour de la confirmation**. Est-ce bien voulu ? | Oui (document 02). |
-| Q-22 | Quel serveur SMTP et quelle adresse d'expédition pour les e-mails ? | En local, les e-mails sont écrits dans le journal. |
-| Q-23 | La caissière doit-elle voir la caisse de **tous** les agents, ou seulement la sienne ? | Tous les agents (filtre par agent disponible). |
-| — | La charte (vert `#047857`, or) est-elle validée par l'hôtel ? | Celle du prototype est appliquée. |
-
-La liste complète est dans [docs/QUESTIONS.md](docs/QUESTIONS.md), et les décisions provisoires (D-001 à D-041) dans [docs/DECISIONS.md](docs/DECISIONS.md).
-
-## 5. Ce qui reste à faire
-
-1. **Phase 6C : administration.**
-   - Chambres et catégories, maintenance.
-   - Tarifs : grille, historique, publication d'un nouveau tarif.
-   - Utilisateurs et droits.
-   - Paramètres (plafond de remise, moyens de paiement…).
-   - Journal d'audit, qui demande des endpoints à créer côté serveur.
-2. **Modifier une réservation** (changer de chambre ou de dates), en plus de la prolongation qui existe déjà.
-3. **Phase 7 :** rapports sur une longue période (facturé, chiffre d'affaires, encaissé, remises, remboursements), avec exports CSV et PDF.
-4. **Phase 8 :** recette complète, sécurité, sauvegardes, déploiement.
-5. **Points mineurs :**
-   - recherche des factures par nom de client ;
-   - redessiner le MCD ;
-   - tester le Docker Compose ;
-   - prévoir des périodes de maintenance planifiées (Q-12).
+Les listes d’agents (`/cash-agents`, `/report-agents`, `/audit-actors`) sont écrites trois fois dans les routes et lisent directement les comptes utilisateurs. Le compte utilisateur est déjà partagé entre modules comme auteur des opérations, donc la règle n’est pas cassée. Ces trois listes pourront être regroupées derrière un contrat du module Identity lors d’un prochain passage.

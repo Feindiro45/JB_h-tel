@@ -44,3 +44,20 @@ Afficher le prix historique sur les réservations existantes ; ne jamais recalcu
 - Chambres enregistrées individuellement, états calculés par période.
 - Demi-journée = forfait pour une durée positive jusqu'à 12 h ; au-delà, la caissière valide la prolongation et le supplément avant toute modification, sans conversion automatique.
 - Chaque opération est validée côté frontend et backend. Toute erreur bloque l'opération et déclenche une modale accessible avec un message explicite **en français** ; conserver les saisies.
+
+
+## Complément visuel validé par la demande du 19/11/2026
+
+Le contenu de l’application reprend la référence « Tableau de bord financier de l’hôtel.webp » : fond clair légèrement bleuté, titres sombres avec icône dans un carré menthe, indicateurs verts/ambre/bleus, tableaux à en-tête vert pâle, filtres blancs encadrés et actions compactes. Les boutons de création et de validation sont verts, les actions secondaires neutres et les annulations/retraits signalés en rouge. Les icônes accompagnent les libellés et ne constituent jamais la seule explication d’une action.
+
+**Contrainte explicite : l’aside existant reste inchangé.** Le thème est isolé dans `frontend/src/content-theme.css`, appliqué à la zone de travail et aux dialogues, sans modification des impressions. Les décisions D-045 et D-046 précisent le périmètre.
+
+
+## Ajustements validés par l’utilisateur — 19/11/2026
+
+- Synthèses avec cartes sur les pages métier, en précisant le périmètre des chiffres affichés.
+- Boutons verts et bleus, couleurs différentes pour les actions côte à côte, avec davantage d’espace. Maintenir les états actifs, désactivés, le focus et les actions destructives distinctes.
+- Icônes dans les champs et listes, sans remplacer leurs libellés accessibles.
+- Chaque tableau d’écran dispose d’une zone de filtres automatiques et d’une pagination, y compris les tableaux secondaires ; commandes masquées sur les documents imprimés.
+- Occupée : rouge ; réservée : bleu ; libre : vert ; maintenance : ambre.
+- Aside conservé conformément à la demande explicite.

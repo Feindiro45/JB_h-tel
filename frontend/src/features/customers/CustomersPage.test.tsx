@@ -33,6 +33,24 @@ function serve(store: (body: unknown) => { status: number; body: unknown }) {
 }
 
 describe('Clients', () => {
+  it('distingue le total filtré des indicateurs limités à la page affichée', async () => {
+    mockApi({
+      'GET /api/v1/auth/me': { body: { data: cashier() } },
+      'GET /api/v1/customers': {
+        body: {
+          data: [{ ...CUSTOMER, email: 'client@example.test' }],
+          meta: { total: 217, current_page: 1, last_page: 9 },
+        },
+      },
+    })
+    renderApp('/clients')
+    const overview = within(await screen.findByRole('region', { name: 'Vue d’ensemble' }))
+    expect(await overview.findByText('217')).toBeInTheDocument()
+    expect(overview.getByText('Avec e-mail').closest('article')).toHaveTextContent('1')
+    expect(overview.getByText('Avec téléphone').closest('article')).toHaveTextContent('1')
+    expect(overview.getByText('Pays représentés').closest('article')).toHaveTextContent('1')
+  })
+
   it('liste les clients avec un lien vers leur fiche (UUID)', async () => {
     serve(() => ({ status: 201, body: { data: CUSTOMER } }))
     renderApp('/clients')

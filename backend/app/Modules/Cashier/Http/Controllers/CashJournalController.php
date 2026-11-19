@@ -8,6 +8,7 @@ use App\Modules\Cashier\Domain\PaymentStatus;
 use App\Modules\Cashier\Http\PaymentPresenter;
 use App\Modules\Cashier\Models\Payment;
 use App\Modules\Identity\Models\User;
+use App\Shared\Http\PerPage;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,7 +65,7 @@ final class CashJournalController
             'search' => isset($validated['search']) ? trim((string) $validated['search']) : null,
         ], fn ($value) => $value !== null && $value !== '');
 
-        $page = $this->journal->payments($filters);
+        $page = $this->journal->payments($filters, PerPage::from($request));
         /** @var list<Payment> $items */
         $items = $page->items();
         $context = $this->journal->context(array_map(fn (Payment $payment) => $payment->reservation_id, $items));

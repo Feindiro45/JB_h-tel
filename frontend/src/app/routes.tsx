@@ -7,18 +7,16 @@ import { DashboardPage } from '../features/dashboard'
 import { DocumentsPage } from '../features/invoices'
 import { PlanningPage, ReservationDetailPage, ReservationsPage } from '../features/reservations'
 import { StatusPage } from '../features/system'
+import { RoomsPage, RatesPage, UsersPage, SettingsPage, AuditPage } from '../features/admin'
+import { ReportsPage } from '../features/reports'
 import { AppShell } from './AppShell'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
 import { GuestOnly, Landing } from './routeGuards'
-import { NoAccessPage, UpcomingPage } from './pages/UpcomingPage'
+import { NoAccessPage } from './pages/UpcomingPage'
 
 const guarded = (permission: string, element: ReactNode) => (
   <RequirePermission permission={permission}>{element}</RequirePermission>
-)
-
-const upcoming = (eyebrow: string, title: string, description: string) => (
-  <UpcomingPage eyebrow={eyebrow} title={title} description={description} />
 )
 
 /** Toutes les routes métier utilisent l'UUID public dans `:id` (D-026). */
@@ -54,38 +52,12 @@ export const routes: RouteObject[] = [
       { path: 'caisse', element: guarded('payments.view', <CashierPage />) },
       { path: 'documents', element: guarded('invoices.view', <DocumentsPage />) },
       { path: 'documents/recus/:id', element: guarded('payments.view', <ReceiptPage />) },
-      {
-        path: 'rapports',
-        element: guarded(
-          'reports.view',
-          upcoming('Finances', 'Rapports', 'Facturé, chiffre d’affaires et encaissé, par période.'),
-        ),
-      },
-      {
-        path: 'admin/chambres',
-        element: guarded(
-          'rooms.manage',
-          upcoming(
-            'Administration',
-            'Chambres et catégories',
-            'Chambres, capacités et maintenance.',
-          ),
-        ),
-      },
-      {
-        path: 'admin/tarifs',
-        element: guarded(
-          'rates.manage',
-          upcoming('Administration', 'Tarifs', 'Grille tarifaire versionnée et historique.'),
-        ),
-      },
-      {
-        path: 'admin/utilisateurs',
-        element: guarded(
-          'users.view',
-          upcoming('Administration', 'Utilisateurs et accès', 'Comptes, rôles et permissions.'),
-        ),
-      },
+      { path: 'rapports', element: guarded('reports.view', <ReportsPage />) },
+      { path: 'admin/chambres', element: guarded('rooms.manage', <RoomsPage />) },
+      { path: 'admin/tarifs', element: guarded('rates.manage', <RatesPage />) },
+      { path: 'admin/utilisateurs', element: guarded('users.view', <UsersPage />) },
+      { path: 'admin/parametres', element: guarded('settings.manage', <SettingsPage />) },
+      { path: 'admin/audit', element: guarded('audit.view', <AuditPage />) },
       { path: 'admin/etat', element: guarded('settings.manage', <StatusPage />) },
       { path: 'sans-acces', element: <NoAccessPage /> },
       { path: '*', element: <NotFoundPage /> },

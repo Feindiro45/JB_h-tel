@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { logout, ME_KEY, useCurrentUser } from '../features/auth'
 import { config } from '../shared/config'
 import { Icon } from '../shared/ui/Icon'
@@ -13,6 +13,12 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { pathname } = useLocation()
+  const currentPage = NAVIGATION.flatMap(({ group, items }) =>
+    items.map((item) => ({ ...item, group })),
+  )
+    .filter((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
+    .sort((a, b) => b.path.length - a.path.length)[0]
 
   const signOut = useMutation({
     mutationFn: logout,
@@ -102,10 +108,21 @@ export function AppShell() {
             >
               <Icon name="menu" />
             </button>
-            <span className="hide-mobile">Réception</span>
-            <strong>{formatDate(todayIso())}</strong>
+            <nav className="breadcrumb" aria-label="Fil d’Ariane">
+              <ol>
+                <li>{currentPage?.group ?? 'JB Hôtel'}</li>
+                <li>
+                  <Icon name="chevron" size={15} />
+                  <span aria-current="page">{currentPage?.label ?? 'Application'}</span>
+                </li>
+              </ol>
+            </nav>
           </div>
           <div>
+            <span className="topbar-date">
+              <Icon name="calendar" size={17} />
+              <time dateTime={todayIso()}>{formatDate(todayIso())}</time>
+            </span>
             <span className="role-chip">{user.role_label ?? 'Sans rôle'}</span>
           </div>
         </header>

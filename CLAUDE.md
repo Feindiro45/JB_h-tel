@@ -10,7 +10,7 @@ JB Hôtel is a web app for managing rooms, reservations and the cash desk at a h
 - `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` is the master brief. It sets the mandatory phases 0–8 (work through them in order), the acceptance criteria and the collaboration rules. The other numbered files in `docs/` (01–05, 07–09) are the authoritative specs.
 - `docs/DECISIONS.md` records arbitrations (C-xx) and decisions (D-xx). `docs/QUESTIONS.md` lists the open business questions (Q-xx) for the hotel. Cite these IDs in code comments when you implement a provisional rule.
 - `docs/archive/JB_Hotel_conception_V2.zip` is an outdated V2 of docs 01–04. Ignore it.
-- Phases 0 and 1 are done: audit, scaffolding, error contract, health endpoint, CI. Phase 2 (database schema, Identity module, audit trail) is done. Phase 3 (RoomCatalog: room types, rooms, versioned rates) is done. Phase 4 (Customers and Reservations) is done. Phase 5A (Cashier: payments, receipts, refunds) is done. Phase 5B (Billing: frozen invoices, PDF A4, credit notes), 5C (QR code with public verification) and 5D (email notifications) are done. Phase 6A (frontend: login, shell, dashboard, reservations, planning, customers) and 6B (cash desk, documents, printable receipt) are done; 6C (admin screens) is next.
+- Phases 0 and 1 are done: audit, scaffolding, error contract, health endpoint, CI. Phase 2 (database schema, Identity module, audit trail) is done. Phase 3 (RoomCatalog: room types, rooms, versioned rates) is done. Phase 4 (Customers and Reservations) is done. Phase 5A (Cashier: payments, receipts, refunds) is done. Phase 5B (Billing: frozen invoices, PDF A4, credit notes), 5C (QR code with public verification) and 5D (email notifications) are done. Phase 6A (frontend: login, shell, dashboard, reservations, planning, customers) and 6B (cash desk, documents, printable receipt) are done; 6C (admin screens), 6D (filters/pagination) and 7 (financial reports with CSV/PDF) are done. Local quality checks pass: 183 backend tests, 74 frontend tests and 4 browser tests (including 2 real E2E paths). CHECK_LEVEL.md records the remaining hotel approval, SMTP, paper printing and remote MySQL 8.4 CI checks.
 - `RAPPORT.md` at the root is the latest session report for the user, written in French. Rewrite it at the end of each autonomous work session.
 - **Every route and link uses UUIDs (D-026, a user requirement).**
   - Models use `App\Shared\Models\HasPublicUuid`; the entity tables already have a `uuid` column.
@@ -166,3 +166,19 @@ Code that already exists:
   - changing a rate from 50 000 to 60 000 FCFA leaves an earlier invoice at 50 000;
   - a 20 000 advance on 50 000 leaves a balance of 30 000;
   - a 10 % discount on 50 000 gives 45 000.
+
+
+### Content design (user request, 19 November 2026)
+- The user supplied a financial dashboard reference image and explicitly required the existing **aside to remain unchanged**. Do not restyle or restructure the sidebar when iterating on this design.
+- `frontend/src/content-theme.css` scopes the reference design to `.workspace`, dialogs and the login panel. Shared headings, metrics, filters, tables, buttons and icons carry it across the app; print rules keep documents readable.
+- Buttons use decorative icons alongside accessible labels; keep permission checks, keyboard focus, confirmations and disabled/loading states. Do not add invented comparison percentages or notification counts from the reference.
+- Local checks: 74 frontend tests, 4 browser tests; the visual test covers 17 screens/details plus a dialog and responsive layouts. See CHECK_LEVEL.md and docs/RECETTE.md.
+
+- List filters apply automatically through `shared/ui/useAutoFilters`: text search waits 300 ms, valid choices/dates apply immediately, filter changes reset the page. Keep invalid periods as drafts and retain the last valid results; no submit button is needed.
+- The invoice/credit-note PDF follows the green/gold reference in `billing/invoice.blade.php`; all business content still comes from the immutable snapshot. Never copy fictitious taxes, services, due dates, signatures or stamps from the reference image.
+
+- After bulk frontend edits, verify the actual running development server with `npm run check:dev` (anonymous browser, no database reset). A green build or E2E on a fresh server does not prove the long-running Vite process has valid module transforms. If a present export is missing from the served module, inspect the response and restart only Vite with `--force` when its in-memory transform is stale.
+
+- User design requirements (19 November 2026): overviews on business pages; green/blue actions alternating between adjacent buttons; larger spacing and decorative icons inside all text/select/textarea fields. Preserve the aside.
+- Each table needs filters and pagination. Use `LocalTable` for fully loaded secondary datasets; keep server pagination for remote lists. Printed local tables include all received rows and restore their screen state afterward.
+- Occupied rooms must be red everywhere; reserved blue, free green, maintenance amber. The Rooms admin screen reads the existing occupancy API only when the user can `reservations.view`.
