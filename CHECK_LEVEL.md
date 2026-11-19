@@ -21,7 +21,7 @@
 | 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
 | 4 | Clients et réservations | ✅ Fait (CI verte) | 100 % |
 | 5 | Caisse, factures, QR code, notifications | ✅ Fait (5A à 5D) | 100 % |
-| 6 | Frontend (écrans métier) | 🟡 En cours (6A faite, 6B à faire) | 40 % |
+| 6 | Frontend (écrans métier) | 🟡 En cours (6A faite, CI verte ; 6B à faire) | 40 % |
 | 7 | Reporting | ⬜ À faire | 0 % |
 | 8 | Qualité et livraison | ⬜ À faire | 0 % |
 

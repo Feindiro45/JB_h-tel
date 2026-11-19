@@ -5,6 +5,7 @@
 **Où en est le projet :**
 - ✅ **Le backend (API) est complet pour les phases 0 à 5** : comptes, chambres, tarifs, clients, réservations, caisse, factures, QR code, e-mails.
 - ✅ **Les premiers écrans sont faits (phase 6A)**, avec le design du dossier `JB_Hotel_Prototype`, amélioré et branché sur la vraie API.
+- Tout est sur GitHub (`main`, commit `7741ae4`), avec une **CI verte**.
 - ⏭️ Ensuite : les écrans **Caisse** et **Factures et reçus** (6B), puis l'**administration** (6C).
 
 Le suivi détaillé, case par case, est dans [CHECK_LEVEL.md](CHECK_LEVEL.md).
