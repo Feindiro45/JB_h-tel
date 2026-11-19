@@ -2,12 +2,15 @@
 
 namespace App\Modules\Identity\Application\Services;
 
+use App\Modules\Identity\Events\UserLoggedIn;
 use App\Modules\Identity\Models\User;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Contracts\Auth\PasswordBroker;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -27,7 +30,7 @@ final class AuthenticationService
         private readonly AuditTrail $audit,
     ) {}
 
-    public function login(string $email, string $password, bool $remember, string $ip): User
+    public function login(string $email, string $password, bool $remember, string $ip, ?string $userAgent = null): User
     {
         $key = $this->throttleKey($email, $ip);
 
@@ -65,8 +68,34 @@ final class AuthenticationService
         $guard->login($user, $remember);
         $user->forceFill(['last_login_at' => now()])->save();
         $this->audit->record('auth.login', 'user', $user->id, actorId: $user->id);
+        // Alerte de connexion par e-mail (6M), envoyée en file d'attente.
+        event(new UserLoggedIn($user->id, $ip, $userAgent, now()->toIso8601String()));
 
         return $user;
+    }
+
+    /**
+     * Mot de passe choisi depuis le lien de l'invitation (6M). Le lien sert une seule fois et
+     * expire après 72 h ; un lien inconnu, expiré ou déjà utilisé reçoit la même réponse.
+     */
+    public function setPassword(string $email, string $token, string $password): void
+    {
+        $status = Password::broker('invitations')->reset(
+            ['email' => Str::lower(trim($email)), 'token' => $token, 'password' => $password],
+            function (User $user, string $password): void {
+                $user->forceFill(['password' => $password])->save();
+                $this->audit->record('user.password_set', 'user', $user->id, actorId: $user->id);
+            },
+        );
+
+        if ($status !== PasswordBroker::PASSWORD_RESET) {
+            throw new BusinessRuleException(
+                'Ce lien n’est plus valable : il a expiré ou a déjà servi. Demandez à l’administrateur de vous renvoyer l’invitation.',
+                'Lien expiré',
+                422,
+                'invitation_invalid',
+            );
+        }
     }
 
     public function logout(User $user): void

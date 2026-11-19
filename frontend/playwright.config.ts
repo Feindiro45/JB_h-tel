@@ -16,13 +16,12 @@ export default defineConfig({
   },
   webServer: [
     {
-      // Plusieurs processus PHP (Linux, donc la CI) : une connexion ouverte d'avance par Chromium
-      // ne bloque plus tout le serveur. Laravel l'exige avec --no-reload ; Windows reste à un seul.
-      command: 'php artisan serve --host=127.0.0.1 --port=8011 --no-reload',
+      // Un seul processus PHP : avec plusieurs (essai du 20/11/2026), des requêtes simultanées se
+      // disputaient la session juste après la connexion.
+      command: 'php artisan serve --host=127.0.0.1 --port=8011',
       cwd: '../backend',
       url: 'http://localhost:8011/api/v1/health',
       env: {
-        PHP_CLI_SERVER_WORKERS: process.platform === 'win32' ? '1' : '4',
         APP_ENV: 'local',
         APP_URL: 'http://localhost:8011',
         DB_DATABASE: 'jb_hotel_e2e',

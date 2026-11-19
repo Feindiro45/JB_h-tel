@@ -4,9 +4,11 @@ namespace App\Modules\Identity\Http\Controllers;
 
 use App\Modules\Identity\Application\Services\AuthenticationService;
 use App\Modules\Identity\Http\Requests\LoginRequest;
+use App\Modules\Identity\Http\Requests\SetPasswordRequest;
 use App\Modules\Identity\Http\Resources\UserResource;
 use App\Modules\Identity\Models\User;
 use App\Shared\Exceptions\BusinessRuleException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -17,6 +19,18 @@ use Illuminate\Http\Response;
 final class AuthController
 {
     public function __construct(private readonly AuthenticationService $auth) {}
+
+    /** Lien de l'invitation (6M) : la personne choisit son mot de passe, puis se connecte. */
+    public function setPassword(SetPasswordRequest $request): JsonResponse
+    {
+        $this->auth->setPassword(
+            $request->string('email')->toString(),
+            $request->string('token')->toString(),
+            $request->string('password')->toString(),
+        );
+
+        return new JsonResponse(['message' => 'Mot de passe enregistré. Vous pouvez vous connecter.']);
+    }
 
     public function login(LoginRequest $request): UserResource
     {
@@ -35,6 +49,7 @@ final class AuthController
             $request->string('password')->toString(),
             $request->boolean('remember'),
             (string) $request->ip(),
+            $request->userAgent(),
         );
         $request->session()->regenerate();
 

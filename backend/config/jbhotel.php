@@ -15,6 +15,10 @@ return [
     // public de l'hôtel (ex. https://factures.jbhotel.cf), accessible depuis un téléphone.
     'verification_base_url' => env('VERIFICATION_BASE_URL', env('APP_URL', 'http://localhost:8000')),
 
+    // Adresse de l'application (écrans du personnel) utilisée dans les e-mails : lien pour choisir
+    // son mot de passe (6M). Par défaut, la première origine de FRONTEND_URL.
+    'frontend_url' => rtrim((string) env('APP_FRONTEND_URL', explode(',', (string) env('FRONTEND_URL', 'http://localhost:5173'))[0]), '/'),
+
     // En-tête des factures et reçus. PROVISOIRE (Q-09, Q-16) : raison sociale, adresse, NIF et RCCM
     // à fournir par l'hôtel ; ces valeurs sont copiées dans chaque facture au moment de son émission.
     'hotel' => [

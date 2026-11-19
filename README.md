@@ -65,10 +65,11 @@ npm install
 cp .env.example .env.local    # VITE_API_URL=http://localhost:8000
 ```
 
-## Démarrage (deux terminaux)
+## Démarrage (trois terminaux)
 
 ```bash
 cd backend  && php artisan serve     # API : http://localhost:8000  (santé : /api/v1/health)
+cd backend  && composer queue        # envoi des e-mails (file d’attente) : sans lui, aucun e-mail ne part
 cd frontend && npm run dev           # Interface : http://localhost:5173
 ```
 
@@ -210,7 +211,7 @@ Les e-mails partent **en file d'attente**. En développement, lance le traitemen
 cd backend && php artisan queue:work    # traite les envois ; avec MAIL_MAILER=log, les e-mails sont écrits dans storage/logs/laravel.log
 ```
 
-En production : configure le SMTP de l'hôtel (`MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_USERNAME`…, `MAIL_FROM_ADDRESS`) et fais tourner `queue:work` sous supervision.
+Envoi réel : configure le SMTP de l'hébergeur dans `backend/.env` (`MAIL_MAILER=smtp`, `MAIL_SCHEME`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`), vérifie avec `php artisan jb:mail-test adresse@exemple.cf` (ou Administration > Paramètres > « Envoyer un e-mail de test ») et fais tourner `queue:work` sous supervision en production. Le panneau Paramètres indique combien d’e-mails attendent ou ont échoué. Le personnel reçoit aussi une alerte à chaque connexion et, à la création d’un compte sans mot de passe, une invitation pour le choisir (D-054). Détails : `docs/EXPLOITATION.md`.
 
 Exemple de réservation (la demi-journée couvre jusqu'à 12 h ; une remise exige un motif) :
 

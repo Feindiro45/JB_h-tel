@@ -28,6 +28,7 @@ final class AuditLogQuery
         'auth' => 'Connexions',
         'setting' => 'Paramètres',
         'notification' => 'E-mails',
+        'mail' => 'Envoi des e-mails',
     ];
 
     public const ACTION_LABELS = [
@@ -35,6 +36,9 @@ final class AuditLogQuery
         'auth.logout' => 'Déconnexion',
         'user.created' => 'Utilisateur créé',
         'user.updated' => 'Utilisateur modifié',
+        'user.invitation_requested' => 'Invitation renvoyée',
+        'user.invitation_sent' => 'E-mail de bienvenue envoyé',
+        'user.password_set' => 'Mot de passe choisi depuis l’invitation',
         'role.permissions_updated' => 'Droits d’un rôle modifiés',
         'customer.created' => 'Client créé',
         'customer.updated' => 'Fiche client modifiée',
@@ -60,6 +64,7 @@ final class AuditLogQuery
         'invoice.credited' => 'Avoir émis',
         'notification.sent' => 'E-mail envoyé au client',
         'setting.updated' => 'Paramètre modifié',
+        'mail.test_sent' => 'E-mail de test envoyé',
     ];
 
     /** Table de chaque type d'entité, pour retrouver son UUID public. */

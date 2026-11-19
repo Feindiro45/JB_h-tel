@@ -26,6 +26,17 @@ export async function login(email: string, password: string): Promise<CurrentUse
   return (await api.post<Envelope<CurrentUser>>('/api/v1/auth/login', { email, password })).data
 }
 
+/** Mot de passe choisi depuis le lien de l'invitation reçue par e-mail (6M). */
+export async function setPassword(input: {
+  email: string
+  token: string
+  password: string
+  password_confirmation: string
+}): Promise<string> {
+  await api.csrf()
+  return (await api.post<{ message: string }>('/api/v1/auth/password', input)).message
+}
+
 export async function logout(): Promise<void> {
   await api.post('/api/v1/auth/logout')
 }

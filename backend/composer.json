@@ -77,6 +77,10 @@
         ],
         "analyse": [
             "phpstan analyse --memory-limit=1G"
+        ],
+        "queue": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan queue:work --tries=3"
         ]
     },
     "extra": {

@@ -5,10 +5,12 @@ namespace App\Modules\Identity\Application\Services;
 use App\Modules\Identity\Domain\RoleName;
 use App\Modules\Identity\DTO\CreateUserData;
 use App\Modules\Identity\DTO\UpdateUserData;
+use App\Modules\Identity\Events\UserInvited;
 use App\Modules\Identity\Models\User;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Création et modification des utilisateurs par l'administrateur.
@@ -24,15 +26,25 @@ final class UserAdministrationService
             $user = User::query()->create([
                 'name' => $data->name,
                 'email' => $data->email,
-                'password' => $data->password,
+                // Sans mot de passe saisi : valeur aléatoire inconnue de tous, remplacée par la personne
+                // depuis le lien de l'invitation (6M).
+                'password' => $data->password ?? Str::password(40),
                 'active' => $data->active,
             ]);
             $user->syncRoles([$data->role->value]);
 
             $this->audit->record('user.created', 'user', $user->id, after: $this->snapshot($user));
+            event(new UserInvited($user->id, withPasswordLink: $data->password === null));
 
             return $user;
         });
+    }
+
+    /** Renvoie l'invitation (6M) : nouveau lien pour choisir son mot de passe, l'ancien devient caduc. */
+    public function invite(User $user, User $actor): void
+    {
+        $this->audit->record('user.invitation_requested', 'user', $user->id, actorId: $actor->id);
+        event(new UserInvited($user->id, withPasswordLink: true));
     }
 
     public function update(User $user, UpdateUserData $data, User $actor): User

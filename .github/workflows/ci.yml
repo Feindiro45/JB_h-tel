@@ -97,10 +97,21 @@ jobs:
         if: failure()
         run: |
           if [ -f storage/logs/laravel.log ]; then
-            grep -E '\.(ERROR|CRITICAL|ALERT|EMERGENCY):' storage/logs/laravel.log | tail -n 8 | while IFS= read -r line; do
+            grep -E '\] local\.(ERROR|CRITICAL|ALERT|EMERGENCY):' storage/logs/laravel.log | tail -n 8 | while IFS= read -r line; do
               echo "::warning title=laravel.log::${line:0:900}"
             done
           fi
+
+      # État de la page au moment de chaque échec (instantané d'accessibilité écrit par Playwright).
+      - name: Pages en échec en annotations
+        if: failure()
+        working-directory: frontend
+        run: |
+          for file in test-results/*/error-context.md; do
+            [ -f "$file" ] || continue
+            body=$(grep -v '^\s*$' "$file" | head -c 6000 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::warning title=$(dirname "$file" | cut -c14-80)::${body}"
+          done
 
       - uses: actions/upload-artifact@v4
         if: failure()

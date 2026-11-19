@@ -50,6 +50,16 @@ final class UserController
         return new UserResource($user->load(self::RELATIONS));
     }
 
+    /** Renvoie l'e-mail d'invitation avec un nouveau lien pour choisir son mot de passe (6M). */
+    public function invite(Request $request, User $user): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $this->users->invite($user, $actor);
+
+        return new JsonResponse(['message' => "Invitation envoyée à {$user->email}."], 202);
+    }
+
     public function update(UpdateUserRequest $request, User $user): UserResource
     {
         /** @var User $actor */

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { RouteObject } from 'react-router'
-import { LoginPage, RequireAuth, RequirePermission } from '../features/auth'
+import { LoginPage, RequireAuth, RequirePermission, SetPasswordPage } from '../features/auth'
 import { CashierPage, ReceiptPage } from '../features/cashier'
 import { CustomerDetailPage, CustomersPage } from '../features/customers'
 import { DashboardPage } from '../features/dashboard'
@@ -30,6 +30,8 @@ export const routes: RouteObject[] = [
       </GuestOnly>
     ),
   },
+  // Lien de l'invitation reçue par e-mail (6M) : accessible sans connexion.
+  { path: '/mot-de-passe', errorElement: <RouteErrorPage />, element: <SetPasswordPage /> },
   {
     path: '/',
     errorElement: <RouteErrorPage />,

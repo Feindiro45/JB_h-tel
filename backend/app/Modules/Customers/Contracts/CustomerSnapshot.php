@@ -2,6 +2,8 @@
 
 namespace App\Modules\Customers\Contracts;
 
+use App\Shared\Mail\Recipients;
+
 /** Vue en lecture d'un client pour les autres modules. `id` interne, `uuid` public (D-026). */
 final readonly class CustomerSnapshot
 {
@@ -18,6 +20,7 @@ final readonly class CustomerSnapshot
     /** Le client a donné son e-mail et ne s'est pas désinscrit (D-039). */
     public function canBeEmailed(): bool
     {
-        return $this->emailNotifications && $this->email !== null && $this->email !== '';
+        // Une adresse d'un domaine réservé (.local, .test…) ne peut rien recevoir (6M).
+        return $this->emailNotifications && Recipients::deliverable($this->email);
     }
 }

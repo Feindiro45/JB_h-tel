@@ -20,7 +20,20 @@ const room = {
   maintenance_note: null,
   notes: null,
 }
+const MAIL = {
+  mailer: 'smtp',
+  transport: 'smtp',
+  delivers: true,
+  host: 'mail.banguiweb-tech.com',
+  port: 465,
+  scheme: 'smtps',
+  authenticated: true,
+  from_address: 'jb@banguiweb-tech.com',
+  from_name: 'JB Hôtel',
+  queue: { connection: 'database', needs_worker: true, pending: 2, failed: 0 },
+}
 const defaults = {
+  'GET /api/v1/settings/mail': { body: { data: MAIL } },
   'GET /api/v1/occupancy': { body: { at: '2026-11-19T10:00:00+01:00', data: [] } },
   'GET /api/v1/auth/me': { body: { data: admin() } },
   'GET /api/v1/rooms': { body: { data: [room] } },
@@ -147,7 +160,7 @@ describe('Administration', () => {
     renderApp('/admin/utilisateurs')
     await screen.findByText(account.email)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Modifier' }))
+    await user.click(screen.getByRole('button', { name: `Modifier ${account.name}` }))
     await user.selectOptions(within(screen.getByRole('dialog')).getByLabelText('Compte'), 'false')
     await user.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Enregistrer' }),
@@ -229,5 +242,72 @@ describe('Administration', () => {
     mockApi({ 'GET /api/v1/auth/me': { body: { data: cashier() } } })
     renderApp('/admin/chambres')
     expect(await screen.findByRole('heading', { name: 'Accès refusé' })).toBeInTheDocument()
+  })
+  it('envoie un e-mail de test et décrit l’envoi sans aucun secret', async () => {
+    const calls = mockApi({
+      ...defaults,
+      'GET /api/v1/settings': { body: { data: [] } },
+      'POST /api/v1/settings/mail/test': {
+        body: { message: 'E-mail de test envoyé à reception@hotel.cf.', data: MAIL },
+      },
+    })
+    renderApp('/admin/parametres')
+    const panel = await screen.findByRole('region', { name: 'Envoi des e-mails' })
+    expect(await within(panel).findByText('Envoi réel')).toBeInTheDocument()
+    expect(panel).toHaveTextContent('mail.banguiweb-tech.com:465 · smtps · authentifié')
+    expect(panel).toHaveTextContent('2 en attente · 0 en échec')
+    expect(within(panel).getByRole('status')).toHaveTextContent('php artisan queue:work')
+    const user = userEvent.setup()
+    const address = within(panel).getByLabelText('Adresse de test')
+    await user.clear(address)
+    await user.type(address, 'reception@hotel.cf')
+    await user.click(within(panel).getByRole('button', { name: 'Envoyer un e-mail de test' }))
+    expect(
+      await screen.findByText('E-mail de test envoyé à reception@hotel.cf.'),
+    ).toBeInTheDocument()
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ to: 'reception@hotel.cf' })
+  })
+
+  it('crée un compte sans mot de passe : la personne reçoit une invitation', async () => {
+    const account = cashier()
+    const calls = mockApi({
+      ...defaults,
+      'GET /api/v1/users': {
+        body: { data: [account], meta: { total: 1, current_page: 1, last_page: 1 } },
+      },
+      'GET /api/v1/roles': { body: { data: [] } },
+      'POST /api/v1/users': { status: 201, body: { data: account } },
+      [`POST /api/v1/users/${account.id}/invitation`]: {
+        status: 202,
+        body: { message: `Invitation envoyée à ${account.email}.` },
+      },
+    })
+    renderApp('/admin/utilisateurs')
+    await screen.findByText(account.email)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Utilisateur/ }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByLabelText('Mot de passe')).not.toBeRequired()
+    await user.type(within(dialog).getByLabelText('Nom'), 'Nadia Kossi')
+    await user.type(within(dialog).getByLabelText('Adresse e-mail'), 'nadia@hotel.cf')
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    expect(
+      await screen.findByText(
+        'Compte créé · invitation envoyée à nadia@hotel.cf pour choisir son mot de passe',
+      ),
+    ).toBeInTheDocument()
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+      name: 'Nadia Kossi',
+      email: 'nadia@hotel.cf',
+      role: 'caissiere',
+      active: true,
+    })
+
+    await user.click(
+      screen.getByRole('button', {
+        name: `Envoyer à ${account.name} un lien pour choisir son mot de passe`,
+      }),
+    )
+    expect(await screen.findByText(`Invitation envoyée à ${account.email}.`)).toBeInTheDocument()
   })
 })

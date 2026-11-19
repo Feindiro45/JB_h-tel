@@ -4,6 +4,14 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Envoi réel des e-mails, alerte de connexion et invitations — 20/11/2026 (D-054)
+- SMTP de l’hébergeur configurable dans `backend/.env` (documenté dans `.env.example` et EXPLOITATION). Panneau « Envoi des e-mails » dans Paramètres et commande `php artisan jb:mail-test` : mode, serveur, expéditeur, file d’attente, e-mail de test, causes d’échec expliquées en français ; aucun secret affiché.
+- Alerte par e-mail à chaque connexion d’un membre du personnel (date, heure, adresse IP, navigateur).
+- Création de compte sans mot de passe : invitation par e-mail avec un lien à usage unique valable 72 h vers le nouvel écran « Choisir mon mot de passe » ; bouton « Inviter » pour renvoyer un lien ; e-mail de bienvenue quand un mot de passe est saisi.
+- Aucun e-mail vers les domaines réservés (`.local`, `.test`…), dont les comptes de démonstration.
+- Vérifié par un vrai échange SMTP (serveur de capture local) : 12 contrôles verts. Le serveur de l’hébergeur refuse pour l’instant l’identifiant fourni (535).
+- CI : retour à un seul processus PHP pour la recette ; l’état de la page en échec est publié en annotation.
+
 ### CI des parcours navigateur — 20/11/2026
 - Annotations GitHub : chaque échec Playwright et les dernières erreurs du journal Laravel sont publiés (le journal d’exécution exige les droits d’administrateur du dépôt).
 - Performance : le PDF d’une facture n’est plus rendu pour une notification qui ne partira pas (client sans e-mail) ; l’émission redevient immédiate au lieu d’environ 4 secondes, et 8 pour une prolongation facturée.

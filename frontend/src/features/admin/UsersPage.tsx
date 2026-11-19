@@ -28,6 +28,13 @@ export function UsersPage() {
   const [editing, setEditing] = useState<CurrentUser | 'new' | null>(null)
   const [permissions, setPermissions] = useState<string[] | null>(null)
   const cashier = roles.data?.data.find((r) => r.name === 'caissiere')
+  const { notify } = useToast()
+  // Nouveau lien pour choisir son mot de passe (6M) : invitation expirée ou mot de passe oublié.
+  const invite = useMutation({
+    mutationFn: (user: CurrentUser) =>
+      api.post<{ message: string }>(`/api/v1/users/${user.id}/invitation`),
+    onSuccess: (response) => notify(response.message),
+  })
   const fields: EditField[] = [
     { name: 'name', label: 'Nom', required: true, maxLength: 160 },
     { name: 'email', label: 'Adresse e-mail', type: 'email', required: true },
@@ -53,14 +60,15 @@ export function UsersPage() {
       name: 'password',
       label: 'Mot de passe',
       type: 'password',
-      required: editing === 'new',
-      hint: 'Au moins 10 caractères, avec lettres et chiffres. Laisser vide pour conserver le mot de passe actuel.',
+      hint:
+        editing === 'new'
+          ? 'Facultatif. Laissé vide, la personne reçoit un e-mail pour choisir elle-même son mot de passe.'
+          : 'Au moins 10 caractères, avec lettres et chiffres. Laisser vide pour conserver le mot de passe actuel.',
     },
     {
       name: 'password_confirmation',
       label: 'Confirmer le mot de passe',
       type: 'password',
-      required: editing === 'new',
     },
   ]
   return (
@@ -161,10 +169,25 @@ export function UsersPage() {
                     <td>{u.active ? 'Actif' : 'Désactivé'}</td>
                     <td>
                       {can('users.manage') && (
-                        <button className="text-button" onClick={() => setEditing(u)}>
-                          <Icon name="edit" size={17} />
-                          Modifier
-                        </button>
+                        <span className="compact-actions">
+                          <button
+                            className="text-button"
+                            onClick={() => setEditing(u)}
+                            aria-label={`Modifier ${u.name}`}
+                          >
+                            <Icon name="edit" size={17} />
+                            Modifier
+                          </button>
+                          <button
+                            className="text-button"
+                            onClick={() => invite.mutate(u)}
+                            disabled={invite.isPending}
+                            aria-label={`Envoyer à ${u.name} un lien pour choisir son mot de passe`}
+                          >
+                            <Icon name="mail" size={17} />
+                            Inviter
+                          </button>
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -212,6 +235,13 @@ export function UsersPage() {
                   role: editing.role ?? 'caissiere',
                   active: String(editing.active),
                 }
+          }
+          successMessage={(v) =>
+            editing !== 'new'
+              ? 'Modification enregistrée'
+              : v.password
+                ? `Compte créé · e-mail de bienvenue envoyé à ${v.email}`
+                : `Compte créé · invitation envoyée à ${v.email} pour choisir son mot de passe`
           }
           transform={(v) => {
             const result: Record<string, unknown> = { ...v, active: v.active === 'true' }

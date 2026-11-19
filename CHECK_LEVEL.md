@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 20/11/2026 — 6L (D-053, signalé par l’utilisateur) : l’annulation rembourse l’encaissé et crédite la facture, payée ou non ; la prolongation d’un séjour facturé remplace la facture par une facture détaillée (séjour initial + prolongation). Livraison locale vérifiée : **193 tests backend (1 394 assertions), 79 tests frontend, 4 tests navigateur (2 parcours réels, pagination et charte visuelle), 60 contrôles de contrats réels pour l’administration et les filtres**. Relecture finale : modification de catégorie corrigée (le code figé était renvoyé, 422). Sauvegarde restaurée (27 tables), PDF A4 et affichages bureau/tablette/mobile contrôlés. Charte de contenu, vues d’ensemble généralisées, boutons voisins verts/bleus, champs avec icônes, filtres/pagination par tableau et facture vert/or appliqués ; chambres occupées en rouge et aside conservé. Facture, avoir et document long rendus et inspectés, QR décodés. Suite navigateur finale : quatre tests réussis, y compris recherche et effacement automatiques. Incident de page blanche du serveur actif corrigé : cache Vite régénéré, contrôle `check:dev` vert sur quatre routes et rechargement. Validation hôtel et nouvelle CI MySQL 8.4 encore attendues.
+**Dernière mise à jour :** 20/11/2026 — 6L (D-053, signalé par l’utilisateur) : l’annulation rembourse l’encaissé et crédite la facture, payée ou non ; la prolongation d’un séjour facturé remplace la facture par une facture détaillée (séjour initial + prolongation). 6M (D-054) : envoi réel des e-mails par le SMTP de l’hébergeur, alerte de connexion et invitation du personnel ; **authentification SMTP refusée (535) pour l’identifiant fourni, à corriger par l’utilisateur** ; 35 e-mails clients en attente faute de `queue:work`. Livraison locale vérifiée : **206 tests backend (1 475 assertions), 84 tests frontend, 4 tests navigateur (2 parcours réels, pagination et charte visuelle), 60 contrôles de contrats réels pour l’administration et les filtres**. Relecture finale : modification de catégorie corrigée (le code figé était renvoyé, 422). Sauvegarde restaurée (27 tables), PDF A4 et affichages bureau/tablette/mobile contrôlés. Charte de contenu, vues d’ensemble généralisées, boutons voisins verts/bleus, champs avec icônes, filtres/pagination par tableau et facture vert/or appliqués ; chambres occupées en rouge et aside conservé. Facture, avoir et document long rendus et inspectés, QR décodés. Suite navigateur finale : quatre tests réussis, y compris recherche et effacement automatiques. Incident de page blanche du serveur actif corrigé : cache Vite régénéré, contrôle `check:dev` vert sur quatre routes et rechargement. Validation hôtel et nouvelle CI MySQL 8.4 encore attendues.
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -21,7 +21,7 @@
 | 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
 | 4 | Clients et réservations | ✅ Fait (CI verte) | 100 % |
 | 5 | Caisse, factures, QR code, notifications | ✅ Fait (5A à 5E) | 100 % |
-| 6 | Frontend (écrans métier) | ✅ 6A à 6L terminées, recette locale verte | 100 % |
+| 6 | Frontend (écrans métier) | ✅ 6A à 6M terminées, recette locale verte (SMTP de l’hébergeur : identifiant refusé) | 100 % |
 | 7 | Reporting | ✅ Implémenté, tests API verts | 100 % |
 | 8 | Qualité et livraison | 🟡 Livraison locale vérifiée ; recette hôtel et CI distante restantes | 90 % |
 
@@ -394,12 +394,15 @@
 
 ### 6M — Envoi réel des e-mails (demande du 20/11/2026)
 > Choix de l’utilisateur : vrai envoi par le SMTP de l’hébergeur de l’hôtel, alerte à chaque connexion, e-mail de bienvenue à la création d’un compte.
-- [ ] SMTP de l’hébergeur : réglages documentés dans `.env.example` et EXPLOITATION, sans secret dans Git
-- [ ] Test d’envoi : commande `jb:mail-test` et bouton dans Paramètres (état de l’envoi, file d’attente)
-- [ ] Alerte de connexion au membre du personnel (date, heure, adresse IP, navigateur)
-- [ ] Création de compte : e-mail de bienvenue, lien pour choisir son mot de passe si aucun n’est saisi ; renvoi de l’invitation
-- [ ] Écran public « Choisir mon mot de passe »
-- [ ] Tests et vérification d’un vrai envoi SMTP (serveur SMTP local de capture)
+- [x] SMTP de l’hébergeur : réglages documentés dans `.env.example` et EXPLOITATION, sans secret dans Git ; identifiants fournis par l’utilisateur placés dans `backend/.env` (ignoré par Git)
+- [!] Envoi réel par `mail.banguiweb-tech.com:465` : serveur joint et chiffrement établi, mais **authentification refusée (535)** pour l’identifiant fourni ; identifiant ou mot de passe à vérifier par l’utilisateur dans le panneau de l’hébergeur
+- [x] Test d’envoi : commande `jb:mail-test` et panneau « Envoi des e-mails » dans Paramètres (mode, serveur, expéditeur, file d’attente, e-mail de test), sans aucun secret exposé ; causes d’échec expliquées en français
+- [x] Alerte de connexion au membre du personnel (date, heure de Bangui, adresse IP, navigateur et système), en file d’attente ; jamais vers un domaine réservé (`@jbhotel.local`)
+- [x] Création de compte : mot de passe facultatif ; sans mot de passe, invitation avec un lien à usage unique valable 72 h ; avec mot de passe, e-mail de bienvenue ; bouton « Inviter » pour renvoyer un lien
+- [x] Écran public « Choisir mon mot de passe » (`/mot-de-passe`), lien expiré ou déjà utilisé expliqué
+- [x] Tests : 12 backend (alerte, invitation, lien à usage unique et expiré, renvoi, droits, domaines réservés, état sans secret, serveur injoignable, commande), 5 frontend ; **12 contrôles verts par un vrai échange SMTP** (serveur de capture local) : test d’envoi, invitation, mot de passe choisi depuis le lien reçu, connexion et alerte
+- [x] Corrigé au passage : le PDF de la facture était rendu même quand aucun e-mail ne partait (~4 s par facture)
+- [!] Pourquoi les clients ne reçoivent pas d’e-mail (question du 20/11/2026) : aucun `queue:work` ne tourne en local (**35 e-mails clients en attente** depuis le 19/11 17:21) et le SMTP refuse l’identifiant. Raccourci `composer queue` ajouté ; envoi ou purge des 35 anciens messages à décider par l’utilisateur
 
 ## Phase 7 — Reporting ✅
 
@@ -412,7 +415,7 @@
 ## Phase 8 — Qualité et livraison 🟡 (livraison locale vérifiée)
 
 - [~] Migrations propres : suites locales sur MariaDB ; MySQL 8.4 prévu dans la CI (Docker absent du poste, nouvelle exécution distante non réalisée)
-- [x] Tests : **193 backend / 79 frontend / 4 tests navigateur / 60 + 21 contrats réels (administration, filtres, D-053)** ; Pint, Larastan niveau 6, lint, Prettier, TypeScript et build verts (relecture finale du 19/11/2026)
+- [x] Tests : **206 backend / 84 frontend / 4 tests navigateur / 60 + 21 + 12 contrats réels (administration, filtres, D-053, SMTP)** ; Pint, Larastan niveau 6, lint, Prettier, TypeScript et build verts (relecture finale du 19/11/2026)
 - [x] Contrôle d’accès : permissions API et routes frontend, CSRF réel, UUID des annuaires, export réservé à `reports.export`, données d’audit sans secrets et erreurs françaises ; tests verts
 - [x] Sauvegarde et restauration réelle vérifiées : `php infra/database-backup.php --verify`, 27 tables avec nombres de lignes identiques et empreinte SHA-256 ; cible de contrôle distincte et refus d’une base déjà remplie
 - [x] PDF A4 : export navigateur téléchargé, deux pages rendues et inspectées ; journal imprimé complet même si la liste est paginée à l’écran

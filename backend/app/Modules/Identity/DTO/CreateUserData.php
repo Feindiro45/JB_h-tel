@@ -9,7 +9,8 @@ final readonly class CreateUserData
     public function __construct(
         public string $name,
         public string $email,
-        public string $password,
+        /** Null : la personne choisit son mot de passe depuis l'e-mail d'invitation (6M). */
+        public ?string $password,
         public RoleName $role,
         public bool $active = true,
     ) {}

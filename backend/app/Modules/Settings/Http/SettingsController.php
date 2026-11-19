@@ -3,6 +3,7 @@
 namespace App\Modules\Settings\Http;
 
 use App\Modules\Identity\Models\User;
+use App\Modules\Settings\Application\MailCheck;
 use App\Modules\Settings\Application\SettingsCatalog;
 use App\Modules\Settings\Application\SettingsService;
 use Illuminate\Http\JsonResponse;
@@ -11,7 +12,28 @@ use Illuminate\Http\Request;
 /** Écran « Paramètres » de l'administration. */
 final class SettingsController
 {
-    public function __construct(private readonly SettingsService $settings) {}
+    public function __construct(
+        private readonly SettingsService $settings,
+        private readonly MailCheck $mail,
+    ) {}
+
+    /** État de l'envoi des e-mails (6M) : mode, serveur, expéditeur, file d'attente ; aucun secret. */
+    public function mailStatus(): JsonResponse
+    {
+        return new JsonResponse(['data' => $this->mail->status()]);
+    }
+
+    /** E-mail de test envoyé immédiatement ; par défaut à l'adresse de l'administrateur connecté. */
+    public function mailTest(Request $request): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $validated = $request->validate(['to' => ['nullable', 'email', 'max:255']], attributes: ['to' => 'adresse de test']);
+        $to = (string) ($validated['to'] ?? $actor->email);
+        $this->mail->sendTest($to, $actor);
+
+        return new JsonResponse(['message' => "E-mail de test envoyé à {$to}.", 'data' => $this->mail->status()]);
+    }
 
     public function index(): JsonResponse
     {

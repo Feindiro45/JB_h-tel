@@ -5,10 +5,12 @@ import { useState } from 'react'
 import { api } from '../../shared/api/client'
 import type { Envelope } from '../../shared/api/types'
 import { Badge } from '../../shared/ui/Badge'
-import { LoadingBlock, PageHeading, Panel } from '../../shared/ui/layout'
+import { TextField } from '../../shared/ui/fields'
+import { LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
 import { Modal } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/toastContext'
 import { adminQuery, type Setting } from './api'
+import { useCurrentUser } from '../auth'
 import { EditDialog } from './EditDialog'
 
 export function SettingsPage() {
@@ -54,6 +56,7 @@ export function SettingsPage() {
           },
         ]}
       />
+      <MailPanel />
       {settings.isPending ? (
         <LoadingBlock />
       ) : (
@@ -155,5 +158,109 @@ function MethodsDialog({ setting, onClose }: { setting: Setting; onClose: () => 
         ))}
       </div>
     </Modal>
+  )
+}
+
+export interface MailStatus {
+  mailer: string
+  transport: string
+  delivers: boolean
+  host: string | null
+  port: number | null
+  scheme: string | null
+  authenticated: boolean
+  from_address: string
+  from_name: string
+  queue: {
+    connection: string
+    needs_worker: boolean
+    pending: number | null
+    failed: number | null
+  }
+}
+
+/**
+ * Envoi des e-mails (6M) : état de la configuration (sans aucun secret) et e-mail de test envoyé
+ * immédiatement. Les identifiants SMTP se règlent dans backend/.env, jamais dans l'interface.
+ */
+function MailPanel() {
+  const { user } = useCurrentUser()
+  const status = useQuery(adminQuery<Envelope<MailStatus>>('settings/mail'))
+  const cache = useQueryClient()
+  const { notify } = useToast()
+  const [to, setTo] = useState(user?.email ?? '')
+  const test = useMutation({
+    mutationFn: () =>
+      api.post<{ message: string }>('/api/v1/settings/mail/test', { to: to.trim() || null }),
+    onSuccess: (response) => {
+      notify(response.message)
+      void cache.invalidateQueries({ queryKey: ['admin', 'settings/mail'] })
+    },
+  })
+  const mail = status.data?.data
+  return (
+    <Panel
+      title="Envoi des e-mails"
+      subtitle="Confirmations de séjour, reçus, factures, alertes de connexion et invitations du personnel. Les identifiants SMTP se règlent dans backend/.env."
+      action={
+        mail && (
+          <Badge
+            tone={mail.delivers ? 'green' : 'amber'}
+            label={mail.delivers ? 'Envoi réel' : 'Aucun envoi réel'}
+          />
+        )
+      }
+    >
+      {!mail ? (
+        <LoadingBlock lines={2} />
+      ) : (
+        <>
+          <div className="panel-body pairs grid-pairs">
+            <Pair label="Mode">
+              {mail.delivers
+                ? `${mail.transport.toUpperCase()} — les e-mails partent réellement`
+                : `${mail.transport} — les e-mails sont seulement écrits dans le journal`}
+            </Pair>
+            <Pair label="Serveur">
+              {mail.host
+                ? `${mail.host}:${mail.port}${mail.scheme ? ` · ${mail.scheme}` : ''}${mail.authenticated ? ' · authentifié' : ''}`
+                : '—'}
+            </Pair>
+            <Pair label="Expéditeur">{`${mail.from_name} <${mail.from_address}>`}</Pair>
+            <Pair label="File d’attente">
+              {mail.queue.needs_worker
+                ? `${mail.queue.pending ?? '?'} en attente · ${mail.queue.failed ?? 0} en échec`
+                : `Envoi immédiat · ${mail.queue.failed ?? 0} en échec`}
+            </Pair>
+          </div>
+          {mail.queue.needs_worker && (mail.queue.pending ?? 0) > 0 && (
+            <p className="notice" role="status">
+              Des e-mails attendent leur envoi : le service d’envoi en arrière-plan doit tourner sur
+              le serveur (commande « php artisan queue:work »).
+            </p>
+          )}
+          <form
+            className="filterbar"
+            aria-label="E-mail de test"
+            onSubmit={(event) => {
+              event.preventDefault()
+              test.mutate()
+            }}
+          >
+            <TextField
+              label="Adresse de test"
+              type="email"
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              hint="Laisser vide pour l’envoyer à votre propre adresse."
+            />
+            <button type="submit" className="primary" disabled={test.isPending}>
+              <Icon name={test.isPending ? 'loader' : 'mail'} size={17} />
+              {test.isPending ? 'Envoi…' : 'Envoyer un e-mail de test'}
+            </button>
+          </form>
+        </>
+      )}
+    </Panel>
   )
 }

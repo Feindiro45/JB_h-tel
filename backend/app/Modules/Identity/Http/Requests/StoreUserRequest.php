@@ -16,7 +16,8 @@ final class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:160'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'string', 'confirmed', Password::min(10)->letters()->numbers()],
+            // Facultatif (6M) : sans mot de passe, un e-mail invite la personne à choisir le sien.
+            'password' => ['nullable', 'string', 'confirmed', Password::min(10)->letters()->numbers()],
             'role' => ['required', Rule::enum(RoleName::class)],
             'active' => ['sometimes', 'boolean'],
         ];
@@ -33,7 +34,7 @@ final class StoreUserRequest extends FormRequest
         return new CreateUserData(
             name: $this->string('name')->trim()->toString(),
             email: $this->string('email')->trim()->lower()->toString(),
-            password: $this->string('password')->toString(),
+            password: $this->filled('password') ? $this->string('password')->toString() : null,
             role: $this->enum('role', RoleName::class) ?? RoleName::Cashier,
             active: $this->boolean('active', true),
         );

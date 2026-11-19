@@ -29,6 +29,7 @@ export function EditDialog({
   initial = {},
   onClose,
   transform = (v) => v,
+  successMessage,
 }: {
   title: string
   path: string
@@ -37,6 +38,8 @@ export function EditDialog({
   initial?: Record<string, string>
   transform?: (values: Record<string, string>) => unknown
   onClose: () => void
+  /** Message de confirmation propre au formulaire (par défaut « Modification enregistrée »). */
+  successMessage?: (values: Record<string, string>) => string
 }) {
   const [values, setValues] = useState(initial)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
@@ -91,7 +94,7 @@ export function EditDialog({
         : api[method](`/api/v1/${path}`, transform(values)),
     onSuccess: () => {
       void cache.invalidateQueries()
-      notify('Modification enregistrée')
+      notify(successMessage?.(values) ?? 'Modification enregistrée')
       onClose()
     },
     onError: (error) => setErrors(toUserError(error).fieldErrors),

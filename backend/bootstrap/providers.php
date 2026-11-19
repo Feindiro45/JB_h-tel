@@ -7,6 +7,7 @@ use App\Modules\Identity\IdentityServiceProvider;
 use App\Modules\Notifications\NotificationsServiceProvider;
 use App\Modules\Reservations\ReservationsServiceProvider;
 use App\Modules\RoomCatalog\RoomCatalogServiceProvider;
+use App\Modules\Settings\SettingsServiceProvider;
 use App\Providers\AppServiceProvider;
 
 return [
@@ -18,4 +19,5 @@ return [
     CashierServiceProvider::class,
     BillingServiceProvider::class,
     NotificationsServiceProvider::class,
+    SettingsServiceProvider::class,
 ];
