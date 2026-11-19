@@ -80,13 +80,26 @@ export class ApiError extends Error {
   readonly status: number
   readonly title: string
   readonly fieldErrors: FieldErrors
+  /** Code métier stable renvoyé par le backend (ex. `room_unavailable`), si présent. */
+  readonly code: string | null
+  /** Aides à la correction renvoyées par le backend (conflits, supplément proposé…). */
+  readonly details: string[]
 
-  constructor(status: number, title: string, message: string, fieldErrors: FieldErrors = {}) {
+  constructor(
+    status: number,
+    title: string,
+    message: string,
+    fieldErrors: FieldErrors = {},
+    code: string | null = null,
+    details: string[] = [],
+  ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.title = title
     this.fieldErrors = fieldErrors
+    this.code = code
+    this.details = details
   }
 
   get isNetworkError(): boolean {
@@ -96,6 +109,11 @@ export class ApiError extends Error {
   /** Messages de champ aplatis, pour le résumé affiché dans la modale. */
   get fieldMessages(): string[] {
     return Object.values(this.fieldErrors).flat()
+  }
+
+  /** Tout ce qui aide l'utilisateur à corriger : champs invalides puis détails métier. */
+  get helpMessages(): string[] {
+    return [...this.fieldMessages, ...this.details]
   }
 }
 
@@ -135,7 +153,11 @@ export function errorFromResponse(status: number, payload: unknown): ApiError {
   const trustBody = status < 500
   const title = trustBody && isNonEmptyString(body.title) ? body.title : fallback.title
   const message = trustBody && isNonEmptyString(body.message) ? body.message : fallback.message
-  return new ApiError(status, title, message, trustBody ? parseFieldErrors(body.errors) : {})
+  if (!trustBody) return new ApiError(status, title, message)
+
+  const code = isNonEmptyString(body.code) ? body.code : null
+  const details = Array.isArray(body.details) ? body.details.filter(isNonEmptyString) : []
+  return new ApiError(status, title, message, parseFieldErrors(body.errors), code, details)
 }
 
 export function networkError(): ApiError {

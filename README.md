@@ -140,6 +140,34 @@ Tous les identifiants exposés par l'API et utilisés dans les liens sont des **
 | `GET /api/v1/room-rates` · `GET /api/v1/room-rates/grid` | `rates.view` | Historique des versions ; grille des tarifs en vigueur et programmés |
 | `POST /api/v1/room-rates` · `DELETE /api/v1/room-rates/{id}` | `rates.manage` | Publication d'une version ; retrait d'une version programmée |
 
+### Clients et réservations (phase 4)
+
+| Route | Droit | Rôle |
+|---|---|---|
+| `GET /api/v1/customers?search=` · `GET /api/v1/customers/{id}` | `customers.view` | Recherche et fiche client |
+| `POST /api/v1/customers` · `PATCH /api/v1/customers/{id}` | `customers.manage` | Création et modification |
+| `GET /api/v1/availability?start_date=&end_date=&start_time=&end_time=&only_free=1` | `reservations.view` | États des chambres sur une période |
+| `GET /api/v1/occupancy?at=` | `reservations.view` | Occupation à un instant : libre, réservée, occupée, maintenance, réservée plus tard |
+| `GET /api/v1/reservations` · `GET /api/v1/reservations/{id}` · `GET /api/v1/reservations/{id}/history` · `GET /api/v1/customers/{id}/reservations` | `reservations.view` | Liste filtrable, détail, journal, historique d'un client |
+| `POST /api/v1/reservations/quote` · `POST /api/v1/reservations` | `reservations.create` | Devis sans enregistrement ; réservation (`confirm: false` pour une réservation en attente) |
+| `POST …/{id}/confirm` · `PUT …/{id}/occupants` · `POST …/{id}/extension/preview` · `POST …/{id}/extension` | `reservations.update` | Confirmation, occupants, prolongation (aperçu puis `confirm: true`) |
+| `POST …/{id}/cancel` | `reservations.cancel` | Annulation motivée (avant l'arrivée) |
+| `POST …/{id}/check-in` · `POST …/{id}/check-out` | `reservations.check_in_out` | Arrivée et départ |
+
+Exemple de réservation (la demi-journée couvre jusqu'à 12 h ; une remise exige un motif) :
+
+```json
+{
+  "room_id": "<uuid de la chambre>",
+  "customer_id": "<uuid du client>",
+  "start_date": "2026-12-01", "end_date": "2026-12-01",
+  "start_time": "08:00", "end_time": "20:00",
+  "billing_unit": "HALF_DAY", "quantity": 1,
+  "occupants": [{ "name": "Awa Ngaïkosset", "is_primary": true }],
+  "discount": { "type": "PERCENT", "value": 10, "reason": "Client fidèle" }
+}
+```
+
 ## Documentation
 
 Spécifications (dans `docs/`) :

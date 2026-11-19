@@ -39,11 +39,16 @@ final class ApiExceptionRenderer
         }
 
         if ($e instanceof BusinessRuleException) {
-            return new JsonResponse([
+            $body = [
                 'title' => $e->title(),
                 'message' => $e->getMessage(),
                 'code' => $e->errorCode(),
-            ], $e->status());
+            ];
+            if ($e->details() !== []) {
+                $body['details'] = $e->details();
+            }
+
+            return new JsonResponse($body, $e->status());
         }
 
         if ($e instanceof AuthenticationException) {

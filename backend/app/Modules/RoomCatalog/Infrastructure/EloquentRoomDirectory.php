@@ -5,6 +5,7 @@ namespace App\Modules\RoomCatalog\Infrastructure;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Modules\RoomCatalog\Contracts\RoomSnapshot;
 use App\Modules\RoomCatalog\Models\Room;
+use App\Modules\RoomCatalog\Models\RoomType;
 use Illuminate\Support\Str;
 
 final class EloquentRoomDirectory implements RoomDirectory
@@ -32,6 +33,23 @@ final class EloquentRoomDirectory implements RoomDirectory
             ->map(fn (Room $room) => $this->toSnapshot($room))
             ->values()
             ->all();
+    }
+
+    public function roomTypeIdByUuid(string $uuid): ?int
+    {
+        if (! Str::isUuid($uuid)) {
+            return null;
+        }
+        $id = RoomType::query()->where('uuid', $uuid)->value('id');
+
+        return is_numeric($id) ? (int) $id : null;
+    }
+
+    public function lockForReservation(int $roomId): ?RoomSnapshot
+    {
+        $room = Room::query()->with('roomType')->lockForUpdate()->find($roomId);
+
+        return $room === null ? null : $this->toSnapshot($room);
     }
 
     private function toSnapshot(Room $room): RoomSnapshot

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Shared\Audit\DatabaseAuditTrail;
 use App\Shared\Contracts\AuditTrail;
+use App\Shared\Settings\SettingsRepository;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -16,6 +17,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AuditTrail::class, DatabaseAuditTrail::class);
+        // Un cache par requête (ou par tâche) : les paramètres modifiés s'appliquent à la suivante.
+        $this->app->scoped(SettingsRepository::class);
     }
 
     public function boot(): void

@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 — phase 3 terminée (86 tests verts) ; envoi GitHub en attente de ton accord
+**Dernière mise à jour :** 19/11/2026 — phase 4 terminée (129 tests backend et 29 frontend verts) ; envoi GitHub en cours ; rapport dans `RAPPORT.md`
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -18,8 +18,8 @@
 | 0 | Audit et questions bloquantes | ✅ Fait | 100 % |
 | 1 | Initialisation (dépôt, apps, CI, README) | ✅ Fait (CI GitHub verte) | 100 % |
 | 2 | Base de données et identité | ✅ Fait (CI verte) | 100 % |
-| 3 | Catalogue et tarifs | ✅ Fait (envoi GitHub en attente) | 95 % |
-| 4 | Réservations | ⬜ À faire | 0 % |
+| 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
+| 4 | Clients et réservations | 🟡 En cours (envoi en cours) | 95 % |
 | 5 | Caisse et factures | ⬜ À faire | 0 % |
 | 6 | Frontend (écrans métier) | ⬜ À faire | 0 % |
 | 7 | Reporting | ⬜ À faire | 0 % |
@@ -120,7 +120,8 @@
 - [x] Tests : 4 tests dédiés, plus les tests de contraintes et d'administration adaptés (**66 sur 66 verts**)
 - [x] Défaut corrigé au passage : attributs par défaut du modèle `User` (le mode strict renvoyait une erreur 500 sur un utilisateur tout juste créé)
 - [x] RoomCatalog (phase 3) : types, chambres et tarifs en UUID, références par UUID dans les données envoyées
-- [ ] À appliquer aux prochains modules : Customers et Reservations (phase 4), Cashier et Billing (phase 5)
+- [x] Customers et Reservations (phase 4) : clients, réservations et occupants en UUID ; chambre et client référencés par UUID
+- [ ] À appliquer en phase 5 : Cashier et Billing (paiements, remboursements, factures)
 - [ ] Frontend : routes `/…/:id` avec l'UUID (phase 6)
 
 ## Phase 3 — Catalogue et tarifs ✅
@@ -160,19 +161,58 @@
   - retrait de la version programmée (204) ;
   - route avec un entier en 404.
 - [x] Documentation : D-026 à D-028, SCHEMA.md (UUID, index unique), CHANGELOG, README (identifiants, routes du catalogue), CLAUDE.md
-- [ ] Commit, push et CI verte : **en attente de ton accord**
+- [x] Commit `3f91816` envoyé sur `main`
+- [x] CI GitHub de la phase 3 **verte** (backend sur MySQL 8.4 et frontend)
 
-## Phase 4 — Réservations ⬜
+## Phase 4 — Clients et réservations 🟡
 
-- [ ] Contrats `RoomAvailability` et `CurrentPriceProvider`, DTO, services
-- [ ] Réservation immédiate ou future, heures facultatives, occupants, contrôle de capacité
-- [ ] Prix figé à la confirmation (tarif appliqué, unité, quantité, brut, remise, net)
-- [ ] Demi-journée jusqu'à 12 h incluses, alerte et validation de la caissière au-delà (D-007)
-- [!] Définition de la journée (Q-01) et période bloquée sans heure (Q-02, Q-03) : politique provisoire D-009
-- [ ] Remises en pourcentage ou montant fixe, motif, auteur, plafond (D-016)
-- [ ] Statuts, arrivée, départ, annulation, prolongation avec journal
-- [ ] Anti double réservation : transaction, verrou, revalidation ; **test de concurrence**
-- [ ] États calculés par période (libre, réservé, occupé, maintenance)
+### Module Customers
+- [x] Fiche client détaillée (nom, prénoms, téléphone, e-mail, ville et pays de provenance, adresse, pièce d'identité, notes), en UUID
+- [x] Recherche (nom, prénoms, téléphone, e-mail, pièce), création, modification ; aucune suppression (historique)
+- [x] Historique des réservations d'un client (`GET /customers/{id}/reservations`)
+- [x] Contrat public `CustomerDirectory`
+
+### Module Reservations : création et prix
+- [x] Période bloquée calculée (D-009 : heure absente = journée entière), indicateur « période déduite »
+- [x] Demi-journée jusqu'à 12 h incluses ; au-delà, refus avec la quantité nécessaire et le supplément proposés ; aucune conversion automatique (D-007)
+- [x] Prix figé : tarif en vigueur à la confirmation, unité, quantité, brut, remise, net
+- [x] Prix par chambre, indépendant du nombre d'occupants ; capacité contrôlée
+- [x] Remise en pourcentage (arrondi au FCFA) ou en montant fixe, motif obligatoire, auteur, plafond de la caissière (10 %, provisoire)
+- [x] Devis sans enregistrement (`quote`) pour l'écran de réservation
+
+### Disponibilité et concurrence
+- [x] Verrou sur la chambre et revalidation des conflits dans la transaction
+- [x] Chambre en maintenance non réservable
+- [x] **Test de concurrence réel** avec deux processus PHP distincts :
+  - la seconde caissière attend le verrou de la chambre (vérifié dans `information_schema.INNODB_TRX`), puis voit le conflit ;
+  - une course simultanée ne donne qu'une seule confirmation.
+- [x] Disponibilités par période (`/availability`) et occupation à un instant (`/occupancy` : libre, réservée, occupée, maintenance, réservée plus tard)
+
+### Cycle de vie
+- [x] Statuts : en attente → confirmée → en cours → terminée, ou annulée
+- [x] Confirmation d'une réservation en attente (tarif du moment, montant tracé)
+- [x] Arrivée (check-in) et départ (check-out) : la chambre est libérée au départ
+- [x] Annulation motivée, impossible après l'arrivée
+- [x] Prolongation : aperçu du supplément, conflits vérifiés, validation explicite, ancien et nouveau montant dans l'audit
+- [x] Occupants modifiables (capacité revérifiée)
+- [x] Journal des modifications de la réservation (`GET /reservations/{id}/history`)
+
+### Qualité
+- [x] Recettes 2, 3, 4, 6, 8 et 10 et critères d'acceptation de la fiche 06 : **63 nouveaux tests** (Customers 4, réservation 14, cycle de vie 8, prolongation 5, disponibilités 5, concurrence 2, calcul du prix 5, plus les tests existants adaptés)
+- [x] Pint et Larastan (niveau 6) sans erreur ; **suite backend : 129 sur 129 verts** (689 assertions)
+- [x] Parcours réel vérifié sur le serveur (session et CSRF) :
+  - client avec accents ;
+  - devis de 45 000 FCFA (2 occupants, −10 %) ;
+  - réservation confirmée ;
+  - doublon refusé (409, avec détail) ;
+  - disponibilités sans la 101 ;
+  - arrivée anticipée refusée ;
+  - annulation ;
+  - historique ;
+  - route avec un entier en 404.
+- [x] Frontend : modale d'erreur avec les `details` métier (2 tests de plus, **29 sur 29 verts**)
+- [x] Documentation : D-029 à D-034, Q-18 à Q-21, CHANGELOG, README (routes et exemple), CLAUDE.md
+- [ ] Commit, push et CI verte
 
 ## Phase 5 — Caisse et factures ⬜
 
@@ -215,12 +255,12 @@
 
 ## Critères d'acceptation (fiche 06)
 
-- [ ] Deux caissières ne peuvent pas confirmer la même chambre pour des périodes incompatibles
-- [ ] Une chambre en maintenance ne peut pas être réservée
-- [ ] Un client avec 2 occupants paie le même tarif qu'avec 1, si la capacité est respectée
-- [~] Tarif passé de 50 000 à 60 000 FCFA : l'ancienne facture reste à 50 000, la nouvelle réservation est à 60 000. Version tarifaire et réservation existante intactes (testé) ; facture en phase 5
+- [x] Deux caissières ne peuvent pas confirmer la même chambre pour des périodes incompatibles (test de concurrence réel, deux processus)
+- [x] Une chambre en maintenance ne peut pas être réservée (409, testé)
+- [x] Un client avec 2 occupants paie le même tarif qu'avec 1, si la capacité est respectée ; au-delà, refus (testé)
+- [~] Tarif passé de 50 000 à 60 000 FCFA : l'ancienne facture reste à 50 000, la nouvelle réservation est à 60 000. Côté réservations, c'est testé (l'ancienne reste à 50 000, la nouvelle passe à 60 000) ; la facture vient en phase 5
 - [ ] Une avance de 20 000 sur 50 000 laisse un solde de 30 000, avec un reçu par versement
-- [ ] Une réduction de 10 % sur 50 000 donne 45 000, utilisateur et motif enregistrés
+- [x] Une réduction de 10 % sur 50 000 donne 45 000, utilisateur et motif enregistrés (testé ; au-delà de 10 %, refus pour la caissière)
 - [ ] Les remboursements diminuent les encaissements nets sans effacer le paiement initial
 - [ ] Les indicateurs de caisse se rapprochent des transactions enregistrées
 - [x] Une caissière sans le droit nécessaire ne peut pas modifier un tarif : permission absente du rôle et API des tarifs en 403 (testé en phases 2 et 3)

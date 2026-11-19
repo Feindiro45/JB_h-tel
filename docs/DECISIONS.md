@@ -156,3 +156,36 @@ Ce choix évite la limite de 2038 et les conversions de fuseau de MySQL. Les val
 - Le filtre « disponibilité sur une période » de la page Chambres dépend des réservations : il arrive en phase 4.
 - Les autres modules n'utilisent que l'API publique `App\Modules\RoomCatalog\Contracts` (`CurrentPriceProvider`, `RoomDirectory`, `BillingUnit` et les DTO).
 - Le catalogue de démonstration (chambres 001, 002, 101, 102, 201 ; VIP journée à 50 000 FCFA…) est **local uniquement**. Ses montants ne sont pas les tarifs de l'hôtel.
+
+## Décisions de la phase 4 (clients et réservations)
+
+### D-029 — Une réservation en attente bloque la chambre (Provisoire, Q-19)
+Les statuts **en attente, confirmée et en cours** bloquent la chambre sur leur période ; les statuts terminée et annulée la libèrent. Une réservation en attente est donc protégée contre la double réservation. Le prix calculé à sa création n'est qu'une estimation : **à la confirmation**, c'est le tarif alors en vigueur qui est figé (invariant 3), et l'ancien et le nouveau montant sont journalisés. Il n'y a pas d'expiration automatique des réservations en attente (Q-07).
+
+### D-030 — Prix d'une prolongation (Provisoire, Q-18)
+Le supplément est calculé au **prix unitaire figé de la réservation** (le client conserve le prix de sa réservation) : brut = prix unitaire × nouvelle quantité. Une remise en pourcentage s'applique au nouveau brut, et son plafond n'est pas revérifié puisqu'il a été autorisé à la création ; une remise fixe reste inchangée. La prolongation se fait en deux temps :
+1. `POST …/extension/preview` affiche, sans rien modifier, le supplément, le nouveau montant et les conflits ;
+2. `POST …/extension` exige `confirm: true`. L'auteur, la date, l'ancien et le nouveau montant sont journalisés.
+
+Pour une demi-journée, la règle des 12 h est revérifiée sur la nouvelle période. Il n'y a **aucune conversion automatique** en journée.
+
+### D-031 — Règles de saisie et de cycle de vie (Provisoire, Q-14, Q-20)
+- La date d'arrivée ne peut pas être passée (`after_or_equal:today`).
+- L'arrivée (check-in) n'est possible que pour une réservation **confirmée**, à partir de son jour d'arrivée, dans une chambre qui n'est ni en maintenance ni encore occupée par un séjour non clôturé.
+- Le départ (check-out) clôture le séjour et libère la chambre. **Aucun montant n'est recalculé** en cas de départ anticipé (Q-15).
+- L'annulation, avec un motif obligatoire, est possible pour une réservation en attente ou confirmée. Elle est **impossible après l'arrivée** : il faut enregistrer le départ. Les paiements éventuels seront traités en caisse (phase 5).
+- Les occupants peuvent être modifiés tant que la réservation est ouverte, avec contrôle de la capacité. Un seul occupant est principal : le premier marqué comme tel, sinon le premier saisi.
+
+### D-032 — Anti double réservation (Validé, invariant 1)
+Dans la transaction de création, de confirmation ou de prolongation :
+1. la **ligne de la chambre est verrouillée** (`SELECT … FOR UPDATE`, contrat `RoomDirectory::lockForReservation`) ;
+2. la maintenance et les conflits sont revalidés sur l'intervalle bloqué ;
+3. la réservation est enregistrée.
+
+Deux caissières sont ainsi servies l'une après l'autre, et la seconde voit la réservation de la première. Le test de concurrence lance **deux vrais processus PHP** et vérifie dans `information_schema.INNODB_TRX` que le second attend le verrou.
+
+### D-033 — Détails des erreurs métier (Technique)
+`BusinessRuleException` peut porter des `details`, une liste de phrases d'aide à la correction : réservations en conflit, durée, quantité nécessaire et supplément proposé pour une demi-journée, nouveau montant d'une prolongation. Le JSON d'erreur les renvoie dans `details`, que la modale du frontend affiche sous le message. Ces détails ne sont jamais renvoyés pour une erreur 5xx.
+
+### D-034 — Frontières entre modules (Technique)
+Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`, `CurrentPriceProvider`, `BillingUnit`) et de Customers (`CustomerDirectory`), jamais leurs modèles. Pour valider l'existence d'un UUID, les requêtes HTTP utilisent toutefois la règle `exists` sur les tables concernées : c'est une lecture simple, acceptée par pragmatisme.

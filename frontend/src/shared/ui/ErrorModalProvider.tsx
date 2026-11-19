@@ -16,7 +16,7 @@ export function ErrorModalProvider({ children }: { children: ReactNode }) {
         <ErrorDialog
           title={error.title}
           message={error.message}
-          details={error.fieldMessages}
+          details={error.helpMessages}
           onClose={() => setError(null)}
         />
       )}

@@ -16,4 +16,6 @@ Route::prefix('v1')
 
         require app_path('Modules/Identity/Http/routes.php');
         require app_path('Modules/RoomCatalog/Http/routes.php');
+        require app_path('Modules/Customers/Http/routes.php');
+        require app_path('Modules/Reservations/Http/routes.php');
     });

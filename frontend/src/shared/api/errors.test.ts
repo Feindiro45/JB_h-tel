@@ -52,6 +52,25 @@ describe('errorFromResponse', () => {
     const error = errorFromResponse(422, { errors: { email: [42, ''], nom: 'Requis.' } })
     expect(error.fieldErrors).toEqual({ nom: ['Requis.'] })
   })
+
+  it('reprend le code métier et les détails d’aide à la correction', () => {
+    const error = errorFromResponse(409, {
+      title: 'Chambre indisponible',
+      message: 'La chambre 101 n’est pas disponible.',
+      code: 'room_unavailable',
+      details: ['Confirmée du 01/12/2026 00:00 au 02/12/2026 00:00.', 42],
+    })
+
+    expect(error.code).toBe('room_unavailable')
+    expect(error.details).toEqual(['Confirmée du 01/12/2026 00:00 au 02/12/2026 00:00.'])
+    expect(error.helpMessages).toEqual(error.details)
+  })
+
+  it('ignore code et détails sur une erreur serveur', () => {
+    const error = errorFromResponse(500, { code: 'sql_error', details: ['SELECT * FROM rooms'] })
+    expect(error.code).toBeNull()
+    expect(error.details).toEqual([])
+  })
 })
 
 describe('networkError', () => {
