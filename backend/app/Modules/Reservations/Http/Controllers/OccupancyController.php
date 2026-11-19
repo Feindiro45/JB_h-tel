@@ -66,6 +66,32 @@ final class OccupancyController
         ]);
     }
 
+    /** Planning « Disponibilités » : état de chaque chambre jour par jour (7 jours par défaut, 31 au plus). */
+    public function planning(Request $request, RoomDirectory $rooms): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'days' => ['nullable', 'integer', 'min:1', 'max:31'],
+            'room_type_id' => ['nullable', 'uuid', Rule::exists('room_types', 'uuid')],
+        ], attributes: ['from' => 'date de début', 'days' => 'nombre de jours', 'room_type_id' => 'type de chambre']);
+
+        $from = isset($validated['from'])
+            ? CarbonImmutable::parse($validated['from'], (string) config('app.timezone'))
+            : CarbonImmutable::today();
+        $days = (int) ($validated['days'] ?? 7);
+        $typeId = isset($validated['room_type_id']) ? $rooms->roomTypeIdByUuid($validated['room_type_id']) : null;
+
+        return new JsonResponse([
+            'from' => $from->toDateString(),
+            'days' => array_map(fn (int $i) => $from->addDays($i)->toDateString(), range(0, $days - 1)),
+            'labels' => RoomOccupancy::LABELS,
+            'data' => array_map(fn (array $row) => [
+                'room' => ReservationPresenter::room($row['room']),
+                'days' => $row['days'],
+            ], $this->occupancy->planning($from, $days, $typeId)),
+        ]);
+    }
+
     /** Occupation à un instant (par défaut maintenant) : libre, réservée, occupée, maintenance. */
     public function occupancy(Request $request): JsonResponse
     {

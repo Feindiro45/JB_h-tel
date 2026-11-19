@@ -1,23 +1,11 @@
-import { QueryClientProvider } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
 import { RouterProvider } from 'react-router'
-import { ErrorModalProvider } from '../shared/ui/ErrorModalProvider'
-import { useErrorModal } from '../shared/ui/errorModalContext'
-import { createQueryClient } from './queryClient'
+import { AppProviders } from './AppProviders'
 import { router } from './router'
-
-function QueryProvider({ children }: { children: ReactNode }) {
-  const { showError } = useErrorModal()
-  const [client] = useState(() => createQueryClient(showError))
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>
-}
 
 export function App() {
   return (
-    <ErrorModalProvider>
-      <QueryProvider>
-        <RouterProvider router={router} />
-      </QueryProvider>
-    </ErrorModalProvider>
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
   )
 }

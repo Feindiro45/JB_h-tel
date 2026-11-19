@@ -72,7 +72,7 @@ cd backend  && php artisan serve     # API : http://localhost:8000  (santé : /a
 cd frontend && npm run dev           # Interface : http://localhost:5173
 ```
 
-La page d'accueil du frontend affiche l'**état du système** : API, base de données et heure du serveur.
+Ouvre http://localhost:5173 et connecte-toi (comptes de démonstration créés par `php artisan migrate:fresh --seed`). Écrans disponibles (phase 6A) : vue d'ensemble, réservations et fiche réservation, nouvelle réservation guidée, disponibilités, clients ; l'état du système est sous Administration. Le menu suit les droits du compte connecté.
 
 ## Commandes
 
@@ -148,11 +148,18 @@ Tous les identifiants exposés par l'API et utilisés dans les liens sont des **
 | `POST /api/v1/customers` · `PATCH /api/v1/customers/{id}` | `customers.manage` | Création et modification |
 | `GET /api/v1/availability?start_date=&end_date=&start_time=&end_time=&only_free=1` | `reservations.view` | États des chambres sur une période |
 | `GET /api/v1/occupancy?at=` | `reservations.view` | Occupation à un instant : libre, réservée, occupée, maintenance, réservée plus tard |
+| `GET /api/v1/planning?from=&days=&room_type_id=` | `reservations.view` | Planning : état de chaque chambre jour par jour (1 à 31 jours, 7 par défaut) |
 | `GET /api/v1/reservations` · `GET /api/v1/reservations/{id}` · `GET /api/v1/reservations/{id}/history` · `GET /api/v1/customers/{id}/reservations` | `reservations.view` | Liste filtrable, détail, journal, historique d'un client |
 | `POST /api/v1/reservations/quote` · `POST /api/v1/reservations` | `reservations.create` | Devis sans enregistrement ; réservation (`confirm: false` pour une réservation en attente) |
 | `POST …/{id}/confirm` · `PUT …/{id}/occupants` · `POST …/{id}/extension/preview` · `POST …/{id}/extension` | `reservations.update` | Confirmation, occupants, prolongation (aperçu puis `confirm: true`) |
 | `POST …/{id}/cancel` | `reservations.cancel` | Annulation motivée (avant l'arrivée) |
 | `POST …/{id}/check-in` · `POST …/{id}/check-out` | `reservations.check_in_out` | Arrivée et départ |
+
+### Tableau de bord (phase 6A)
+
+| Route | Droit | Rôle |
+|---|---|---|
+| `GET /api/v1/dashboard` | `reports.view` | Encaissé net du jour et des 7 derniers jours, facturé du mois, soldes à recevoir, arrivées et départs du jour, réservations récentes (définitions : D-040) |
 
 ### Caisse (phase 5A)
 

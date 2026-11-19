@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, type KeyboardEvent } from 'react'
+import { useId, useRef, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { useFocusTrap } from './useFocusTrap'
 
 export interface ErrorDialogProps {
   title: string
@@ -8,9 +9,6 @@ export interface ErrorDialogProps {
   details?: string[]
   onClose: () => void
 }
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /**
  * Modale d'erreur accessible : `role="alertdialog"`, focus piégé pendant l'ouverture,
@@ -22,18 +20,7 @@ export function ErrorDialog({ title, message, details = [], onClose }: ErrorDial
   const descriptionId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    const previouslyFocused =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const appRoot = document.getElementById('root')
-    appRoot?.setAttribute('inert', '')
-    closeButtonRef.current?.focus()
-    return () => {
-      appRoot?.removeAttribute('inert')
-      previouslyFocused?.focus()
-    }
-  }, [])
+  const trapTab = useFocusTrap(dialogRef, closeButtonRef)
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Escape') {
@@ -41,28 +28,14 @@ export function ErrorDialog({ title, message, details = [], onClose }: ErrorDial
       onClose()
       return
     }
-    if (event.key !== 'Tab' || !dialogRef.current) return
-    const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE))
-    if (focusable.length === 0) {
-      event.preventDefault()
-      return
-    }
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
+    trapTab(event)
   }
 
   return createPortal(
     <div className="modal-backdrop">
       <div
         ref={dialogRef}
-        className="modal modal--error"
+        className="modal modal--small modal--error"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -89,12 +62,7 @@ export function ErrorDialog({ title, message, details = [], onClose }: ErrorDial
           )}
         </div>
         <div className="modal__actions">
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className="button button--primary"
-            onClick={onClose}
-          >
+          <button ref={closeButtonRef} type="button" className="primary" onClick={onClose}>
             Fermer
           </button>
         </div>

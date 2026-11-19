@@ -65,6 +65,25 @@ final class RoomOccupancy
     }
 
     /**
+     * Planning : état de chaque chambre pour chaque jour `[jour 00:00, lendemain 00:00[`.
+     *
+     * @return list<array{room: RoomSnapshot, days: array<string, string>}>
+     */
+    public function planning(CarbonImmutable $from, int $days, ?int $roomTypeId = null): array
+    {
+        $rows = [];
+        for ($i = 0; $i < $days; $i++) {
+            $day = $from->startOfDay()->addDays($i);
+            foreach ($this->forPeriod(new BlockedPeriod($day, $day->addDay(), false), $roomTypeId) as $row) {
+                $rows[$row['room']->id] ??= ['room' => $row['room'], 'days' => []];
+                $rows[$row['room']->id]['days'][$day->toDateString()] = $row['state'];
+            }
+        }
+
+        return array_values($rows);
+    }
+
+    /**
      * @return list<array{room: RoomSnapshot, state: string, current: Reservation|null, next: Reservation|null}>
      */
     public function at(CarbonImmutable $at): array

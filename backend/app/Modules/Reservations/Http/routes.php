@@ -12,6 +12,7 @@ Route::middleware('authenticated')->group(function (): void {
     Route::middleware('permission:'.PermissionName::ReservationsView->value)->group(function (): void {
         Route::get('availability', [OccupancyController::class, 'availability'])->name('availability');
         Route::get('occupancy', [OccupancyController::class, 'occupancy'])->name('occupancy');
+        Route::get('planning', [OccupancyController::class, 'planning'])->name('planning');
         Route::get('reservations', [ReservationController::class, 'index'])->name('reservations.index');
         Route::get('reservations/{reservation}', [ReservationController::class, 'show'])->name('reservations.show');
         Route::get('reservations/{reservation}/history', [ReservationController::class, 'history'])->name('reservations.history');

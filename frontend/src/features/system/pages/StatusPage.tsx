@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { toUserError } from '../../../shared/api/errors'
+import { PageHeading, Pair, Panel } from '../../../shared/ui/layout'
 import { StatusBadge } from '../../../shared/ui/StatusBadge'
 import { formatDateTime } from '../../../shared/utils/format'
 import { healthQueryOptions } from '../api/health'
@@ -29,33 +30,31 @@ export function StatusPage() {
   )
 
   return (
-    <section className="card" aria-labelledby="status-title">
-      <h1 id="status-title">État du système</h1>
-      <p className="muted">
-        Socle technique (phase 1). Les modules métier arrivent aux phases suivantes.
-      </p>
-      <dl className="status-list" aria-live="polite">
-        <div>
-          <dt>API</dt>
-          <dd>{apiBadge}</dd>
+    <>
+      <PageHeading
+        eyebrow="Administration"
+        title="État du système"
+        description="Disponibilité de l’API et de la base de données."
+        actions={
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void health.refetch()}
+            disabled={health.isFetching}
+          >
+            {health.isFetching ? 'Vérification…' : 'Vérifier à nouveau'}
+          </button>
+        }
+      />
+      <Panel title="Services">
+        <div className="panel-body pairs grid-pairs" aria-live="polite">
+          <Pair label="API">{apiBadge}</Pair>
+          <Pair label="Base de données">{databaseBadge}</Pair>
+          <Pair label="Heure du serveur">
+            {health.data ? formatDateTime(health.data.server_time) : '—'}
+          </Pair>
         </div>
-        <div>
-          <dt>Base de données</dt>
-          <dd>{databaseBadge}</dd>
-        </div>
-        <div>
-          <dt>Heure du serveur</dt>
-          <dd>{health.data ? formatDateTime(health.data.server_time) : '—'}</dd>
-        </div>
-      </dl>
-      <button
-        type="button"
-        className="button button--secondary"
-        onClick={() => void health.refetch()}
-        disabled={health.isFetching}
-      >
-        {health.isFetching ? 'Vérification…' : 'Vérifier à nouveau'}
-      </button>
-    </section>
+      </Panel>
+    </>
   )
 }

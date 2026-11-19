@@ -85,4 +85,11 @@ export const api = {
     apiRequest<T>(path, { ...options, method: 'PUT', body }),
   delete: <T>(path: string, options?: Options) =>
     apiRequest<T>(path, { ...options, method: 'DELETE' }),
+  /** Dépose le cookie `XSRF-TOKEN` (Sanctum, mode SPA) avant la connexion. */
+  csrf: () => apiRequest<void>('/sanctum/csrf-cookie'),
+}
+
+/** Adresse absolue d'une ressource de l'API (PDF à ouvrir dans un nouvel onglet). */
+export function apiUrl(path: string): string {
+  return buildUrl(path)
 }

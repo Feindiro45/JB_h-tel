@@ -17,3 +17,6 @@ backups/
 
 # Paramètres personnels de Claude Code
 .claude/settings.local.json
+
+# Prototype de référence fourni (design), conservé hors du dépôt
+/JB_Hotel_Prototype/

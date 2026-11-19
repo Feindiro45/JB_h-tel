@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 — phase 5 terminée (caisse, factures, QR code, e-mails) : 161 tests backend verts ; prochaine étape : phase 6 (écrans)
+**Dernière mise à jour :** 19/11/2026 — phase 6A terminée (connexion, tableau de bord, réservations, disponibilités, clients) : 164 tests backend et 47 tests frontend verts ; prochaine étape : 6B (caisse et documents)
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -21,7 +21,7 @@
 | 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
 | 4 | Clients et réservations | ✅ Fait (CI verte) | 100 % |
 | 5 | Caisse, factures, QR code, notifications | ✅ Fait (5A à 5D) | 100 % |
-| 6 | Frontend (écrans métier) | ⬜ À faire | 0 % |
+| 6 | Frontend (écrans métier) | 🟡 En cours (6A faite, 6B à faire) | 40 % |
 | 7 | Reporting | ⬜ À faire | 0 % |
 | 8 | Qualité et livraison | ⬜ À faire | 0 % |
 
@@ -252,17 +252,34 @@
 - [!] Serveur d'envoi (SMTP) et adresse d'expédition de l'hôtel à fournir (Q-22) ; en local, les e-mails sont écrits dans `storage/logs`
 - [x] Tests : **8 tests** (parcours complet de 10 e-mails, PDF joint, reçu, désinscription, aucun envoi sans e-mail ni en cas d'échec) ; vérifié en réel (file d'attente traitée, e-mail produit)
 
-## Phase 6 — Frontend (écrans) ⬜
+## Phase 6 — Frontend (écrans) 🟡
 
-- [ ] Connexion et garde des routes par rôle
-- [ ] Navigation latérale et mise en page (charte 05)
-- [ ] Tableau de bord caisse
-- [ ] Chambres et occupation des chambres
-- [ ] Clients : recherche, fiche, historique
-- [ ] Réservation guidée : client → occupants → période → chambre → prix et remise → paiement → confirmation
-- [ ] Encaissements et remboursements
-- [ ] Factures et reçus : aperçu et impression A4
-- [ ] Administration : utilisateurs, rôles, tarifs, plafonds, paramètres, audit
+> Design repris du prototype `JB_Hotel_Prototype` (charte vert profond et or, barre latérale, cartes, badges), puis amélioré et branché sur l'API réelle.
+
+### 6A — Fondations, connexion, exploitation ✅
+- [x] Système de design : jetons de la charte et du prototype, composants (boutons, badges, panneaux, tableaux, champs, modales, notifications brèves, états vides et de chargement)
+- [x] Connexion réelle (Sanctum : cookie CSRF puis session), page illustrée par la photo de l'hôtel, déconnexion
+- [x] Structure : barre latérale par groupes, filtrée selon les **permissions du serveur** ; barre du haut ; tiroir sur mobile ; garde des routes
+- [x] Endpoints `/dashboard` et `/planning` (3 tests)
+- [x] Tableau de bord : indicateurs, encaissements des 7 derniers jours, occupation, arrivées et départs du jour, réservations récentes (nouvel endpoint `/dashboard`)
+- [x] Réservations : liste filtrable, fiche détaillée et ses actions (confirmer, arrivée, départ, prolonger avec aperçu, occupants, annuler, encaisser, facturer)
+- [x] Nouvelle réservation guidée : client existant ou nouveau, occupants, période, chambres compatibles, devis en direct, remise, paiement intégral, avance ou différé
+- [x] Disponibilités : planning par chambre et par jour (nouvel endpoint `/planning`)
+- [x] Clients : répertoire, fiche, création et modification (préférence e-mail)
+- [x] Routes en UUID (`/reservations/:id`, `/clients/:id`)
+- [x] Tests : **47 tests frontend** (connexion et retour à la page demandée, menu filtré par rôle, accès refusé, session expirée, fiche réservation et ses actions, encaissement sans trop-perçu, prolongation en deux temps, nouvelle réservation dans l'ordre client → réservation → avance, pas de doublon de client après un conflit, clients et erreur 422 sur le champ) ; lint, types, format et build verts
+- [x] Contrats d'API vérifiés contre le serveur réel : 32 appels du frontend rejoués avec une vraie session Sanctum, réponses conformes aux types TypeScript
+- [ ] Revue visuelle dans le navigateur par l'utilisateur (http://localhost:5173)
+
+### 6B — Caisse et documents (à faire)
+- [ ] Caisse : mouvements, soldes, encaissement, remboursement et annulation (administrateur)
+- [ ] Factures et reçus : liste, aperçu, PDF, avoir, lien de vérification
+
+### 6C — Administration (à faire)
+- [ ] Chambres et catégories, maintenance
+- [ ] Tarifs : grille, historique, publication, retrait
+- [ ] Utilisateurs et accès : comptes, rôles, permissions
+- [ ] Paramètres et journal d'audit (endpoints à créer)
 - [ ] Responsive (poste de caisse puis tablette) et WCAG 2.2 AA
 
 ## Phase 7 — Reporting ⬜

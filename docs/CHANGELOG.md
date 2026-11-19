@@ -70,7 +70,20 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
   - contrats `InvoiceDocuments` (Billing) et `PaymentHistory::receipt/refund` (Cashier) ;
   - décision D-039 et question Q-22.
 
+- Phase 6A, **écrans de la réception** (design du prototype, amélioré) :
+  - système de design repris du prototype : barre latérale par groupes, cartes, badges, modales, notifications brèves, états vides et de chargement, impression ;
+  - **connexion réelle** (cookie CSRF puis session Sanctum) avec la photo de l'hôtel ; retour à la page demandée après connexion ; session expirée gérée ;
+  - **menu et routes filtrés selon les permissions du serveur** ; accueil sur la première page autorisée ;
+  - **tableau de bord** : encaissé du jour, facturé du mois, soldes à recevoir, chambres occupées, encaissements des 7 derniers jours, occupation, arrivées et départs du jour, réservations récentes ;
+  - **réservations** : liste filtrable et paginée, fiche avec confirmation, arrivée, départ, prolongation (aperçu du supplément puis validation), occupants, annulation motivée, encaissement, émission de facture, PDF, lien de vérification et historique ;
+  - **nouvelle réservation guidée** : client existant ou nouveau, chambres réellement libres, devis du serveur en direct, remise, paiement différé, intégral ou avance ;
+  - **disponibilités** : planning par chambre sur 7 ou 14 jours ;
+  - **clients** : répertoire avec recherche, fiche, séjours, création et modification ;
+  - nouveaux endpoints `GET /api/v1/dashboard` (module Reporting) et `GET /api/v1/planning` ;
+  - 47 tests frontend ; décision D-040.
 ### Corrigé
+- Connexion : la page demandée avant la connexion n'était pas toujours retrouvée (deux redirections concurrentes).
+- Champs de formulaire : l'aide et le message d'erreur ne font plus partie du nom lu par les lecteurs d'écran ; ils sont reliés au champ par `aria-describedby`.
 - Fiche client : le type et le numéro de pièce d'identité sont toujours contrôlés ensemble (la règle était ignorée quand un seul des deux était envoyé).
 - Le modèle `User` a des attributs par défaut : un utilisateur tout juste créé ne provoque plus d'erreur 500 en mode strict.
 
