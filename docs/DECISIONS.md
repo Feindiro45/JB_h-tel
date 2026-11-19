@@ -19,7 +19,7 @@ Chaque document se termine par les sections « Règles validées : demi-journée
 | C-02 | 06 : « ne pas coder arbitrairement 12 heures » ; règles validées : demi-journée ≤ 12 h | **Demi-journée = forfait pour toute durée positive jusqu'à 12 h incluses** — voir D-007 |
 | C-03 | 09 et MCD : colonne `users.role` ; V6 : `spatie/laravel-permission` | Rôles gérés **uniquement par Spatie**, colonne `users.role` supprimée — voir D-006 |
 | C-04 | 02 : fiche client réduite (nom, téléphone) ; V6 : fiche détaillée | Fiche détaillée de V6 (déjà présente dans 09) |
-| C-05 | 09 incomplet par rapport aux spécifications | Compléter dans les migrations (phase 2) : `timestamps`, tables Spatie, paramètres (plafonds de remise), journal des modifications de réservation, arrivée et départ effectifs, motif d'annulation, numérotation des reçus. Le cas de la maintenance planifiée est ouvert (Q-12). |
+| C-05 | 09 incomplet par rapport aux spécifications | **Résolu en phase 2.** Les migrations ajoutent les horodatages, les tables Spatie, `settings`, `document_sequences`, l'arrivée et le départ effectifs, l'annulation, l'auteur et le motif de la remise, le numéro de reçu et les avoirs. Le détail des écarts est dans [SCHEMA.md](SCHEMA.md). La maintenance planifiée reste ouverte (Q-12). |
 | C-06 | 06 : documents dans `docs/` ; dossier livré à plat | Spécifications déplacées dans `docs/` ; ancienne version V2 archivée dans `docs/archive/` |
 
 ## Décisions
@@ -92,3 +92,40 @@ Format `FAC-AAAA-NNNNNN` : séquence annuelle continue, sans trou, attribuée da
 
 ### D-016 — Plafond de remise de la caissière (Provisoire, à confirmer Q-06)
 Le plafond est enregistré dans les paramètres et modifiable par l'administrateur. Valeur provisoire par défaut : **10 %** du montant brut pour la caissière. L'administrateur n'a pas de plafond, mais le total net doit rester ≥ 0.
+
+## Décisions de la phase 2 (base de données et identité)
+
+### D-017 — Quantité entière (Provisoire, Q-04)
+`reservations.quantity` est un entier strictement positif, et non le `NUMERIC(10,2)` du schéma 09. La demi-journée existe déjà comme unité : une quantité entière évite tout arrondi. Si l'hôtel valide des quantités fractionnaires, une migration changera le type et un test sur les arrondis sera ajouté.
+
+### D-018 — Intervalle bloqué stocké (Technique)
+Chaque réservation stocke l'intervalle réellement bloqué (`blocked_from`, `blocked_until`). Le service de réservation le calcule à partir des dates, des heures et de la politique D-009. La détection des conflits porte sur cet intervalle, indexé : deux réservations sont en conflit si `A.blocked_from < B.blocked_until` et `B.blocked_from < A.blocked_until`. Le drapeau `period_is_estimated` signale une période déduite faute d'heure. Si la politique change, une commande recalculera l'intervalle des réservations actives.
+
+### D-019 — Maintenance par statut courant (Provisoire, Q-12)
+`rooms.maintenance_status` prend la valeur `AVAILABLE` ou `MAINTENANCE`, comme dans le schéma 09. Une chambre en maintenance n'est réservable sur aucune période. Si l'hôtel valide des périodes planifiées, une table dédiée sera ajoutée.
+
+### D-020 — Rôles et permissions (Validé + Provisoire)
+- **27 permissions fines** (`PermissionName`). Le rôle `admin` les a **toutes** et ne peut pas être modifié.
+- Les permissions du rôle `caissiere` sont modifiables par l'administrateur, avec trace dans l'audit. Les modifications sont conservées lors d'un nouveau seed.
+- **Provisoire (Q-08, Q-14) :** sont réservés à l'administrateur la modification des tarifs, le dépassement du plafond de remise, l'annulation d'encaissement, les remboursements, les avoirs, l'export des rapports, les paramètres, l'audit et la gestion des utilisateurs.
+
+### D-021 — Aucune suppression (Validé)
+Toutes les clés étrangères sont en `RESTRICT`. On désactive les utilisateurs et on annule les réservations et les paiements ; un remboursement est une nouvelle ligne. Le modèle `AuditLog` refuse toute modification ou suppression.
+
+### D-022 — Journal des modifications de réservation (Technique)
+Il n'y a pas de table dédiée. Les prolongations, annulations, remises et changements de montant sont tracés dans `audit_logs`, avec l'état avant et après (`before_json`, `after_json`), dans la même transaction que l'opération.
+
+### D-023 — Comptes de démonstration et premier administrateur (Validé, fiche 06)
+- **Aucun identifiant n'est codé en dur.**
+- `DemoUsersSeeder` crée `admin@jbhotel.local` et `caissiere@jbhotel.local` **uniquement en local et en test**. Le mot de passe vient de `DEMO_USERS_PASSWORD`, ou il est généré aléatoirement puis affiché.
+- En production, le premier administrateur se crée avec `php artisan jb:create-admin` ; le mot de passe y est saisi de façon masquée.
+
+### D-024 — `DATETIME` plutôt que `TIMESTAMP` (Technique)
+Ce choix évite la limite de 2038 et les conversions de fuseau de MySQL. Les valeurs sont des heures locales de l'hôtel (D-010).
+
+### D-025 — Protections de l'authentification (Technique)
+- 5 tentatives de connexion par minute pour un même couple e-mail + adresse IP.
+- Un compte désactivé est refusé à la connexion, et une session déjà ouverte est fermée dès sa requête suivante.
+- Un administrateur ne peut ni se désactiver ni se retirer son propre rôle.
+- Le dernier administrateur actif ne peut pas être désactivé ni rétrogradé.
+- La connexion n'est possible que depuis l'application frontend, avec session et CSRF ; sinon elle est refusée avec une erreur 400.

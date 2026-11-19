@@ -10,7 +10,8 @@ JB Hôtel is a web app for managing rooms, reservations and the cash desk at a h
 - `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` is the master brief. It sets the mandatory phases 0–8 (work through them in order), the acceptance criteria and the collaboration rules. The other numbered files in `docs/` (01–05, 07–09) are the authoritative specs.
 - `docs/DECISIONS.md` records arbitrations (C-xx) and decisions (D-xx). `docs/QUESTIONS.md` lists the open business questions (Q-xx) for the hotel. Cite these IDs in code comments when you implement a provisional rule.
 - `docs/archive/JB_Hotel_conception_V2.zip` is an outdated V2 of docs 01–04. Ignore it.
-- Phases 0 and 1 are done: audit, scaffolding, error contract, health endpoint, CI. Phase 2 (database and identity) is next.
+- Phases 0 and 1 are done: audit, scaffolding, error contract, health endpoint, CI. Phase 2 (database schema, Identity module, audit trail) is done. Phase 3 (room catalogue and rates) is next.
+- `docs/SCHEMA.md` describes the actual database schema and how it differs from `09_schema_reference.sql`. Update it with every migration.
 
 ## Commands
 
@@ -18,6 +19,7 @@ Local environment: XAMPP gives PHP 8.2 (hence Laravel 12) and **MariaDB 10.4** o
 
 Backend, from `backend/`:
 - Serve: `php artisan serve` → http://localhost:8000. Health check: `GET /api/v1/health`.
+- Reset the dev database: `php artisan migrate:fresh --seed`. It creates the demo users `admin@jbhotel.local` and `caissiere@jbhotel.local`; their password comes from `DEMO_USERS_PASSWORD` or is printed during the seed. Create a production admin with `php artisan jb:create-admin`.
 - Run tests: `php artisan test`. Tests use MySQL/MariaDB `jb_hotel_test`, never SQLite (set in `phpunit.xml`), because locking and constraints must be tested on the real engine.
 - Run one test: `php artisan test --filter=ErrorContractTest` for a class, or `--filter=test_method_name` for a method.
 - Check format: `composer lint` (`pint --test`). Apply format: `composer format`.
@@ -70,9 +72,14 @@ The reference schema is `docs/09_schema_reference.sql`, which matches the MCD in
 Code that already exists:
 - **Error contract.** `bootstrap/app.php` registers `App\Shared\Exceptions\ApiExceptionRenderer` for `api/*` and JSON requests. Every error becomes `{title, message, errors?, code?}` in French, with the texts in `App\Shared\Exceptions\ErrorMessages`. No trace leaks, even with `APP_DEBUG=true`.
 - **Business errors.** Throw `App\Shared\Exceptions\BusinessRuleException` (or a module subclass) with a French title and message, an HTTP status (409 for conflicts) and a stable `code`.
-- **Routing.** All business routes go inside the `Route::prefix('v1')` group in `routes/api.php`, which applies `throttle:api` (120/min, defined in `AppServiceProvider`). CORS origins come from `FRONTEND_URL` (comma-separated) with credentials enabled. Sanctum SPA cookie auth is the chosen approach (D-005) and is wired up in Phase 2.
+- **Routing.** All business routes go inside the `Route::prefix('v1')` group in `routes/api.php`, which applies `throttle:api` (120/min, defined in `AppServiceProvider`). CORS origins come from `FRONTEND_URL` (comma-separated) with credentials enabled. Sanctum SPA cookie auth (D-005) is wired up through `$middleware->statefulApi()` in `bootstrap/app.php`: the frontend calls `GET /sanctum/csrf-cookie`, then `POST /api/v1/auth/login`.
 - **Settings.** The app timezone comes from `APP_TIMEZONE`, default `Africa/Bangui`, and the locale is `fr`. French validation messages come from `lang/fr/` (laravel-lang). `Model::shouldBeStrict()` is on outside production.
 - **MariaDB/MySQL compatibility (D-002).** Avoid features that only one of the two engines has: `SKIP LOCKED`, JSON path indexes, generated JSON columns, and anything specific to MariaDB.
+- **Schema.** Every table already exists: the migrations in `database/migrations/2026_11_19_14*` cover customers, the room catalogue, reservations, cashier and billing, `audit_logs` and `settings`. Phases 3–5 add Eloquent models and services on top; they do not create tables. Write `CHECK` constraints with `DB::statement('ALTER TABLE … ADD CONSTRAINT chk_… CHECK (…)')`, and never on a foreign-key column (MySQL forbids that when the key has a referential action). Use `DATETIME` (`$table->datetimes()`), not `TIMESTAMP`. Foreign keys are always `restrictOnDelete()`.
+- **Module layout.** Follow the Identity module: `app/Modules/Identity/{Domain,DTO,Application/Services,Http/{Controllers,Requests,Resources,Middleware},Models,Policies,Console}` plus an `IdentityServiceProvider`. Register each provider in `bootstrap/providers.php`. Load each module's `Http/routes.php` with `require` inside the v1 group of `routes/api.php`. Wrap protected routes in the `authenticated` middleware group (auth:sanctum + `EnsureUserIsActive`), then authorize with `->can()` and a policy, or with the Spatie `permission:` middleware. The ability names are the `PermissionName` enum values.
+- **User model.** It lives at `App\Modules\Identity\Models\User` (not `App\Models`). Use `primaryRole()`, not `role()`: a method named `role()` would shadow Spatie's `role()` query scope. Roles are in the `RoleName` enum, `admin` and `caissiere`. Never delete a user; deactivate it.
+- **Audit.** Inject `App\Shared\Contracts\AuditTrail` and call `record()` inside the same `DB::transaction` as the change. Pass before and after snapshots, never secrets.
+- **Tests.** Use `RefreshDatabase` and `$this->seed(RolesAndPermissionsSeeder::class)`, then `User::factory()->admin()` or `->cashier()` (the password is `UserFactory::PASSWORD`). A login test must send the `Origin: http://localhost:5173` and `Referer` headers so Sanctum opens a session. Call `$this->app['auth']->forgetGuards()` between requests when you check a logout. Tests skip CSRF, so verify the real flow with curl against `php artisan serve`.
 
 ### Frontend: features kept isolated
 

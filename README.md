@@ -54,7 +54,7 @@ cd backend
 composer install
 cp .env.example .env          # ajuster DB_* si besoin
 php artisan key:generate
-php artisan migrate
+php artisan migrate --seed    # tables + rôles, paramètres et comptes de démonstration (local)
 ```
 
 ### 3. Frontend
@@ -102,7 +102,30 @@ La CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) exécute ces vérif
 
 ## Comptes de test
 
-Aucun pour l'instant. Les rôles **administrateur** et **caissière**, avec leurs comptes de démonstration, arrivent en phase 2. Aucun identifiant réel ne sera codé en dur.
+Les comptes de démonstration sont créés par `php artisan db:seed` (ou `migrate --seed`), **uniquement en environnement local ou de test** :
+
+| E-mail | Rôle |
+|---|---|
+| `admin@jbhotel.local` | Administrateur : toutes les permissions |
+| `caissiere@jbhotel.local` | Caissière : réservations, clients, encaissements, factures, tableau de bord |
+
+**Mot de passe :** aucun n'est codé en dur. Définis `DEMO_USERS_PASSWORD` dans `backend/.env` avant le seed. Sinon, un mot de passe aléatoire est généré et **affiché dans le terminal** pendant le seed. Un compte déjà existant n'est jamais modifié.
+
+**En production**, aucun compte de démonstration n'est créé. Le premier administrateur se crée avec :
+
+```bash
+php artisan jb:create-admin     # mot de passe saisi de façon masquée
+```
+
+### Connexion depuis l'API
+
+L'authentification utilise **Sanctum en mode SPA** : session par cookie et protection CSRF.
+
+1. `GET /sanctum/csrf-cookie` dépose le cookie `XSRF-TOKEN`.
+2. `POST /api/v1/auth/login` avec `{ "email", "password" }` et l'en-tête `X-XSRF-TOKEN`.
+3. `GET /api/v1/auth/me` renvoie l'utilisateur, son rôle et ses permissions. `POST /api/v1/auth/logout` ferme la session.
+
+> Ouvre toujours le frontend avec la **même** adresse que l'API (`localhost` des deux côtés). Sinon le cookie de session n'est pas partagé.
 
 ## Documentation
 

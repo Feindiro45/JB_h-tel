@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 /*
 | API REST versionnée : toutes les routes métier sont sous /api/v1 (docs/DECISIONS.md D-012).
-| Chaque module enregistrera ses routes dans ce groupe.
+| Chaque module déclare ses routes dans app/Modules/<Module>/Http/routes.php, chargé ici.
 */
 
 Route::prefix('v1')
@@ -13,4 +13,6 @@ Route::prefix('v1')
     ->middleware('throttle:api')
     ->group(function (): void {
         Route::get('health', HealthController::class)->name('health');
+
+        require app_path('Modules/Identity/Http/routes.php');
     });

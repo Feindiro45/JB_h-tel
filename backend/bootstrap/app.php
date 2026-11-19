@@ -1,10 +1,13 @@
 <?php
 
+use App\Modules\Identity\Http\Middleware\EnsureUserIsActive;
 use App\Shared\Exceptions\ApiExceptionRenderer;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,7 +17,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Sanctum en mode SPA : session par cookie et CSRF pour les requêtes du frontend (D-005).
+        $middleware->statefulApi();
+
+        // L'API ne redirige jamais vers une page de connexion : elle répond 401 (contrat JSON).
+        $middleware->redirectGuestsTo(
+            fn (Request $request): ?string => $request->is('api/*') || $request->expectsJson() ? null : '/'
+        );
+
+        $middleware->alias([
+            'permission' => PermissionMiddleware::class,
+            'role' => RoleMiddleware::class,
+        ]);
+
+        // Routes métier : utilisateur authentifié ET compte actif.
+        $middleware->group('authenticated', ['auth:sanctum', EnsureUserIsActive::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

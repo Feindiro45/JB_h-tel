@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 — phase 1 terminée ; premier envoi sur GitHub en attente
+**Dernière mise à jour :** 19/11/2026 — phase 2 terminée (60 tests verts) ; envoi GitHub en attente de ton accord
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -16,8 +16,8 @@
 | Phase | Intitulé | Statut | Avancement |
 |---|---|---|---|
 | 0 | Audit et questions bloquantes | ✅ Fait | 100 % |
-| 1 | Initialisation (dépôt, apps, CI, README) | ✅ Fait (envoi GitHub en attente) | 95 % |
-| 2 | Base de données et identité | ⬜ À faire | 0 % |
+| 1 | Initialisation (dépôt, apps, CI, README) | ✅ Fait (CI GitHub verte) | 100 % |
+| 2 | Base de données et identité | ✅ Fait (envoi GitHub en attente) | 95 % |
 | 3 | Catalogue et tarifs | ⬜ À faire | 0 % |
 | 4 | Réservations | ⬜ À faire | 0 % |
 | 5 | Caisse et factures | ⬜ À faire | 0 % |
@@ -70,21 +70,45 @@
 - [x] Dépôt distant ajouté : `origin` → github.com/Feindiro45/JB_h-tel
 - [x] `.env.example` (racine, backend, frontend) sans secrets ; vérifié qu'aucun `.env` n'est suivi
 - [~] `infra/docker-compose.yml` (MySQL 8.4) écrit, **non testé** (Docker absent du poste)
-- [~] CI GitHub Actions écrite, **pas encore exécutée** (le sera au premier envoi)
+- [x] CI GitHub Actions : **verte au premier envoi** (backend sur MySQL 8.4 et frontend)
 - [x] `README.md` : installation, commandes, test unique
 - [x] Backend (`:8000`) et frontend (`:5173`) démarrés indépendamment ; l'API répond avec les bons en-têtes CORS
-- [ ] **Premier commit et envoi sur GitHub** : en attente de l'identité git (nom et e-mail de l'auteur)
+- [x] Premier commit `6f88c4e` envoyé sur `main` (github.com/Feindiro45/JB_h-tel)
 
-## Phase 2 — Base de données et identité ⬜
+## Phase 2 — Base de données et identité ✅
 
-- [ ] Migrations alignées sur `09_schema_reference.sql` et le MCD, compléments listés en C-05
-- [ ] Clés étrangères, index, contraintes `CHECK`
-- [ ] `spatie/laravel-permission` ; rôles `admin` et `caissiere`, permissions fines
-- [ ] Authentification Sanctum SPA : connexion, déconnexion, utilisateur courant
-- [ ] Gestion des utilisateurs (administrateur), comptes actifs ou inactifs
-- [ ] Journal d'audit (table et service)
-- [ ] Seeders de démonstration, sans identifiants réels codés en dur
-- [ ] Tests : authentification, autorisations, rôles
+### Base de données
+- [x] `spatie/laravel-permission` 6.25 installé, configuration publiée
+- [x] 10 migrations : toutes les tables de 09, plus les compléments C-05 (horodatages, arrivée et départ effectifs, annulation, auteur de la remise, numéro de reçu, avoirs, `settings`, `document_sequences`, tables Spatie)
+- [x] Intervalle bloqué `blocked_from` / `blocked_until`, indexé pour la détection des conflits (D-009)
+- [x] Clés étrangères en `RESTRICT` (rien ne se supprime en cascade), index
+- [x] 20 contraintes `CHECK` actives : montants, net = brut − remise, dates, statuts, capacité > 0
+- [x] Rollback complet et réapplication testés sur MariaDB
+- [x] Tests automatisés des contraintes (insertions invalides refusées, suppressions bloquées) : **6 tests verts**
+- [x] `docs/SCHEMA.md` : schéma réel et écarts avec 09 et le MCD
+- [ ] Redessiner `04_MCD_JB_Hotel.drawio` avec les compléments (en attendant, `SCHEMA.md` fait foi)
+
+### Identité et droits
+- [x] Catalogue de 27 permissions et 2 rôles (`admin`, `caissiere`) avec leurs libellés français
+- [x] Modèle `User` déplacé dans le module Identity, avec le trait `HasRoles`
+- [x] Connexion, déconnexion, utilisateur courant (Sanctum SPA, limite de 5 essais/min) : **9 tests verts**
+- [x] Gestion des utilisateurs par l'administrateur (liste et recherche, création, modification, désactivation, protections « soi-même » et « dernier administrateur actif ») : **11 tests verts**
+- [x] Modification des permissions d'un rôle (le rôle administrateur est verrouillé) : **7 tests verts**
+- [x] Compte désactivé déconnecté immédiatement (middleware) : testé
+- [x] Commande `php artisan jb:create-admin` (mot de passe masqué) : testée
+
+### Audit
+- [x] Service `AuditTrail` et modèle `AuditLog` (append-only, secrets filtrés, annulé avec la transaction) : **3 tests verts**
+
+### Seeders et tests
+- [x] Seeder des rôles et permissions, idempotent (exécuté deux fois : administrateur 27 permissions, caissière 15)
+- [x] Seeder des 8 paramètres provisoires (12 h, plafond de 10 %, politique sans heure…) : les valeurs modifiées ne sont jamais écrasées
+- [x] Comptes de démonstration `admin@jbhotel.local` et `caissiere@jbhotel.local` (local uniquement, mot de passe généré ou lu dans `DEMO_USERS_PASSWORD`)
+- [x] Tests backend : **60 sur 60 verts** (219 assertions)
+- [x] Parcours réel vérifié avec curl sur le serveur : cookie CSRF, connexion refusée sans jeton (419), connexion (200), profil (200), accès refusé à la caissière (403), déconnexion puis 401
+- [x] Pint et Larastan (niveau 6) sans erreur
+- [x] Documentation : `SCHEMA.md`, décisions D-017 à D-025, QUESTIONS, CHANGELOG, README (comptes de test, connexion), CLAUDE.md
+- [ ] Commit, push et CI verte : **en attente de ton accord**
 
 ## Phase 3 — Catalogue et tarifs ⬜
 
@@ -155,7 +179,7 @@
 - [ ] Une réduction de 10 % sur 50 000 donne 45 000, utilisateur et motif enregistrés
 - [ ] Les remboursements diminuent les encaissements nets sans effacer le paiement initial
 - [ ] Les indicateurs de caisse se rapprochent des transactions enregistrées
-- [ ] Une caissière sans le droit nécessaire ne peut pas modifier un tarif
+- [~] Une caissière sans le droit nécessaire ne peut pas modifier un tarif : permission `rates.manage` absente du rôle caissière (testé) ; le blocage sur l'API des tarifs viendra en phase 3
 - [ ] Factures imprimables en A4 ; données conservées après redémarrage
 
 ## Questions en attente de l'hôtel
