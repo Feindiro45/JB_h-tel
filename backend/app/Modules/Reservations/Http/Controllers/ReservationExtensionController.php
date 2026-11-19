@@ -29,8 +29,12 @@ final class ReservationExtensionController
     {
         /** @var User $actor */
         $actor = $request->user();
-        $reservation = $this->extensions->extend($reservation, $request->toData(), $actor);
+        $outcome = $this->extensions->extend($reservation, $request->toData(), $actor);
 
-        return new JsonResponse(['data' => $this->presenter->one($reservation->load('occupants'))]);
+        return new JsonResponse([
+            'data' => $this->presenter->one($outcome->reservation->load('occupants')),
+            // D-053 : nouvelle facture (séjour initial + prolongation) si le séjour était facturé.
+            'meta' => ['replacement_invoice_number' => $outcome->replacementInvoiceNumber],
+        ]);
     }
 }

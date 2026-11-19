@@ -167,6 +167,15 @@
         <mxCell id="fk-26" value="updated_by → id" edge="1" parent="1" source="table-settings" target="table-users" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=ERone;startArrow=ERmany;strokeColor=#aa813b;fontSize=10;">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
+        <mxCell id="table-reservation_extensions" value="&lt;b&gt;reservation_extensions&lt;/b&gt;&lt;hr&gt;PK id : bigint(20) unsigned&lt;br&gt;FK/index reservation_id : bigint(20) unsigned&lt;br&gt;previous_end_date : date&lt;br&gt;previous_end_time : time ?&lt;br&gt;previous_blocked_until : datetime&lt;br&gt;end_date : date&lt;br&gt;end_time : time ?&lt;br&gt;blocked_until : datetime&lt;br&gt;added_quantity : int(10) unsigned&lt;br&gt;unit_price_fcfa : bigint(20) unsigned&lt;br&gt;amount_fcfa : bigint(20) unsigned&lt;br&gt;previous_net_fcfa : bigint(20) unsigned&lt;br&gt;net_fcfa : bigint(20) unsigned&lt;br&gt;FK extended_by : bigint(20) unsigned&lt;br&gt;extended_at : datetime&lt;br&gt;created_at : datetime ?&lt;br&gt;updated_at : datetime ?" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;fillColor=#e9f3ef;strokeColor=#215347;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="3184" width="450" height="375" as="geometry"/>
+        </mxCell>
+        <mxCell id="fk-27" value="reservation_id → id" edge="1" parent="1" source="table-reservation_extensions" target="table-reservations" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=ERone;startArrow=ERmany;strokeColor=#aa813b;fontSize=10;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fk-28" value="extended_by → id" edge="1" parent="1" source="table-reservation_extensions" target="table-users" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=ERone;startArrow=ERmany;strokeColor=#aa813b;fontSize=10;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>

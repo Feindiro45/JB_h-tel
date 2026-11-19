@@ -112,7 +112,7 @@ final class ReservationController
 
     public function cancel(CancelReservationRequest $request, Reservation $reservation): JsonResponse
     {
-        return $this->respond($this->lifecycle->cancel($reservation, $request->reason(), $this->actor($request)));
+        return $this->respond($this->lifecycle->cancel($reservation, $request->toData(), $this->actor($request)));
     }
 
     public function occupants(OccupantsRequest $request, Reservation $reservation): JsonResponse

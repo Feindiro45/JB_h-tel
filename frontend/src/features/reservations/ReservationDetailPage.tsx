@@ -10,7 +10,13 @@ import { EmptyState, LoadingBlock, PageHeading, Pair, Panel } from '../../shared
 import { useToast } from '../../shared/ui/toastContext'
 import { formatDateTime, formatDay, formatFcfa, todayIso } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
-import { PaymentActions, PaymentDialog, paymentsKey, reservationPaymentsQuery } from '../cashier'
+import {
+  CASH_KEYS,
+  PaymentActions,
+  PaymentDialog,
+  paymentsKey,
+  reservationPaymentsQuery,
+} from '../cashier'
 import {
   CreditNoteDialog,
   invoicePdfUrl,
@@ -26,6 +32,7 @@ import {
   historyQuery,
   reservationKeys,
   reservationQuery,
+  type CancellationInput,
 } from './api'
 import { CancelDialog, ConfirmDialog, ExtendDialog, OccupantsDialog } from './dialogs'
 
@@ -82,7 +89,14 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
     ]) {
       void queryClient.invalidateQueries({ queryKey: key })
     }
-    for (const key of [['reservations', 'list'], ['dashboard'], ['occupancy'], ['planning']]) {
+    // Annulation et prolongation touchent aussi la caisse et les factures (D-053).
+    for (const key of [
+      ['reservations', 'list'],
+      ['occupancy'],
+      ['planning'],
+      ['invoices'],
+      ...CASH_KEYS,
+    ]) {
       void queryClient.invalidateQueries({ queryKey: key })
     }
   }
@@ -111,15 +125,22 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
       ),
   })
   const cancel = useMutation({
-    mutationFn: (reason: string) => cancelReservation(r.id, reason),
-    onSuccess: () => done('Réservation annulée'),
+    mutationFn: (input: CancellationInput) => cancelReservation(r.id, input),
+    onSuccess: (_, input) =>
+      done(
+        input.refund_fcfa > 0
+          ? `Réservation annulée, ${formatFcfa(input.refund_fcfa)} remboursés`
+          : 'Réservation annulée',
+      ),
   })
 
   const summary = payments.data?.summary
   const open = ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(r.status)
-  const hasActiveInvoice =
-    invoices.data?.some((invoice) => invoice.type === 'INVOICE' && invoice.status === 'ISSUED') ??
-    false
+  const activeInvoice =
+    invoices.data?.find((invoice) => invoice.type === 'INVOICE' && invoice.status === 'ISSUED') ??
+    null
+  const hasActiveInvoice = activeInvoice !== null
+  const cancelled = r.status === 'CANCELLED'
 
   return (
     <>
@@ -133,12 +154,19 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
 
       <PageOverview
         items={[
-          {
-            label: 'Montant du séjour',
-            value: formatFcfa(r.price.net_fcfa),
-            hint: 'Prix enregistré de la réservation',
-            icon: 'document',
-          },
+          cancelled
+            ? {
+                label: 'Montant dû',
+                value: formatFcfa(r.price.amount_due_fcfa),
+                hint: `Réservation annulée · prix initial ${formatFcfa(r.price.net_fcfa)}`,
+                icon: 'document',
+              }
+            : {
+                label: 'Montant du séjour',
+                value: formatFcfa(r.price.net_fcfa),
+                hint: 'Prix enregistré de la réservation',
+                icon: 'document',
+              },
           {
             label: 'Remise',
             value: formatFcfa(r.price.discount_fcfa),
@@ -167,6 +195,13 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           },
         ]}
       />
+      {cancelled && summary && summary.balance_fcfa < 0 && (
+        <p className="notice" role="status">
+          Réservation annulée avant le remboursement automatique :{' '}
+          {formatFcfa(-summary.balance_fcfa)} restent à rendre au client. Remboursez-les depuis les
+          reçus ci-dessous.
+        </p>
+      )}
       <div className="toolbar">
         <Link className="secondary" to="/reservations">
           <Icon name="back" size={17} />
@@ -561,16 +596,26 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
       )}
       {dialog === 'cancel' && (
         <CancelDialog
+          collected={can('payments.view') ? summary?.net_paid_fcfa : 0}
+          canRefund={can('refunds.create')}
+          activeInvoiceNumber={activeInvoice?.number ?? null}
           pending={cancel.isPending}
           onClose={() => setDialog(null)}
-          onConfirm={(reason) => cancel.mutate(reason)}
+          onConfirm={(input) => cancel.mutate(input)}
         />
       )}
       {dialog === 'extend' && (
         <ExtendDialog
           reservation={r}
+          activeInvoiceNumber={activeInvoice?.number ?? null}
           onClose={() => setDialog(null)}
-          onDone={() => done('Séjour prolongé')}
+          onDone={(invoiceNumber) =>
+            done(
+              invoiceNumber
+                ? `Séjour prolongé · nouvelle facture ${invoiceNumber} (séjour initial et prolongation)`
+                : 'Séjour prolongé',
+            )
+          }
         />
       )}
       {dialog === 'occupants' && (

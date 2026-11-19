@@ -7,6 +7,7 @@ use App\Modules\Cashier\Contracts\PaymentStatement;
 use App\Modules\Customers\Contracts\CustomerSnapshot;
 use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Contracts\ReservationInvoiceData;
+use App\Modules\Reservations\Contracts\ReservationInvoiceLine;
 use App\Modules\RoomCatalog\Contracts\RoomSnapshot;
 use Carbon\CarbonImmutable;
 
@@ -46,13 +47,7 @@ final class InvoiceSnapshotBuilder
                 'end_time' => $reservation->endTime,
                 'period_is_estimated' => $reservation->periodIsEstimated,
             ],
-            'lines' => [[
-                'label' => 'Hébergement — chambre '.($room->number ?? '?').' ('.($room->roomTypeLabel ?? '').'), '.mb_strtolower($reservation->billingUnitLabel),
-                'billing_unit' => $reservation->billingUnit,
-                'quantity' => $reservation->quantity,
-                'unit_price_fcfa' => $reservation->unitPriceFcfa,
-                'amount_fcfa' => $reservation->grossFcfa,
-            ]],
+            'lines' => self::lines($reservation, $room),
             'totals' => [
                 'gross_fcfa' => $reservation->grossFcfa,
                 'discount_label' => $reservation->discountLabel,
@@ -75,6 +70,41 @@ final class InvoiceSnapshotBuilder
             ],
             'issued_by' => ['name' => $issuer->name],
         ];
+    }
+
+    /**
+     * Séjour initial puis une ligne par prolongation (D-053), avec leurs périodes. La somme des
+     * montants des lignes est égale au sous-total (brut) de la réservation.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function lines(ReservationInvoiceData $reservation, ?RoomSnapshot $room): array
+    {
+        $base = 'chambre '.($room->number ?? '?').' ('.($room->roomTypeLabel ?? '').'), '.mb_strtolower($reservation->billingUnitLabel);
+        $lines = $reservation->lines !== [] ? $reservation->lines : [new ReservationInvoiceLine(
+            ReservationInvoiceLine::STAY, $reservation->startDate, $reservation->startTime, $reservation->endDate,
+            $reservation->endTime, $reservation->quantity, $reservation->unitPriceFcfa, $reservation->grossFcfa,
+        )];
+        $detailed = count($lines) > 1;
+
+        return array_map(fn (ReservationInvoiceLine $line) => [
+            'kind' => $line->kind,
+            'label' => $line->kind === ReservationInvoiceLine::EXTENSION
+                ? 'Prolongation '.self::period($line).' — '.$base
+                : 'Hébergement — '.$base.($detailed ? ' — séjour initial '.self::period($line) : ''),
+            'billing_unit' => $reservation->billingUnit,
+            'period' => ['from_date' => $line->fromDate, 'from_time' => $line->fromTime, 'to_date' => $line->toDate, 'to_time' => $line->toTime],
+            'quantity' => $line->quantity,
+            'unit_price_fcfa' => $line->unitPriceFcfa,
+            'amount_fcfa' => $line->amountFcfa,
+        ], $lines);
+    }
+
+    private static function period(ReservationInvoiceLine $line): string
+    {
+        $day = fn (string $date, ?string $time) => CarbonImmutable::parse($date)->format('d/m/Y').($time !== null ? ' '.str_replace(':', ' h ', $time) : '');
+
+        return 'du '.$day($line->fromDate, $line->fromTime).' au '.$day($line->toDate, $line->toTime);
     }
 
     /**

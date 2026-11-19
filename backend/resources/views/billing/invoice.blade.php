@@ -120,6 +120,10 @@
         <div class="credit"><strong>Avoir annulant la facture n° {{ $doc['credit']['credited_invoice_number'] }}</strong><br>
             Émise le {{ $date($doc['credit']['credited_invoice_issued_at'] ?? null) }}.<br>Motif : {{ $doc['credit']['reason'] }}
         </div>
+    @elseif (! empty($doc['replaces']['invoice_number']))
+        <div class="credit"><strong>Facture remplaçant la facture n° {{ $doc['replaces']['invoice_number'] }}</strong><br>
+            {{ $doc['replaces']['reason'] ?? '' }}
+        </div>
     @endif
     <table class="parties"><tr>
         <td class="client">

@@ -3,8 +3,10 @@
 namespace App\Modules\Reservations\Application\Services;
 
 use App\Modules\Identity\Models\User;
+use App\Modules\Reservations\Application\ExtensionOutcome;
 use App\Modules\Reservations\Application\ExtensionPreview;
 use App\Modules\Reservations\Application\ReservationSnapshot;
+use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Modules\Reservations\Domain\BlockedPeriod;
 use App\Modules\Reservations\Domain\Contracts\RoomAvailability;
 use App\Modules\Reservations\Domain\PriceBreakdown;
@@ -12,6 +14,7 @@ use App\Modules\Reservations\Domain\PriceCalculator;
 use App\Modules\Reservations\DTO\ExtensionData;
 use App\Modules\Reservations\Events\ReservationExtended;
 use App\Modules\Reservations\Models\Reservation;
+use App\Modules\Reservations\Models\ReservationExtension;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
@@ -34,6 +37,7 @@ final class ReservationExtensionService
         private readonly ReservationQuoter $quoter,
         private readonly PriceCalculator $calculator,
         private readonly AuditTrail $audit,
+        private readonly StayInvoicing $invoicing,
     ) {}
 
     public function preview(Reservation $reservation, ExtensionData $data): ExtensionPreview
@@ -77,9 +81,14 @@ final class ReservationExtensionService
         return new ExtensionPreview($current, $newPeriod, $currentPrice, $proposedPrice, $conflicts);
     }
 
-    public function extend(Reservation $reservation, ExtensionData $data, User $actor): Reservation
+    /**
+     * D-053 : la prolongation est enregistrée (période ajoutée, quantité, prix unitaire figé) et, si
+     * le séjour était facturé, la facture est remplacée dans la même transaction par une nouvelle
+     * facture qui détaille le séjour initial et la prolongation (l'ancienne est annulée par un avoir).
+     */
+    public function extend(Reservation $reservation, ExtensionData $data, User $actor): ExtensionOutcome
     {
-        return DB::transaction(function () use ($reservation, $data, $actor): Reservation {
+        return DB::transaction(function () use ($reservation, $data, $actor): ExtensionOutcome {
             $room = $this->rooms->lockForReservation($reservation->room_id) ?? throw ReservationQuoter::roomNotFound();
             /** @var Reservation $reservation */
             $reservation = Reservation::query()->lockForUpdate()->findOrFail($reservation->id);
@@ -105,6 +114,23 @@ final class ReservationExtensionService
             }
 
             $before = ReservationSnapshot::of($reservation);
+            $addedQuantity = $preview->proposedPrice->quantity - $reservation->quantity;
+            ReservationExtension::query()->create([
+                'reservation_id' => $reservation->id,
+                'previous_end_date' => $reservation->end_date->toDateString(),
+                'previous_end_time' => $reservation->end_time,
+                'previous_blocked_until' => $reservation->blocked_until,
+                'end_date' => $data->endDate,
+                'end_time' => $data->endTime,
+                'blocked_until' => $preview->newPeriod->until,
+                'added_quantity' => $addedQuantity,
+                'unit_price_fcfa' => $reservation->applied_unit_price_fcfa,
+                'amount_fcfa' => $addedQuantity * $reservation->applied_unit_price_fcfa,
+                'previous_net_fcfa' => $reservation->net_fcfa,
+                'net_fcfa' => $preview->proposedPrice->netFcfa,
+                'extended_by' => $actor->id,
+                'extended_at' => now(),
+            ]);
             $reservation->fill([
                 'end_date' => $data->endDate,
                 'end_time' => $data->endTime,
@@ -120,8 +146,9 @@ final class ReservationExtensionService
                 'supplement_fcfa' => $preview->supplementFcfa(),
             ], $actor->id);
             event(new ReservationExtended($reservation->id));
+            $invoice = $this->invoicing->replaceAfterExtension($reservation->id, $actor);
 
-            return $reservation;
+            return new ExtensionOutcome($reservation, $invoice);
         });
     }
 }

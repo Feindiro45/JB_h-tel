@@ -347,7 +347,7 @@ function RecentTable({ rows }: { rows?: DashboardRow[] }) {
                 <th scope="col">Arrivée</th>
                 <th scope="col">Statut</th>
                 <th scope="col" className="num">
-                  Montant net
+                  Montant dû
                 </th>
                 <th scope="col">
                   <span className="sr-only">Action</span>
@@ -365,7 +365,14 @@ function RecentTable({ rows }: { rows?: DashboardRow[] }) {
                   <td>
                     <ReservationStatusBadge status={row.status} label={row.status_label} />
                   </td>
-                  <td className="num">{formatFcfa(row.net_fcfa)}</td>
+                  <td className="num">
+                    {formatFcfa(row.amount_due_fcfa)}
+                    {row.status === 'CANCELLED' && (
+                      <small style={{ display: 'block' }}>
+                        annulée · prix {formatFcfa(row.net_fcfa)}
+                      </small>
+                    )}
+                  </td>
                   <td className="num">
                     <Link className="text-button" to={`/reservations/${row.id}`}>
                       <Icon name="eye" size={17} />

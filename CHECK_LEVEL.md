@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 19/11/2026 (relecture finale) — phases 6C, 6D et 7 terminées ; livraison locale vérifiée : **183 tests backend (1 281 assertions), 74 tests frontend, 4 tests navigateur (2 parcours réels, pagination et charte visuelle), 60 contrôles de contrats réels pour l’administration et les filtres**. Relecture finale : modification de catégorie corrigée (le code figé était renvoyé, 422). Sauvegarde restaurée (27 tables), PDF A4 et affichages bureau/tablette/mobile contrôlés. Charte de contenu, vues d’ensemble généralisées, boutons voisins verts/bleus, champs avec icônes, filtres/pagination par tableau et facture vert/or appliqués ; chambres occupées en rouge et aside conservé. Facture, avoir et document long rendus et inspectés, QR décodés. Suite navigateur finale : quatre tests réussis, y compris recherche et effacement automatiques. Incident de page blanche du serveur actif corrigé : cache Vite régénéré, contrôle `check:dev` vert sur quatre routes et rechargement. Validation hôtel et nouvelle CI MySQL 8.4 encore attendues.
+**Dernière mise à jour :** 20/11/2026 — 6L (D-053, signalé par l’utilisateur) : l’annulation rembourse l’encaissé et crédite la facture, payée ou non ; la prolongation d’un séjour facturé remplace la facture par une facture détaillée (séjour initial + prolongation). Livraison locale vérifiée : **193 tests backend (1 394 assertions), 79 tests frontend, 4 tests navigateur (2 parcours réels, pagination et charte visuelle), 60 contrôles de contrats réels pour l’administration et les filtres**. Relecture finale : modification de catégorie corrigée (le code figé était renvoyé, 422). Sauvegarde restaurée (27 tables), PDF A4 et affichages bureau/tablette/mobile contrôlés. Charte de contenu, vues d’ensemble généralisées, boutons voisins verts/bleus, champs avec icônes, filtres/pagination par tableau et facture vert/or appliqués ; chambres occupées en rouge et aside conservé. Facture, avoir et document long rendus et inspectés, QR décodés. Suite navigateur finale : quatre tests réussis, y compris recherche et effacement automatiques. Incident de page blanche du serveur actif corrigé : cache Vite régénéré, contrôle `check:dev` vert sur quatre routes et rechargement. Validation hôtel et nouvelle CI MySQL 8.4 encore attendues.
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -21,7 +21,7 @@
 | 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
 | 4 | Clients et réservations | ✅ Fait (CI verte) | 100 % |
 | 5 | Caisse, factures, QR code, notifications | ✅ Fait (5A à 5E) | 100 % |
-| 6 | Frontend (écrans métier) | ✅ 6A à 6K terminées, recette locale verte | 100 % |
+| 6 | Frontend (écrans métier) | ✅ 6A à 6L terminées, recette locale verte | 100 % |
 | 7 | Reporting | ✅ Implémenté, tests API verts | 100 % |
 | 8 | Qualité et livraison | 🟡 Livraison locale vérifiée ; recette hôtel et CI distante restantes | 90 % |
 
@@ -379,6 +379,19 @@
 - [x] Consultation d’occupation conditionnée au droit `reservations.view` ; droits serveur conservés, aucun résultat supposé libre en l’absence de données.
 - [x] Test d’intégration de l’affichage rouge et du filtre d’occupation ; tests du tableau local (recherche, pagination, impression) et distinction total/page dans la synthèse clients.
 
+### 6L — Annulation payée et prolongation facturée (demande du 19/11/2026)
+> Constaté par l’utilisateur : une réservation annulée restait comptée dans la caisse (250 000 FCFA encaissés, aucun remboursement) ; après une prolongation, la facture ne couvrait que le séjour initial. Choix de l’utilisateur : rembourser dans la même opération que l’annulation ; remplacer automatiquement la facture à la prolongation.
+- [x] Annulation, payée ou non (« pareil pour une réservation non payée ») : encaissé remboursé intégralement dans la même transaction (montant confirmé, moyen, motif ; droit de rembourser exigé, 403 sinon) et facture active annulée par un avoir. Montant dû 0 exposé sur la réservation et les listes. Tout ou rien prouvé (panne simulée de la facturation)
+- [x] Prolongations enregistrées, non modifiables (table `reservation_extensions` : période ajoutée, quantité, prix, ancien et nouveau net, auteur)
+- [x] Prolongation d’un séjour facturé : avoir sur l’ancienne facture et nouvelle facture détaillée (séjour initial + prolongation, mention « remplace la facture n° … »), dans la même transaction ; facturé du mois sans double compte
+- [x] Caisse : « Annulations à rembourser » (annulations antérieures encore payées, API `to_refund`), jamais comptées dans les soldes ; lien vers le séjour pour rembourser
+- [x] Écrans : fenêtre d’annulation (montant remboursé, moyen, blocage expliqué pour la caissière, avoir annoncé), prolongation (facture remplacée annoncée puis numéro de la nouvelle), fiche du séjour (montant dû 0, prix initial pour mémoire, trop-perçu antérieur signalé), tableau de bord et séjours du client
+- [x] Tests : **193 backend** (+10 : annulation payée, refus caissière, montant non conforme, non payée facturée, tout ou rien ×2, prolongation enregistrée, facture remplacée, facture détaillée sans facture préalable, trop-perçu antérieur), **79 frontend** (+5) ; Pint, Larastan, lint, Prettier, TypeScript et build verts
+- [x] Contrats réels sur `jb_hotel_e2e` : **21 contrôles verts** (refus caissière 403, montant 409, annulation remboursée, caisse du jour, avoir de la non payée, facture de remplacement à deux lignes, PDF) ; rendu de la facture de remplacement inspecté
+- [x] Base de travail : migration additive `reservation_extensions` appliquée sans réinitialisation (retour arrière vérifié en simulation)
+- [x] Documentation : D-053 (D-035 marquée remplacée), Q-14, SCHEMA, MCD (28 tables), CHANGELOG, CLAUDE.md
+- [ ] CI : détail des échecs navigateur publié en annotations (journal GitHub non lisible sans droits d’administrateur), puis CI verte
+
 ## Phase 7 — Reporting ✅
 
 - [x] API d'agrégation, indicateurs définis (facturé ≠ encaissé ≠ chiffre d'affaires)
@@ -390,7 +403,7 @@
 ## Phase 8 — Qualité et livraison 🟡 (livraison locale vérifiée)
 
 - [~] Migrations propres : suites locales sur MariaDB ; MySQL 8.4 prévu dans la CI (Docker absent du poste, nouvelle exécution distante non réalisée)
-- [x] Tests : **183 backend / 74 frontend / 4 tests navigateur / 60 contrats réels (administration et filtres)** ; Pint, Larastan niveau 6, lint, Prettier, TypeScript et build verts (relecture finale du 19/11/2026)
+- [x] Tests : **193 backend / 79 frontend / 4 tests navigateur / 60 + 21 contrats réels (administration, filtres, D-053)** ; Pint, Larastan niveau 6, lint, Prettier, TypeScript et build verts (relecture finale du 19/11/2026)
 - [x] Contrôle d’accès : permissions API et routes frontend, CSRF réel, UUID des annuaires, export réservé à `reports.export`, données d’audit sans secrets et erreurs françaises ; tests verts
 - [x] Sauvegarde et restauration réelle vérifiées : `php infra/database-backup.php --verify`, 27 tables avec nombres de lignes identiques et empreinte SHA-256 ; cible de contrôle distincte et refus d’une base déjà remplie
 - [x] PDF A4 : export navigateur téléchargé, deux pages rendues et inspectées ; journal imprimé complet même si la liste est paginée à l’écran
@@ -425,6 +438,6 @@ Voir `docs/QUESTIONS.md`. Questions **P1**, qui bloquent la mise en production :
 ## Livraison de cette session
 
 - Administration et rapports accessibles dans l’application locale : `http://localhost:5173`.
-- Les modifications déjà présentes avant la session ont été conservées et complétées. Aucun commit, envoi Git ni déploiement effectué.
+- Phases 6C, 6D et 7 envoyées sur `main` (commit `eabbbbf`) ; 6L (D-053) envoyée ensuite. Aucun déploiement.
 - Les données de travail n’ont pas été réinitialisées. Les E2E utilisent exclusivement `jb_hotel_e2e` ; la restauration de contrôle utilise `jb_hotel_restore_test`.
 - Restent externes à la livraison locale : validation P1 par l’hôtel, SMTP réel (Q-22), mentions légales, impression papier et confirmation de la nouvelle CI sur MySQL 8.4.

@@ -9,6 +9,7 @@ import type {
   PaymentRow,
   Receipt,
   Receivable,
+  RefundDue,
 } from '../../shared/api/types'
 
 export const PAYMENT_METHODS: { value: string; label: string }[] = [
@@ -77,7 +78,12 @@ export const paymentsListQuery = (filters: PaymentFilters) =>
 export const receivablesQuery = queryOptions({
   queryKey: ['receivables'],
   queryFn: ({ signal }) =>
-    api.get<{ data: Receivable[]; total_fcfa: number }>('/api/v1/receivables', { signal }),
+    api.get<{
+      data: Receivable[]
+      total_fcfa: number
+      to_refund: RefundDue[]
+      to_refund_total_fcfa: number
+    }>('/api/v1/receivables', { signal }),
 })
 
 export const receiptQuery = (paymentId: string) =>

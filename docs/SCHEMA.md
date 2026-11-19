@@ -43,6 +43,7 @@ Ce document décrit le schéma réellement implémenté par les migrations (`bac
 |---|---|
 | `reservations` | **Période :** `start_date`, `end_date`, `start_time?`, `end_time?`, ainsi que `blocked_from`, `blocked_until` et `period_is_estimated`.<br>**Prix figé :** `rate_id`, `billing_unit`, `quantity`, `applied_unit_price_fcfa`, `gross_fcfa`, `discount_type` (`PERCENT` ou `FIXED`), `discount_value`, `discount_fcfa`, `discount_reason`, `discount_by`, `net_fcfa`.<br>**Statut :** `status` ∈ {`PENDING`, `CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`}.<br>**Arrivée et départ effectifs :** `checked_in_at/by`, `checked_out_at/by`.<br>**Annulation :** `cancelled_at/by`, `cancellation_reason`.<br>**Auteur :** `created_by`. |
 | `reservation_occupants` | `reservation_id`, `name`, `is_primary` |
+| `reservation_extensions` | Une ligne par prolongation (D-053), jamais modifiée ni supprimée : `previous_end_date`, `previous_end_time?`, `previous_blocked_until`, `end_date`, `end_time?`, `blocked_until`, `added_quantity` (≥ 0), `unit_price_fcfa`, `amount_fcfa` (= quantité × prix, contrainte `CHECK`), `previous_net_fcfa`, `net_fcfa`, `extended_by`, `extended_at`. Sert à détailler la facture (séjour initial puis chaque prolongation). Ligne interne sans UUID : elle n’est jamais adressée par une route. |
 
 Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits et `(room_id, start_date, end_date)`, repris de 09.
 
@@ -77,5 +78,6 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions` | Paramètres, numérotation, droits, sessions |
 | Maintenance | `maintenance_status` | Statut courant seulement | Périodes planifiées en attente de Q-12 (D-019) |
 | Identifiants publics | Absents | Colonne `uuid` sur 11 tables | Les routes et les liens n’exposent jamais la clé entière (D-026) |
+| Prolongations | Absentes (historique dans l’audit seulement) | Table `reservation_extensions` (migration `190000`) | Facture détaillée séjour initial + prolongation (D-053, demande du 19/11/2026) |
 
-> Le fichier `04_MCD_JB_Hotel.drawio` a été régénéré le 19/11/2026 depuis le schéma réel : 27 tables et 27 relations de clés étrangères, y compris UUID, Spatie, paramètres, audits et tables techniques. Les associations polymorphes de Spatie restent documentées par leurs colonnes, sans fausse clé étrangère.
+> Le fichier `04_MCD_JB_Hotel.drawio` a été régénéré le 19/11/2026 depuis le schéma réel : 27 tables et 27 relations de clés étrangères ; complété le 20/11/2026 avec `reservation_extensions` (28 tables, 29 relations), y compris UUID, Spatie, paramètres, audits et tables techniques. Les associations polymorphes de Spatie restent documentées par leurs colonnes, sans fausse clé étrangère.

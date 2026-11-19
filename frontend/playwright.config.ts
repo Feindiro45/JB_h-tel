@@ -4,6 +4,8 @@ export default defineConfig({
   testDir: './e2e',
   workers: 1,
   timeout: 60_000,
+  // En CI, chaque échec devient une annotation GitHub lisible sans droits d'administrateur.
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
     baseURL: 'http://localhost:5174',
     browserName: 'chromium',

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Cashier;
 
 use App\Modules\Cashier\Models\Payment;
+use App\Modules\Reservations\Models\Reservation;
 use App\Shared\Audit\AuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -138,16 +139,34 @@ class CashierTest extends TestCase
             ->assertStatus(409)->assertJsonPath('code', 'payment_has_refunds');
     }
 
-    public function test_cancelled_reservation_cannot_be_paid_and_shows_amount_to_refund(): void
+    /** D-053 : l'annulation rembourse ce qui a été encaissé ; le séjour annulé ne peut plus être payé. */
+    public function test_cancelled_reservation_is_refunded_and_cannot_be_paid(): void
     {
         $this->pay(20000)->assertCreated();
-        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$this->reservation}/cancel", ['reason' => 'Client empêché'])->assertOk();
+        $this->actingAs($this->admin)->postJson("/api/v1/reservations/{$this->reservation}/cancel", ['reason' => 'Client empêché', 'refund_fcfa' => 20000])->assertOk();
 
         $this->pay(1000)->assertStatus(409)->assertJsonPath('code', 'reservation_cancelled');
         $this->actingAs($this->cashier)->getJson("/api/v1/reservations/{$this->reservation}/payments")
             ->assertJsonPath('summary.amount_due_fcfa', 0)
+            ->assertJsonPath('summary.net_paid_fcfa', 0)
+            ->assertJsonPath('summary.balance_fcfa', 0);
+    }
+
+    /** Annulation antérieure à D-053 (ou forcée en base) : l'encaissé reste « trop-perçu à rembourser ». */
+    public function test_legacy_cancelled_overpayment_still_shows_amount_to_refund(): void
+    {
+        $this->pay(20000)->assertCreated();
+        Reservation::query()->where('uuid', $this->reservation)->update(['status' => 'CANCELLED', 'cancelled_at' => now()]);
+
+        $this->actingAs($this->cashier)->getJson("/api/v1/reservations/{$this->reservation}/payments")
+            ->assertJsonPath('summary.amount_due_fcfa', 0)
             ->assertJsonPath('summary.balance_fcfa', -20000)
             ->assertJsonPath('summary.status_label', 'Trop-perçu à rembourser');
+        $this->actingAs($this->cashier)->getJson('/api/v1/receivables')
+            ->assertJsonPath('data', [])
+            ->assertJsonPath('to_refund.0.id', $this->reservation)
+            ->assertJsonPath('to_refund.0.to_refund_fcfa', 20000)
+            ->assertJsonPath('to_refund_total_fcfa', 20000);
     }
 
     public function test_receipt_shows_reservation_customer_room_and_balance(): void

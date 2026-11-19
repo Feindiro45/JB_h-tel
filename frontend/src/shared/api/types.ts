@@ -100,7 +100,12 @@ export interface Reservation {
     start_time: string | null
     end_time: string | null
   } & BlockedPeriodView
-  price: { billing_unit: 'HALF_DAY' | 'DAY'; billing_unit_label: string } & PriceView
+  price: {
+    billing_unit: 'HALF_DAY' | 'DAY'
+    billing_unit_label: string
+    /** 0 pour une réservation annulée (D-053) ; le prix reste affiché pour mémoire. */
+    amount_due_fcfa: number
+  } & PriceView
   occupants: { id: string; name: string; is_primary: boolean }[] | null
   notes: string | null
   checked_in_at: string | null
@@ -203,6 +208,8 @@ export interface DashboardRow {
   status: string
   status_label: string
   net_fcfa: number
+  /** 0 pour une réservation annulée (D-053). */
+  amount_due_fcfa: number
 }
 
 export interface Dashboard {
@@ -300,6 +307,13 @@ export interface Receivable extends DashboardRow {
   phone: string | null
   paid_net_fcfa: number
   balance_fcfa: number
+}
+
+/** Réservation annulée avant D-053 dont l'encaissé reste à rendre au client. */
+export interface RefundDue extends DashboardRow {
+  phone: string | null
+  paid_net_fcfa: number
+  to_refund_fcfa: number
 }
 
 export interface InvoiceRow extends InvoiceSummary {

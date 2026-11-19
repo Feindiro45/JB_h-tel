@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Reservation } from '../../shared/api/types'
 import { addDays, todayIso } from '../../shared/utils/format'
-import { cashier, mockApi, renderApp } from '../../test/renderApp'
+import { admin, cashier, mockApi, renderApp } from '../../test/renderApp'
 
 const ID = '0190a000-0000-7000-8000-0000000000aa'
 const normalize = (text: string | null) => (text ?? '').replace(/\s/g, ' ')
@@ -39,6 +39,7 @@ function reservation(overrides: Partial<Reservation> = {}, startDate = todayIso(
       discount: null,
       discount_fcfa: 0,
       net_fcfa: 50000,
+      amount_due_fcfa: 50000,
     },
     occupants: [{ id: 'o1', name: 'Paul Nguema', is_primary: true }],
     notes: null,
@@ -62,7 +63,22 @@ const SUMMARY = {
   status_label: 'Partiellement payé',
 }
 
-function serve(r: Reservation, permissions?: string[]) {
+const INVOICE = {
+  id: '0190a000-0000-7000-8000-0000000000f1',
+  type: 'INVOICE',
+  type_label: 'Facture',
+  number: 'FAC-2026-000001',
+  issued_at: '2026-11-19T10:00:00+01:00',
+  status: 'ISSUED',
+  status_label: 'Émise',
+  credited_invoice: null,
+  gross_fcfa: 50000,
+  discount_fcfa: 0,
+  net_fcfa: 50000,
+  verification_url: 'http://localhost/verification',
+}
+
+function serve(r: Reservation, permissions?: string[], extra: Parameters<typeof mockApi>[0] = {}) {
   return mockApi({
     'GET /api/v1/auth/me': { body: { data: cashier(permissions ? { permissions } : {}) } },
     [`GET /api/v1/reservations/${ID}`]: { body: { data: r } },
@@ -97,6 +113,7 @@ function serve(r: Reservation, permissions?: string[]) {
       },
     },
     [`POST /api/v1/reservations/${ID}/extension`]: { body: { data: r } },
+    ...extra,
   })
 }
 
@@ -184,5 +201,100 @@ describe('Fiche réservation', () => {
         confirm: true,
       }),
     )
+  })
+
+  /** D-053 : la facture d'un séjour prolongé est remplacée dans la même opération. */
+  it('prolonge un séjour facturé et annonce la facture de remplacement détaillée', async () => {
+    const r = reservation()
+    serve(r, undefined, {
+      [`GET /api/v1/reservations/${ID}/invoices`]: { body: { data: [INVOICE] } },
+      [`POST /api/v1/reservations/${ID}/extension`]: {
+        body: { data: r, meta: { replacement_invoice_number: 'FAC-2026-000002' } },
+      },
+    })
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await screen.findAllByText(/FAC-2026-000001/)
+    await user.click(await screen.findByRole('button', { name: 'Prolonger' }))
+    await user.click(screen.getByRole('button', { name: 'Calculer le supplément' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Valider la prolongation' })
+    expect(confirm).toHaveTextContent(
+      'La facture FAC-2026-000001 sera annulée par un avoir et remplacée par une nouvelle facture qui détaille le séjour initial et la prolongation.',
+    )
+
+    await user.click(within(confirm).getByRole('button', { name: /^Valider/ }))
+    expect(
+      await screen.findByText(
+        'Séjour prolongé · nouvelle facture FAC-2026-000002 (séjour initial et prolongation)',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  /** D-053 : une annulation payée rembourse l'encaissé et annule la facture, en une opération. */
+  it('l’administrateur annule une réservation payée en remboursant l’encaissé', async () => {
+    const calls = serve(reservation(), admin().permissions, {
+      [`GET /api/v1/reservations/${ID}/invoices`]: { body: { data: [INVOICE] } },
+      [`POST /api/v1/reservations/${ID}/cancel`]: {
+        body: { data: reservation({ status: 'CANCELLED', status_label: 'Annulée' }) },
+      },
+    })
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await screen.findByText('Partiellement payé')
+    await screen.findAllByText(/FAC-2026-000001/)
+    await user.click(screen.getByRole('button', { name: 'Annuler la réservation' }))
+    const dialog = screen.getByRole('dialog', { name: 'Annuler la réservation' })
+    expect(normalize(dialog.textContent)).toContain(
+      '20 000 FCFA déjà encaissés seront remboursés intégralement',
+    )
+    expect(dialog).toHaveTextContent('La facture FAC-2026-000001 sera annulée par un avoir.')
+
+    await user.type(within(dialog).getByLabelText('Motif d’annulation'), 'Client empêché')
+    await user.selectOptions(within(dialog).getByLabelText('Moyen de remboursement'), 'CASH')
+    await user.click(within(dialog).getByRole('button', { name: /^Annuler et rembourser 20/ }))
+
+    expect(
+      await screen.findByText((text) =>
+        normalize(text).includes('Réservation annulée, 20 000 FCFA remboursés'),
+      ),
+    ).toBeInTheDocument()
+    expect(calls.find((call) => call.path.endsWith('/cancel'))?.body).toEqual({
+      reason: 'Client empêché',
+      refund_fcfa: 20000,
+      refund_method: 'CASH',
+    })
+  })
+
+  it('la caissière ne peut pas annuler une réservation déjà payée', async () => {
+    const calls = serve(reservation())
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await screen.findByText('Partiellement payé')
+    await user.click(screen.getByRole('button', { name: 'Annuler la réservation' }))
+    const dialog = screen.getByRole('dialog', { name: 'Annuler la réservation' })
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(
+      'demandez à un administrateur de l’effectuer',
+    )
+    expect(within(dialog).queryByLabelText('Moyen de remboursement')).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: /^Annuler et rembourser/ })).toBeDisabled()
+    expect(calls.some((call) => call.path.endsWith('/cancel'))).toBe(false)
+  })
+
+  it('affiche un montant dû nul pour une réservation annulée, prix initial pour mémoire', async () => {
+    serve(
+      reservation({
+        status: 'CANCELLED',
+        status_label: 'Annulée',
+        price: { ...reservation().price, amount_due_fcfa: 0 },
+      }),
+    )
+    renderApp(`/reservations/${ID}`)
+
+    const metric = (await screen.findByText('Montant dû')).closest('.metric')
+    expect(normalize(metric?.textContent ?? '')).toContain('0 FCFA')
+    expect(normalize(metric?.textContent ?? '')).toContain('prix initial 50 000 FCFA')
   })
 })

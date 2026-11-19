@@ -18,11 +18,6 @@ interface ReservationLedger
     public function findMany(array $reservationIds): array;
 
     /**
-     * Verrouille la réservation (`SELECT … FOR UPDATE`) jusqu'à la fin de la transaction : deux
-     * encaissements simultanés sur une même réservation sont traités l'un après l'autre, et le
-     * contrôle du trop-perçu reste exact. À appeler **dans** une transaction.
-     */
-    /**
      * Réservations de ces clients, pour les filtres « client » de la caisse et des factures.
      *
      * @param  list<int>  $customerIds
@@ -30,6 +25,11 @@ interface ReservationLedger
      */
     public function idsForCustomers(array $customerIds): array;
 
+    /**
+     * Verrouille la réservation (`SELECT … FOR UPDATE`) jusqu'à la fin de la transaction : deux
+     * encaissements simultanés sur une même réservation sont traités l'un après l'autre, et le
+     * contrôle du trop-perçu reste exact. À appeler **dans** une transaction.
+     */
     public function lockForPayment(int $reservationId): ?ReservationDue;
 
     /** Détail facturable (période, unité, quantité, prix, remise, net), lu au moment de l'émission. */

@@ -106,32 +106,71 @@ class InvoiceTest extends TestCase
     }
 
     /** Correction par avoir : la facture d'origine reste intacte, puis une nouvelle facture reflète la prolongation. */
-    public function test_credit_note_then_new_invoice_after_extension(): void
+    /**
+     * D-053 (demande du 19/11/2026) : la prolongation d'un séjour facturé annule la facture par un
+     * avoir et émet, dans la même opération, une facture qui détaille séjour initial et prolongation.
+     */
+    public function test_extension_replaces_the_invoice_with_initial_stay_and_extension_lines(): void
     {
         $reservation = $this->bookOk();
         $first = $this->issue($reservation)->json('data.id');
 
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$reservation}/extension", ['end_date' => '2026-12-02', 'additional_quantity' => 1, 'confirm' => true])
-            ->assertOk()->assertJsonPath('data.price.net_fcfa', 100000);
-
-        $this->actingAs($this->admin)->postJson("/api/v1/invoices/{$first}/credit-notes", ['reason' => 'Prolongation d’une journée'])
-            ->assertCreated()
-            ->assertJsonPath('data.type', 'CREDIT_NOTE')
-            ->assertJsonPath('data.number', 'AV-2026-000001')
-            ->assertJsonPath('data.net_fcfa', 50000)
-            ->assertJsonPath('data.credited_invoice.number', 'FAC-2026-000001')
-            ->assertJsonPath('data.snapshot.credit.reason', 'Prolongation d’une journée');
+            ->assertOk()
+            ->assertJsonPath('data.price.net_fcfa', 100000)
+            ->assertJsonPath('meta.replacement_invoice_number', 'FAC-2026-000002');
 
         $this->actingAs($this->cashier)->getJson("/api/v1/invoices/{$first}")
             ->assertJsonPath('data.status', 'CREDITED')
             ->assertJsonPath('data.net_fcfa', 50000);
+        $documents = $this->actingAs($this->cashier)->getJson("/api/v1/reservations/{$reservation}/invoices")->assertOk()->collect('data');
+        $this->assertEqualsCanonicalizing(['FAC-2026-000001', 'AV-2026-000001', 'FAC-2026-000002'], $documents->pluck('number')->all());
 
-        $this->issue($reservation)->assertCreated()->assertJsonPath('data.number', 'FAC-2026-000002')->assertJsonPath('data.net_fcfa', 100000);
-        $this->actingAs($this->cashier)->getJson("/api/v1/reservations/{$reservation}/invoices")
-            ->assertOk()->assertJsonCount(3, 'data');
+        $creditNote = $documents->firstWhere('type', 'CREDIT_NOTE');
+        $this->actingAs($this->cashier)->getJson("/api/v1/invoices/{$creditNote['id']}")
+            ->assertJsonPath('data.net_fcfa', 50000)
+            ->assertJsonPath('data.credited_invoice.number', 'FAC-2026-000001')
+            ->assertJsonPath('data.snapshot.credit.reason', 'Prolongation du séjour : la nouvelle facture détaille le séjour initial et la prolongation.');
 
+        $replacement = $documents->firstWhere('number', 'FAC-2026-000002');
+        $this->actingAs($this->cashier)->getJson("/api/v1/invoices/{$replacement['id']}")
+            ->assertJsonPath('data.status', 'ISSUED')
+            ->assertJsonPath('data.net_fcfa', 100000)
+            ->assertJsonPath('data.snapshot.replaces.invoice_number', 'FAC-2026-000001')
+            ->assertJsonCount(2, 'data.snapshot.lines')
+            ->assertJsonPath('data.snapshot.lines.0.kind', 'STAY')
+            ->assertJsonPath('data.snapshot.lines.0.label', 'Hébergement — chambre 101 (VIP), journée — séjour initial du 01/12/2026 au 01/12/2026')
+            ->assertJsonPath('data.snapshot.lines.0.quantity', 1)
+            ->assertJsonPath('data.snapshot.lines.0.amount_fcfa', 50000)
+            ->assertJsonPath('data.snapshot.lines.1.kind', 'EXTENSION')
+            ->assertJsonPath('data.snapshot.lines.1.label', 'Prolongation du 01/12/2026 au 02/12/2026 — chambre 101 (VIP), journée')
+            ->assertJsonPath('data.snapshot.lines.1.quantity', 1)
+            ->assertJsonPath('data.snapshot.lines.1.amount_fcfa', 50000)
+            ->assertJsonPath('data.snapshot.totals.gross_fcfa', 100000);
+        $this->actingAs($this->cashier)->get("/api/v1/invoices/{$replacement['id']}/pdf")->assertOk();
+
+        // Facturé du mois : 50 000 + 100 000 − 50 000 (avoir) = 100 000, sans double compte.
+        $this->assertSame(100000, $this->actingAs($this->admin)->getJson('/api/v1/dashboard')->json('data.invoiced_month_fcfa'));
         $this->actingAs($this->admin)->postJson("/api/v1/invoices/{$first}/credit-notes", ['reason' => 'Encore'])
             ->assertStatus(409)->assertJsonPath('code', 'invoice_not_creditable');
+    }
+
+    /** Séjour prolongé avant toute facture : rien n'est émis ; la facture suivante est détaillée. */
+    public function test_extension_without_invoice_issues_nothing_and_next_invoice_is_detailed(): void
+    {
+        $reservation = $this->bookOk(['discount' => ['type' => 'PERCENT', 'value' => 10, 'reason' => 'Client fidèle']]);
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$reservation}/extension", ['end_date' => '2026-12-02', 'additional_quantity' => 1, 'confirm' => true])
+            ->assertOk()->assertJsonPath('meta.replacement_invoice_number', null);
+        $this->assertSame(0, Invoice::query()->count());
+
+        $this->issue($reservation)->assertCreated()
+            ->assertJsonPath('data.number', 'FAC-2026-000001')
+            ->assertJsonCount(2, 'data.snapshot.lines')
+            ->assertJsonPath('data.snapshot.lines.0.amount_fcfa', 50000)
+            ->assertJsonPath('data.snapshot.lines.1.amount_fcfa', 50000)
+            ->assertJsonPath('data.snapshot.totals.gross_fcfa', 100000)
+            ->assertJsonPath('data.snapshot.totals.discount_fcfa', 10000)
+            ->assertJsonPath('data.net_fcfa', 90000);
     }
 
     /** Provisoire (D-020) : la caissière émet les factures, seul l'administrateur émet un avoir. */

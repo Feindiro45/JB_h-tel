@@ -27,13 +27,33 @@ final class ReceivablesQuery
         return $rows;
     }
 
+    /**
+     * Réservations annulées dont l'encaissé net reste positif : argent à rendre au client (D-053).
+     * Depuis D-053, l'annulation rembourse dans la même opération ; ce cas ne concerne plus que les
+     * annulations antérieures, à régulariser par un remboursement.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function toRefund(): array
+    {
+        $rows = [];
+        foreach ($this->balances(cancelled: true) as $row) {
+            $paid = (int) $row->paid - (int) $row->refunded;
+            if ($paid > 0) {
+                $rows[] = ReservationRows::row($row) + ['phone' => $row->phone, 'paid_net_fcfa' => $paid, 'to_refund_fcfa' => $paid];
+            }
+        }
+
+        return $rows;
+    }
+
     public function total(): int
     {
         return array_sum(array_map(fn (array $row) => $row['balance_fcfa'], $this->rows()));
     }
 
     /** @return iterable<object> */
-    private function balances(): iterable
+    private function balances(bool $cancelled = false): iterable
     {
         $paid = DB::table('payments')->select('reservation_id', DB::raw('SUM(amount_fcfa) AS paid'))
             ->where('status', 'VALID')->groupBy('reservation_id');
@@ -44,7 +64,7 @@ final class ReceivablesQuery
         return ReservationRows::query()
             ->leftJoinSub($paid, 'p', 'p.reservation_id', '=', 'reservations.id')
             ->leftJoinSub($refunded, 'r', 'r.reservation_id', '=', 'reservations.id')
-            ->where('reservations.status', '!=', ReservationStatus::Cancelled->value)
+            ->where('reservations.status', $cancelled ? '=' : '!=', ReservationStatus::Cancelled->value)
             ->addSelect(DB::raw('COALESCE(p.paid, 0) AS paid'), DB::raw('COALESCE(r.refunded, 0) AS refunded'))
             ->orderBy('reservations.start_date')->orderBy('reservations.id')
             ->get();

@@ -2,9 +2,13 @@
 
 namespace App\Modules\Reservations\Application\Services;
 
+use App\Modules\Identity\Domain\PermissionName;
 use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Application\ReservationSnapshot;
+use App\Modules\Reservations\Contracts\CancellationRefunds;
+use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Modules\Reservations\Domain\ReservationStatus;
+use App\Modules\Reservations\DTO\CancellationData;
 use App\Modules\Reservations\DTO\OccupantData;
 use App\Modules\Reservations\Events\ReservationCancelled;
 use App\Modules\Reservations\Events\ReservationCheckedIn;
@@ -28,6 +32,8 @@ final class ReservationLifecycleService
     public function __construct(
         private readonly RoomDirectory $rooms,
         private readonly AuditTrail $audit,
+        private readonly CancellationRefunds $refunds,
+        private readonly StayInvoicing $invoicing,
     ) {}
 
     public function checkIn(Reservation $reservation, User $actor): Reservation
@@ -100,9 +106,15 @@ final class ReservationLifecycleService
     }
 
     /** Annulation motivée avant l'arrivée (Q-14, provisoire). Les paiements éventuels sont traités en caisse. */
-    public function cancel(Reservation $reservation, string $reason, User $actor): Reservation
+    /**
+     * Annulation (D-031, D-053). Une réservation annulée ne doit plus rien : dans la même transaction,
+     * ce qui a été encaissé est remboursé intégralement (montant confirmé par l'utilisateur, droit de
+     * rembourser exigé) et la facture active est annulée par un avoir. La caisse et le facturé ne
+     * comptent donc plus ce séjour, qu'il ait été payé ou non.
+     */
+    public function cancel(Reservation $reservation, CancellationData $data, User $actor): Reservation
     {
-        return DB::transaction(function () use ($reservation, $reason, $actor): Reservation {
+        return DB::transaction(function () use ($reservation, $data, $actor): Reservation {
             $reservation = $this->lock($reservation);
 
             if ($reservation->status === ReservationStatus::InProgress) {
@@ -117,14 +129,43 @@ final class ReservationLifecycleService
                 throw self::invalidStatus($reservation, 'annuler');
             }
 
+            $collected = $this->refunds->netCollected($reservation->id);
+            if ($collected > 0 && ! $actor->can(PermissionName::RefundsCreate->value)) {
+                throw new BusinessRuleException(
+                    'Cette réservation a déjà '.Format::fcfa($collected).' encaissés. Son annulation rembourse cette somme au client : seul un compte autorisé à rembourser (administrateur) peut l’effectuer.',
+                    'Remboursement nécessaire',
+                    403,
+                    'cancellation_requires_refund',
+                    ['Demandez à un administrateur d’annuler la réservation et de rembourser '.Format::fcfa($collected).'.'],
+                );
+            }
+            if ($data->refundFcfa !== $collected) {
+                throw new BusinessRuleException(
+                    $collected > 0
+                        ? 'Confirmez le remboursement de '.Format::fcfa($collected).' encaissés sur ce séjour avant de l’annuler.'
+                        : 'Aucun montant n’est encaissé sur ce séjour : il n’y a rien à rembourser.',
+                    'Montant à rembourser à confirmer',
+                    409,
+                    'cancellation_refund_mismatch',
+                    ['Montant encaissé à rembourser : '.Format::fcfa($collected).'.'],
+                );
+            }
+
             event(new ReservationCancelled($reservation->id));
 
-            return $this->transition($reservation, $actor, 'reservation.cancelled', [
+            $reservation = $this->transition($reservation, $actor, 'reservation.cancelled', [
                 'status' => ReservationStatus::Cancelled,
                 'cancelled_at' => now(),
                 'cancelled_by' => $actor->id,
-                'cancellation_reason' => $reason,
+                'cancellation_reason' => $data->reason,
             ]);
+
+            if ($collected > 0) {
+                $this->refunds->refundAll($reservation->id, $data->refundMethod, 'Annulation de la réservation : '.$data->reason, $actor);
+            }
+            $this->invoicing->creditOnCancellation($reservation->id, 'Annulation de la réservation : '.$data->reason, $actor);
+
+            return $reservation;
         });
     }
 

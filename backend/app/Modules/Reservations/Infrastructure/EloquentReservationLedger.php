@@ -4,9 +4,11 @@ namespace App\Modules\Reservations\Infrastructure;
 
 use App\Modules\Reservations\Contracts\ReservationDue;
 use App\Modules\Reservations\Contracts\ReservationInvoiceData;
+use App\Modules\Reservations\Contracts\ReservationInvoiceLine;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Modules\Reservations\Domain\ReservationStatus;
 use App\Modules\Reservations\Models\Reservation;
+use App\Modules\Reservations\Models\ReservationExtension;
 use Illuminate\Support\Str;
 
 final class EloquentReservationLedger implements ReservationLedger
@@ -87,7 +89,47 @@ final class EloquentReservationLedger implements ReservationLedger
             discountReason: $discount?->reason,
             discountFcfa: $reservation->discount_fcfa,
             netFcfa: $reservation->net_fcfa,
+            lines: self::lines($reservation),
         );
+    }
+
+    /**
+     * Séjour initial puis une ligne par prolongation enregistrée (D-053). Le séjour initial reçoit
+     * le reste du brut : la somme des lignes est toujours égale au brut de la réservation, y compris
+     * pour une prolongation antérieure à l'enregistrement des prolongations (une seule ligne).
+     *
+     * @return list<ReservationInvoiceLine>
+     */
+    private static function lines(Reservation $reservation): array
+    {
+        $extensions = ReservationExtension::query()->where('reservation_id', $reservation->id)->orderBy('id')->get();
+        $time = fn (?string $value) => $value === null ? null : substr($value, 0, 5);
+        $first = $extensions->first();
+
+        $lines = [new ReservationInvoiceLine(
+            kind: ReservationInvoiceLine::STAY,
+            fromDate: $reservation->start_date->toDateString(),
+            fromTime: $time($reservation->start_time),
+            toDate: $first?->previous_end_date->toDateString() ?? $reservation->end_date->toDateString(),
+            toTime: $first !== null ? $time($first->previous_end_time) : $time($reservation->end_time),
+            quantity: max(0, $reservation->quantity - (int) $extensions->sum('added_quantity')),
+            unitPriceFcfa: $reservation->applied_unit_price_fcfa,
+            amountFcfa: $reservation->gross_fcfa - (int) $extensions->sum('amount_fcfa'),
+        )];
+        foreach ($extensions as $extension) {
+            $lines[] = new ReservationInvoiceLine(
+                kind: ReservationInvoiceLine::EXTENSION,
+                fromDate: $extension->previous_end_date->toDateString(),
+                fromTime: $time($extension->previous_end_time),
+                toDate: $extension->end_date->toDateString(),
+                toTime: $time($extension->end_time),
+                quantity: $extension->added_quantity,
+                unitPriceFcfa: $extension->unit_price_fcfa,
+                amountFcfa: $extension->amount_fcfa,
+            );
+        }
+
+        return $lines;
     }
 
     private static function toDue(Reservation $reservation): ReservationDue

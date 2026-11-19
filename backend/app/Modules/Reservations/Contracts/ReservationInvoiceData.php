@@ -28,5 +28,11 @@ final readonly class ReservationInvoiceData
         public ?string $discountReason,
         public int $discountFcfa,
         public int $netFcfa,
+        /**
+         * Séjour initial puis une ligne par prolongation (D-053) ; somme des montants = brut.
+         *
+         * @var list<ReservationInvoiceLine>
+         */
+        public array $lines = [],
     ) {}
 }

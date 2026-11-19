@@ -112,7 +112,7 @@ const JOURNAL: CashJournal = {
   ],
 }
 
-function serve(user = cashier()) {
+function serve(user = cashier(), toRefund: object[] = []) {
   return mockApi({
     'GET /api/v1/auth/me': { body: { data: user } },
     'GET /api/v1/cash-journal': ({ url }) => ({
@@ -135,11 +135,14 @@ function serve(user = cashier()) {
             status: 'CONFIRMED',
             status_label: 'Confirmée',
             net_fcfa: 100000,
+            amount_due_fcfa: 100000,
             paid_net_fcfa: 45000,
             balance_fcfa: 55000,
           },
         ],
         total_fcfa: 55000,
+        to_refund: toRefund,
+        to_refund_total_fcfa: toRefund.length * 250000,
       },
     },
     'POST /api/v1/payments/pay-1/refunds': { status: 201, body: { data: { id: 'ref-2' } } },
@@ -229,5 +232,35 @@ describe('Caisse', () => {
       method: null,
       reason: 'Nuit écourtée',
     })
+  })
+
+  it('liste à part les annulations antérieures encore à rembourser', async () => {
+    serve(cashier(), [
+      {
+        ...STAY,
+        id: '0190a000-0000-7000-8000-0000000000cc',
+        customer: 'BANGUI Marie',
+        phone: null,
+        room: { number: '102', type: 'Standard' },
+        start_date: todayIso(),
+        end_date: todayIso(),
+        status: 'CANCELLED',
+        status_label: 'Annulée',
+        net_fcfa: 250000,
+        amount_due_fcfa: 0,
+        paid_net_fcfa: 250000,
+        to_refund_fcfa: 250000,
+      },
+    ])
+    renderApp('/caisse')
+
+    const panel = await screen.findByRole('region', { name: 'Annulations à rembourser' })
+    expect(normalize(panel.textContent)).toContain('À rembourser 250 000 FCFA')
+    expect(
+      within(panel).getByRole('link', { name: 'Rembourser depuis le séjour de BANGUI Marie' }),
+    ).toHaveAttribute('href', '/reservations/0190a000-0000-7000-8000-0000000000cc')
+    // Les soldes à encaisser ne comptent jamais une réservation annulée.
+    const balances = screen.getByRole('region', { name: 'Soldes à encaisser' })
+    expect(within(balances).queryByText('BANGUI Marie')).not.toBeInTheDocument()
   })
 })

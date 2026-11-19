@@ -298,6 +298,73 @@ export function CashierPage() {
         )}
         <Pagination {...balances} />
       </Panel>
+      {receivables.data && receivables.data.to_refund.length > 0 && (
+        <Panel
+          title="Annulations à rembourser"
+          subtitle="Séjours annulés avant le remboursement automatique : l’argent encaissé reste à rendre au client"
+          action={
+            <Badge
+              tone="red"
+              label={`À rembourser ${formatFcfa(receivables.data.to_refund_total_fcfa)}`}
+            />
+          }
+        >
+          <LocalTable
+            label="annulations à rembourser"
+            rows={receivables.data.to_refund}
+            searchText={(r) => `${r.customer} ${r.phone ?? ''} ${r.room.number} ${r.room.type}`}
+          >
+            {(visibleRows) => (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Client</th>
+                      <th scope="col">Chambre</th>
+                      <th scope="col">Séjour</th>
+                      <th scope="col" className="num">
+                        À rembourser
+                      </th>
+                      <th scope="col">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>
+                          <strong>{row.customer}</strong>
+                          {row.phone && <small style={{ display: 'block' }}>{row.phone}</small>}
+                        </td>
+                        <td>
+                          {row.room.number} <small>{row.room.type}</small>
+                        </td>
+                        <td>
+                          {formatDay(row.start_date)} → {formatDay(row.end_date)}
+                        </td>
+                        <td className="num">
+                          <strong>{formatFcfa(row.to_refund_fcfa)}</strong>
+                        </td>
+                        <td className="num">
+                          <Link
+                            className="text-button"
+                            to={`/reservations/${row.id}`}
+                            aria-label={`Rembourser depuis le séjour de ${row.customer}`}
+                          >
+                            <Icon name="undo" size={17} />
+                            Rembourser →
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </LocalTable>
+        </Panel>
+      )}
       {paying && (
         <PaymentDialog
           reservationId={paying.id}

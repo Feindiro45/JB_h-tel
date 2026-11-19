@@ -40,9 +40,12 @@ final class InvoiceService
     ) {}
 
     /** Une seule facture active (émise, non créditée) par réservation. */
-    public function issue(ReservationDue $reservation, User $actor): Invoice
+    /**
+     * @param  array{invoice_number: string, reason: string}|null  $replaces  Facture remplacée (D-053), mentionnée sur la nouvelle.
+     */
+    public function issue(ReservationDue $reservation, User $actor, ?array $replaces = null): Invoice
     {
-        return DB::transaction(function () use ($reservation, $actor): Invoice {
+        return DB::transaction(function () use ($reservation, $actor, $replaces): Invoice {
             $due = $this->reservations->lockForPayment($reservation->id) ?? throw self::reservationNotFound();
 
             if ($due->cancelled || $due->status === 'PENDING') {
@@ -80,6 +83,9 @@ final class InvoiceService
                 $this->rooms->find($data->roomId),
                 $this->payments->forReservation($data->id),
             );
+            if ($replaces !== null) {
+                $snapshot['replaces'] = $replaces;
+            }
 
             $invoice = Invoice::query()->create([
                 'reservation_id' => $due->id,

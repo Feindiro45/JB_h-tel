@@ -154,7 +154,7 @@ export function CustomerDetailPage() {
                     <th scope="col">Départ</th>
                     <th scope="col">Statut</th>
                     <th scope="col" className="num">
-                      Montant net
+                      Montant dû
                     </th>
                     <th scope="col">
                       <span className="sr-only">Action</span>
@@ -172,7 +172,14 @@ export function CustomerDetailPage() {
                       <td>
                         <ReservationStatusBadge status={r.status} label={r.status_label} />
                       </td>
-                      <td className="num">{formatFcfa(r.price.net_fcfa)}</td>
+                      <td className="num">
+                        {formatFcfa(r.price.amount_due_fcfa)}
+                        {r.status === 'CANCELLED' && (
+                          <small style={{ display: 'block' }}>
+                            annulée · prix {formatFcfa(r.price.net_fcfa)}
+                          </small>
+                        )}
+                      </td>
                       <td className="num">
                         <Link className="text-button" to={`/reservations/${r.id}`}>
                           <Icon name="eye" size={17} />

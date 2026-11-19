@@ -128,7 +128,14 @@ const action = (path: string) => async (id: string, body?: unknown) =>
 export const confirmReservation = action('confirm')
 export const checkIn = action('check-in')
 export const checkOut = action('check-out')
-export const cancelReservation = (id: string, reason: string) => action('cancel')(id, { reason })
+/** D-053 : `refund_fcfa` confirme le remboursement de l'encaissé net (0 si rien n'a été encaissé). */
+export interface CancellationInput {
+  reason: string
+  refund_fcfa: number
+  refund_method: string | null
+}
+export const cancelReservation = (id: string, input: CancellationInput) =>
+  action('cancel')(id, input)
 
 export const replaceOccupants = async (
   id: string,
@@ -144,10 +151,13 @@ export const previewExtension = async (id: string, input: ExtensionInput) =>
     )
   ).data
 
-export const extendReservation = async (id: string, input: ExtensionInput) =>
-  (
-    await api.post<Envelope<Reservation>>(`/api/v1/reservations/${id}/extension`, {
-      ...input,
-      confirm: true,
-    })
-  ).data
+/** D-053 : si le séjour était facturé, le serveur émet dans la même opération la facture de remplacement. */
+export async function extendReservation(id: string, input: ExtensionInput) {
+  const response = await api.post<
+    Envelope<Reservation> & { meta?: { replacement_invoice_number: string | null } }
+  >(`/api/v1/reservations/${id}/extension`, { ...input, confirm: true })
+  return {
+    reservation: response.data,
+    replacementInvoiceNumber: response.meta?.replacement_invoice_number ?? null,
+  }
+}

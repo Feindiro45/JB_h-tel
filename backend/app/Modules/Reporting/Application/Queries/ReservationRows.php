@@ -39,6 +39,8 @@ final class ReservationRows
             'status' => $status->value,
             'status_label' => $status->label(),
             'net_fcfa' => (int) $row->net_fcfa,
+            // Une réservation annulée ne doit plus rien (D-035, D-053) : le prix reste visible pour mémoire.
+            'amount_due_fcfa' => $status === ReservationStatus::Cancelled ? 0 : (int) $row->net_fcfa,
         ];
     }
 }

@@ -8,6 +8,7 @@ use App\Modules\Reservations\Application\ExtensionPreview;
 use App\Modules\Reservations\Application\ReservationQuote;
 use App\Modules\Reservations\Domain\BlockedPeriod;
 use App\Modules\Reservations\Domain\PriceBreakdown;
+use App\Modules\Reservations\Domain\ReservationStatus;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Modules\RoomCatalog\Contracts\RoomSnapshot;
@@ -74,7 +75,10 @@ final class ReservationPresenter
                 $reservation->discount(),
                 $reservation->discount_fcfa,
                 $reservation->net_fcfa,
-            )),
+            )) + [
+                // Une réservation annulée ne doit plus rien (D-035, D-053) : le prix reste affiché pour mémoire.
+                'amount_due_fcfa' => $reservation->status === ReservationStatus::Cancelled ? 0 : $reservation->net_fcfa,
+            ],
             'occupants' => $reservation->relationLoaded('occupants')
                 ? $reservation->occupants->map(fn ($o) => ['id' => $o->uuid, 'name' => $o->name, 'is_primary' => $o->is_primary])->values()->all()
                 : null,

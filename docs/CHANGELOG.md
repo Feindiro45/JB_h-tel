@@ -4,6 +4,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Annulation et prolongation alignées sur la caisse et la facture — 20/11/2026 (D-053)
+- Corrigé : une réservation annulée restait comptée dans la caisse. L’annulation rembourse désormais intégralement ce qui a été encaissé, dans la même opération (montant confirmé, moyen au choix, droit de rembourser exigé), et annule la facture active par un avoir, que le séjour ait été payé ou non.
+- Montant dû à 0 pour une réservation annulée sur la fiche, le tableau de bord et les séjours du client, prix initial affiché pour mémoire. Les annulations antérieures encore payées apparaissent dans « Annulations à rembourser » de la caisse.
+- Prolongation d’un séjour facturé : l’ancienne facture est annulée par un avoir et une nouvelle facture, émise dans la même opération, détaille le séjour initial et la prolongation (« Facture remplaçant la facture n° … »). Chaque prolongation est enregistrée dans la nouvelle table `reservation_extensions`.
+- Tout ou rien : si le remboursement ou la facturation échoue, l’annulation ou la prolongation n’est pas enregistrée. 10 tests backend, 5 tests frontend, 21 contrôles contre un vrai serveur ; MCD complété (28 tables).
+- CI : les échecs des parcours navigateur sont publiés en annotations GitHub.
+
 ### Relecture finale avant envoi — 19/11/2026
 - Relecture des écrans d’administration, des filtres et des rapports produits en parallèle, puis de toute la suite : 183 tests backend, 74 tests frontend, 4 tests navigateur, Pint, Larastan, lint, Prettier, TypeScript et build verts.
 - Corrigé : la modification d’une catégorie de chambre renvoyait son code, que le serveur refuse en modification ; chaque enregistrement échouait en 422. Le code n’est plus envoyé, il apparaît dans le titre, et sa saisie à la création suit le format du serveur. Test ajouté.

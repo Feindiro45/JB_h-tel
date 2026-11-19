@@ -1,73 +1,63 @@
 # Rapport de travail — JB Hôtel
 
-**Date :** 19 novembre 2026, fin de soirée.
-**Objet :** relecture finale des phases 6C (administration), 6D (filtres et pagination) et 7 (rapports), puis envoi sur GitHub.
+**Date :** nuit du 19 au 20 novembre 2026.
+**Objet :** correction des deux écarts que tu as signalés entre les réservations, la caisse et les factures (décision D-053).
 
-## Ce qui est livré
+## Ce que tu as signalé
 
-**Administration (phase 6C).**
-- Chambres et catégories : création, modification, maintenance avec note, occupation actuelle affichée et filtrable.
-- Tarifs : grille en vigueur et programmée, publication immédiate ou datée avec motif, retrait d’un tarif programmé, historique avec l’ancien et le nouveau tarif.
-- Utilisateurs : liste filtrée, création, modification, activation et désactivation, droits de la caissière.
-- Paramètres : toutes les règles affichées avec leur statut (validée ou provisoire). Seuls le plafond de remise de la caissière et les moyens de paiement sont modifiables.
-- Journal d’audit : filtres par domaine, auteur et période, détail avant et après, sans identifiant interne.
+1. **Annulation.** Une réservation annulée restait comptée dans la caisse : ta réservation annulée à 23 h 18 avait 250 000 FCFA encaissés et aucun remboursement. Tu as précisé « pareil pour une réservation non payée » : une annulation ne doit plus rien laisser dans les montants.
+2. **Prolongation.** Après une prolongation, il faut une nouvelle facture qui contient les deux informations : le séjour initial et la prolongation.
 
-**Filtres et pagination (phase 6D).**
-- Recherche par client dans les réservations, les reçus et les factures.
-- Filtres par catégorie et par forfait sur les réservations ; par e-mail, ville et pays sur les clients.
-- 10, 25, 50 ou 100 lignes par page sur toutes les listes du serveur. Les tableaux secondaires ont leur propre recherche et leur propre pagination.
+Tu as choisi de rembourser au moment de l'annulation, et de remplacer la facture automatiquement à la prolongation.
 
-**Rapports (phase 7).** Facturé, encaissé et réservé y sont présentés séparément, avec des filtres et des exports CSV et PDF réservés au droit d’export.
+## Ce qui change
 
-## Relecture finale
+### Annuler une réservation
 
-Une autre session a travaillé en même temps que moi dans le dépôt. J’ai attendu qu’elle termine, puis j’ai relu les écrans d’administration et je les ai comparés aux règles de validation du serveur.
+Tout se fait en une seule opération : si une étape échoue, rien n'est enregistré.
 
-**Défaut trouvé et corrigé.** La modification d’une catégorie de chambre renvoyait son code, alors que le serveur interdit de le changer. Chaque enregistrement échouait donc avec « données invalides ». Désormais :
-- le code n’est plus envoyé lors d’une modification ;
-- il est rappelé dans le titre du formulaire ;
-- à la création, sa saisie est contrôlée au même format que le serveur (majuscules, chiffres ou « _ »).
+- **Si le séjour a été payé :**
+  - la fenêtre affiche le montant encaissé et propose « Annuler et rembourser X FCFA » ;
+  - le remboursement est intégral, avec un remboursement par reçu et le moyen de ton choix (par défaut, celui du versement) ;
+  - les reçus d'origine restent dans l'historique ;
+  - la caisse n'est plus touchée pour ce séjour : l'encaissé et le remboursement s'annulent.
+- **Qui peut le faire :** un séjour payé ne peut être annulé que par un compte autorisé à rembourser, aujourd'hui l'administrateur. La caissière voit pourquoi elle ne peut pas le faire.
+- **Si le séjour n'a pas été payé :** la caissière peut toujours l'annuler. S'il avait une facture, elle est annulée par un avoir, et le facturé du mois revient donc à zéro pour ce séjour.
+- **Montant dû :** il passe à **0 FCFA** sur la fiche, le tableau de bord et les séjours du client. Le prix initial reste affiché pour mémoire.
+- **Annulations faites avant cette correction** (comme ta réservation à 250 000 FCFA) : elles apparaissent dans la caisse, sous « Annulations à rembourser ». Le lien mène au séjour, où l'administrateur rembourse depuis les reçus.
 
-Un test reproduit le cas.
+### Prolonger un séjour déjà facturé
 
-**Suivi corrigé.** Des lignes du suivi (UUID de la caisse et des factures, catalogue de la phase 3) étaient restées non cochées alors que ces travaux sont faits et testés depuis longtemps. Elles sont maintenant cochées.
+Ces trois étapes se font dans la même opération :
+1. l'ancienne facture est annulée par un avoir ;
+2. une nouvelle facture est émise, avec une ligne pour le séjour initial et une ligne pour la prolongation (dates, quantité, prix) ;
+3. elle porte la mention « Facture remplaçant la facture n° … ».
+
+La fenêtre de prolongation l'annonce avant la validation, puis indique le numéro de la nouvelle facture. Le facturé du mois ne compte pas deux fois le même séjour.
+
+Si le séjour n'était pas encore facturé, aucune facture n'est créée à la prolongation ; la facture émise ensuite sera détaillée de la même façon. Chaque prolongation est désormais conservée, et ne peut être ni modifiée ni supprimée.
 
 ## Vérifications effectuées
 
 | Contrôle | Résultat |
 |---|---|
-| Tests backend (MariaDB `jb_hotel_test`) | 183 réussis, 1 281 assertions |
+| Tests backend | 193 réussis (+10), 1 394 assertions |
 | Pint, Larastan niveau 6 | sans erreur |
-| Tests frontend | 74 réussis (+1 : modification de catégorie) |
-| Lint, Prettier, TypeScript, build | verts (avertissement non bloquant : bundle d’environ 508 Ko) |
-| Tests navigateur (base isolée `jb_hotel_e2e`) | 4 réussis, puis le parcours principal rejoué après la correction |
-| Contrats réels de l’administration et des filtres | 60 contrôles verts avec une vraie session, sur `jb_hotel_e2e` |
-| Serveur de développement actif (5173) | `check:dev` vert, version corrigée servie |
+| Tests frontend | 79 réussis (+5) |
+| Lint, Prettier, TypeScript, build | verts |
+| Contrôles contre un vrai serveur (base de recette `jb_hotel_e2e`) | 21 verts |
+| Rendu de la facture de remplacement | inspecté : bandeau « remplace », deux lignes, sous-total égal à leur somme |
 
-Les contrats réels couvrent :
-- catégories et chambres ;
-- maintenance et retour en service ;
-- tarif immédiat puis tarif daté (au format du navigateur), grille, historique et retrait ;
-- création et désactivation d’un utilisateur sans mot de passe ;
-- droits de la caissière ;
-- paramètre réglable modifié, paramètre non réglable refusé ;
-- audit ;
-- recherche par client dans quatre listes ;
-- lignes par page, une valeur non prévue étant ramenée à 25 ;
-- refus pour la caissière.
+Deux tests simulent une panne de la facturation : l'annulation ou la prolongation est alors entièrement annulée, remboursements compris.
 
-Le limiteur de débit a aussi été observé en relançant trop vite.
+**Ta base de travail :** j'y ai seulement ajouté la nouvelle table des prolongations, sans réinitialisation ; tes données sont intactes. J'ai vérifié en simulation que cette migration peut être annulée.
 
-Aucune base de travail n’a été réinitialisée. Les comptes et tarifs de contrôle ont été créés uniquement dans la base de recette.
+## CI GitHub
+
+Lors du dernier envoi, les tests backend sur MySQL 8.4 et tout le frontend étaient verts. Seule l'étape « parcours navigateur » de la CI a échoué. Son journal demande les droits d'administrateur du dépôt pour être lu. J'ai donc configuré Playwright pour publier chaque échec dans les annotations GitHub, qui sont lisibles publiquement. Le prochain passage dira précisément ce qui échoue.
 
 ## Ce qui reste
 
-- **Validation par l’hôtel** des questions P1 (Q-01, Q-02, Q-03, Q-07, Q-08, Q-09) avant la mise en production.
-- **Serveur d’envoi d’e-mails** (Q-22) et **mentions légales** de la facture.
-- **Impression sur l’imprimante de l’hôtel**, et ta revue visuelle sur http://localhost:5173.
-- **CI GitHub** sur MySQL 8.4, à confirmer après cet envoi.
-- **Modification d’une réservation** (changement de chambre ou de dates, hors prolongation) : pas encore faite.
-
-## Remarque d’architecture, sans effet sur le fonctionnement
-
-Les listes d’agents (`/cash-agents`, `/report-agents`, `/audit-actors`) sont écrites trois fois dans les routes et lisent directement les comptes utilisateurs. Le compte utilisateur est déjà partagé entre modules comme auteur des opérations, donc la règle n’est pas cassée. Ces trois listes pourront être regroupées derrière un contrat du module Identity lors d’un prochain passage.
+- **Frais d'annulation :** aucuns frais ne sont retenus. Si l'hôtel veut garder une partie de l'argent, c'est la question Q-14, qui reste à trancher.
+- **Validations P1 de l'hôtel**, adresse SMTP, mentions légales, impression papier.
+- **Modification d'une réservation** (changement de chambre ou de dates, hors prolongation) : pas encore faite.
