@@ -2,11 +2,16 @@
 
 namespace Tests\Feature\Notifications;
 
+use App\Modules\Billing\Contracts\InvoiceDocument;
+use App\Modules\Billing\Contracts\InvoiceDocuments;
+use App\Modules\Billing\Infrastructure\EloquentInvoiceDocuments;
 use App\Modules\Notifications\Mail\StayMail;
 use App\Shared\Audit\AuditLog;
+use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use LogicException;
 use Tests\Concerns\BuildsHotel;
 use Tests\TestCase;
 
@@ -78,7 +83,7 @@ class CustomerNotificationTest extends TestCase
             $attachment = $mail->attachments()[0];
             $this->assertSame('FAC-2026-000001.pdf', $attachment->as);
             $this->assertSame('application/pdf', $attachment->mime);
-            $this->assertStringStartsWith('%PDF', $mail->message->attachments[0]['data']);
+            $this->assertStringStartsWith('%PDF', $attachment->attachWith(fn (string $path) => $path, fn (Closure $data) => $data()));
             $this->assertStringContainsString('/verification/factures/', (string) $mail->message->actionUrl);
 
             return true;
@@ -140,5 +145,31 @@ class CustomerNotificationTest extends TestCase
         $this->actingAs($this->cashier)->patchJson("/api/v1/customers/{$this->customer->uuid}", ['email_notifications' => false])
             ->assertOk()
             ->assertJsonPath('data.email_notifications', false);
+    }
+
+    /** Le PDF (rendu dompdf de plusieurs secondes) n'est produit que si un e-mail part réellement. */
+    public function test_invoice_pdf_is_not_rendered_when_the_customer_cannot_be_emailed(): void
+    {
+        $this->customer->forceFill(['email' => null])->save();
+        $documents = $this->app->make(EloquentInvoiceDocuments::class);
+        $this->app->bind(InvoiceDocuments::class, fn () => new class($documents) implements InvoiceDocuments
+        {
+            public function __construct(private readonly EloquentInvoiceDocuments $documents) {}
+
+            public function find(int $invoiceId): ?InvoiceDocument
+            {
+                $document = $this->documents->find($invoiceId);
+
+                return $document === null ? null : new InvoiceDocument(
+                    $document->reservationId, $document->isCreditNote, $document->typeLabel, $document->number,
+                    $document->netFcfa, $document->creditedNumber, $document->verificationUrl,
+                    fn (): string => throw new LogicException('Le PDF ne doit pas être rendu sans destinataire.'),
+                );
+            }
+        });
+        $reservation = $this->bookOk();
+
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$reservation}/invoices")->assertCreated();
+        Mail::assertNothingSent();
     }
 }

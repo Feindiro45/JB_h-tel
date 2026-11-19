@@ -4,6 +4,11 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### CI des parcours navigateur — 20/11/2026
+- Annotations GitHub : chaque échec Playwright et les dernières erreurs du journal Laravel sont publiés (le journal d’exécution exige les droits d’administrateur du dépôt).
+- Performance : le PDF d’une facture n’est plus rendu pour une notification qui ne partira pas (client sans e-mail) ; l’émission redevient immédiate au lieu d’environ 4 secondes, et 8 pour une prolongation facturée.
+- Recette : serveur PHP à 4 processus sous Linux (`--no-reload`), parcours complet limité à 2 minutes.
+
 ### Annulation et prolongation alignées sur la caisse et la facture — 20/11/2026 (D-053)
 - Corrigé : une réservation annulée restait comptée dans la caisse. L’annulation rembourse désormais intégralement ce qui a été encaissé, dans la même opération (montant confirmé, moyen au choix, droit de rembourser exigé), et annule la facture active par un avoir, que le séjour ait été payé ou non.
 - Montant dû à 0 pour une réservation annulée sur la fiche, le tableau de bord et les séjours du client, prix initial affiché pour mémoire. Les annulations antérieures encore payées apparaissent dans « Annulations à rembourser » de la caisse.

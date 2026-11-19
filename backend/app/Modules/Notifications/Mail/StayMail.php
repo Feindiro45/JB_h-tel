@@ -38,7 +38,7 @@ final class StayMail extends Mailable
     public function attachments(): array
     {
         return array_map(
-            fn (array $file) => Attachment::fromData(fn () => $file['data'], $file['name'])->withMime($file['mime']),
+            fn (array $file) => Attachment::fromData(fn (): string => is_string($file['data']) ? $file['data'] : ($file['data'])(), $file['name'])->withMime($file['mime']),
             $this->message->attachments,
         );
     }

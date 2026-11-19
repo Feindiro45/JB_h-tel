@@ -91,6 +91,17 @@ jobs:
           DB_DATABASE: jb_hotel_test
         run: npm run test:e2e
 
+      # Les journaux d'exécution exigent les droits d'administrateur du dépôt ; les annotations,
+      # elles, sont publiques : on y publie les dernières erreurs serveur en cas d'échec.
+      - name: Erreurs serveur en annotations (échec)
+        if: failure()
+        run: |
+          if [ -f storage/logs/laravel.log ]; then
+            grep -E '\.(ERROR|CRITICAL|ALERT|EMERGENCY):' storage/logs/laravel.log | tail -n 8 | while IFS= read -r line; do
+              echo "::warning title=laravel.log::${line:0:900}"
+            done
+          fi
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

@@ -12,6 +12,8 @@ const { password } = JSON.parse(
 test('connexion réelle, administration, réservation avec avance, facture, rapports et accès', async ({
   page,
 }) => {
+  // Parcours complet : réservation, facture, cinq audits Axe, deux exports et trois largeurs d'écran.
+  test.setTimeout(120_000)
   await page.goto('/connexion')
   await page.getByLabel('Adresse e-mail').fill('admin@jbhotel.local')
   await page.getByLabel('Mot de passe', { exact: true }).fill(password)

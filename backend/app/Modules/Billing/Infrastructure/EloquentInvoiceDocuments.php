@@ -31,7 +31,7 @@ final class EloquentInvoiceDocuments implements InvoiceDocuments
             netFcfa: $invoice->net_fcfa,
             creditedNumber: $invoice->creditedInvoice?->invoice_number,
             verificationUrl: $this->verification->url($invoice),
-            pdf: $this->renderer->bytes($invoice),
+            renderPdf: fn (): string => $this->renderer->bytes($invoice),
         );
     }
 }

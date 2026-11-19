@@ -390,7 +390,16 @@
 - [x] Contrats réels sur `jb_hotel_e2e` : **21 contrôles verts** (refus caissière 403, montant 409, annulation remboursée, caisse du jour, avoir de la non payée, facture de remplacement à deux lignes, PDF) ; rendu de la facture de remplacement inspecté
 - [x] Base de travail : migration additive `reservation_extensions` appliquée sans réinitialisation (retour arrière vérifié en simulation)
 - [x] Documentation : D-053 (D-035 marquée remplacée), Q-14, SCHEMA, MCD (28 tables), CHANGELOG, CLAUDE.md
-- [ ] CI : détail des échecs navigateur publié en annotations (journal GitHub non lisible sans droits d’administrateur), puis CI verte
+- [~] CI : échecs navigateur publiés en annotations (journal GitHub illisible sans droits d’administrateur) ; causes trouvées : PDF de chaque facture rendu pour rien quand le client n’a pas d’e-mail (~4 s par facture, désormais produit seulement à l’envoi), parcours complet trop long pour 60 s (2 min), serveur PHP de recette à un seul processus (4 processus sous Linux) ; erreurs serveur publiées en annotations ; nouvelle CI à confirmer
+
+### 6M — Envoi réel des e-mails (demande du 20/11/2026)
+> Choix de l’utilisateur : vrai envoi par le SMTP de l’hébergeur de l’hôtel, alerte à chaque connexion, e-mail de bienvenue à la création d’un compte.
+- [ ] SMTP de l’hébergeur : réglages documentés dans `.env.example` et EXPLOITATION, sans secret dans Git
+- [ ] Test d’envoi : commande `jb:mail-test` et bouton dans Paramètres (état de l’envoi, file d’attente)
+- [ ] Alerte de connexion au membre du personnel (date, heure, adresse IP, navigateur)
+- [ ] Création de compte : e-mail de bienvenue, lien pour choisir son mot de passe si aucun n’est saisi ; renvoi de l’invitation
+- [ ] Écran public « Choisir mon mot de passe »
+- [ ] Tests et vérification d’un vrai envoi SMTP (serveur SMTP local de capture)
 
 ## Phase 7 — Reporting ✅
 

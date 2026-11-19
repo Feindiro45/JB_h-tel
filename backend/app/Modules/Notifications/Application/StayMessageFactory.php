@@ -120,7 +120,7 @@ final class StayMessageFactory
             ],
             'Vérifier ce document',
             $document->verificationUrl,
-            [['name' => "{$document->number}.pdf", 'data' => $document->pdf, 'mime' => 'application/pdf']],
+            [['name' => "{$document->number}.pdf", 'data' => $document->pdf(...), 'mime' => 'application/pdf']],
         );
     }
 
