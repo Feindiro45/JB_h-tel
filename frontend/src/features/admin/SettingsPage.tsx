@@ -197,6 +197,14 @@ function MailPanel() {
       void cache.invalidateQueries({ queryKey: ['admin', 'settings/mail'] })
     },
   })
+  // Après correction du serveur SMTP : remet en file les envois classés en échec (D-054).
+  const retry = useMutation({
+    mutationFn: () => api.post<{ message: string }>('/api/v1/settings/mail/retry'),
+    onSuccess: (response) => {
+      notify(response.message)
+      void cache.invalidateQueries({ queryKey: ['admin', 'settings/mail'] })
+    },
+  })
   const mail = status.data?.data
   return (
     <Panel
@@ -238,6 +246,23 @@ function MailPanel() {
               Des e-mails attendent leur envoi : le service d’envoi en arrière-plan doit tourner sur
               le serveur (commande « php artisan queue:work »).
             </p>
+          )}
+          {(mail.queue.failed ?? 0) > 0 && (
+            <div className="notice" role="status">
+              <p>
+                {mail.queue.failed} envoi(s) n’ont pas pu partir après 24 h d’essais. Une fois le
+                serveur d’envoi corrigé (e-mail de test réussi), relancez-les.
+              </p>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => retry.mutate()}
+                disabled={retry.isPending}
+              >
+                <Icon name={retry.isPending ? 'loader' : 'refresh'} size={17} />
+                Relancer les envois en échec
+              </button>
+            </div>
           )}
           <form
             className="filterbar"

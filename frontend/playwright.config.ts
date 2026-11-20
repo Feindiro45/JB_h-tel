@@ -23,6 +23,8 @@ export default defineConfig({
       url: 'http://localhost:8011/api/v1/health',
       env: {
         APP_ENV: 'local',
+        // Le test visuel enchaîne des pages bien plus vite qu'un humain : pas de limite de 120/min.
+        API_RATE_LIMIT_PER_MINUTE: '1000',
         APP_URL: 'http://localhost:8011',
         DB_DATABASE: 'jb_hotel_e2e',
         DB_URL: '',

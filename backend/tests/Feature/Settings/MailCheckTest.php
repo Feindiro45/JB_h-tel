@@ -2,12 +2,18 @@
 
 namespace Tests\Feature\Settings;
 
+use App\Modules\Cashier\Events\PaymentRecorded;
+use App\Modules\Identity\Listeners\SendStaffEmails;
 use App\Modules\Identity\Models\User;
+use App\Modules\Notifications\Listeners\NotifyCustomer;
 use App\Modules\Settings\Mail\MailTestMail;
 use App\Shared\Audit\AuditLog;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\Middleware\ThrottlesExceptions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /** Envoi des e-mails (6M) : état de la configuration, e-mail de test et explications en français. */
@@ -98,5 +104,37 @@ class MailCheckTest extends TestCase
             ->assertSuccessful();
         $this->artisan('jb:mail-test', ['to' => 'pas-une-adresse'])->assertExitCode(2);
         Mail::assertSent(MailTestMail::class, 1);
+    }
+
+    /** D-054 : un envoi n'est jamais perdu, et un SMTP qui refuse n'est pas sollicité en boucle. */
+    public function test_mail_listeners_retry_for_a_day_and_pause_together_when_smtp_fails(): void
+    {
+        foreach ([NotifyCustomer::class, SendStaffEmails::class] as $listener) {
+            $instance = $this->app->make($listener);
+            $this->assertInstanceOf(ThrottlesExceptions::class, $instance->middleware()[0], $listener);
+            $this->assertTrue($instance->retryUntil()->getTimestamp() >= now()->addHours(23)->getTimestamp(), $listener);
+        }
+    }
+
+    public function test_failed_sends_are_put_back_in_the_queue(): void
+    {
+        config(['queue.default' => 'database']);
+        event(new PaymentRecorded(999));
+        $job = DB::table('jobs')->sole();
+        DB::table('jobs')->delete();
+        DB::table('failed_jobs')->insert([
+            'uuid' => (string) Str::uuid(), 'connection' => 'database', 'queue' => $job->queue,
+            'payload' => $job->payload, 'exception' => 'Expected response code "235" but got code "535"', 'failed_at' => now(),
+        ]);
+        $this->actingAs($this->admin)->getJson('/api/v1/settings/mail')->assertJsonPath('data.queue.failed', 1);
+
+        $this->actingAs($this->admin)->postJson('/api/v1/settings/mail/retry')
+            ->assertOk()->assertJsonPath('message', '1 envoi relancé.')
+            ->assertJsonPath('data.queue.failed', 0)
+            ->assertJsonPath('data.queue.pending', 1);
+        $this->actingAs($this->admin)->postJson('/api/v1/settings/mail/retry')
+            ->assertOk()->assertJsonPath('message', 'Aucun envoi en échec à relancer.');
+        $this->assertSame(2, AuditLog::query()->where('action', 'mail.retry_requested')->count());
+        $this->actingAs(User::factory()->cashier()->create())->postJson('/api/v1/settings/mail/retry')->assertForbidden();
     }
 }

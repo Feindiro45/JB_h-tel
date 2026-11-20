@@ -11,6 +11,7 @@ import { Modal } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatFcfa, todayIso } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
+import { calendarDaysBetween } from './calendarDays'
 import { recordPayment } from '../cashier'
 import { createCustomer, customersQuery } from '../customers'
 import {
@@ -51,7 +52,14 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
     end_time: '',
   })
   const [unit, setUnit] = useState<'DAY' | 'HALF_DAY'>('DAY')
-  const [quantity, setQuantity] = useState('1')
+  const [halfDayQuantity, setHalfDayQuantity] = useState('1')
+  const dayDifference = calendarDaysBetween(period.start_date, period.end_date)
+  const quantity =
+    unit === 'DAY'
+      ? dayDifference === null
+        ? ''
+        : String(Math.max(1, dayDifference))
+      : halfDayQuantity
   const [chosenRoomId, setRoomId] = useState('')
   const [discount, setDiscount] = useState<{ type: DiscountType; value: string; reason: string }>({
     type: 'NONE',
@@ -83,6 +91,8 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
     queryKey: ['free-rooms', periodParams, Math.max(1, occupants.length)],
     queryFn: () => freeRooms({ ...periodParams, min_capacity: Math.max(1, occupants.length) }),
     enabled: periodValid,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
     meta: { silentError: true },
   })
 
@@ -110,6 +120,7 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
     roomId !== '' &&
     periodValid &&
     Number(quantity) >= 1 &&
+    Number(quantity) <= 365 &&
     occupants.length > 0 &&
     (discount.type === 'NONE' || (discount.value !== '' && discount.reason.trim() !== ''))
   const quote = useQuery({
@@ -169,8 +180,8 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
     if (!periodValid) next.end_date = 'La date de départ doit suivre la date d’arrivée.'
     if (period.start_date < today) next.start_date = 'La date d’arrivée ne peut pas être passée.'
     if (!roomId) next.room = 'Choisissez une chambre libre.'
-    if (!(Number(quantity) >= 1) || !Number.isInteger(Number(quantity)))
-      next.quantity = 'Quantité entière, au moins 1.'
+    if (!(Number(quantity) >= 1) || Number(quantity) > 365 || !Number.isInteger(Number(quantity)))
+      next.quantity = 'La quantité doit être comprise entre 1 et 365.'
     if (discount.type !== 'NONE') {
       if (!(Number(discount.value) > 0)) next.discount_value = 'Saisissez la valeur de la remise.'
       if (!discount.reason.trim()) next.discount_reason = 'Le motif de la remise est obligatoire.'
@@ -374,12 +385,19 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
             <option value="HALF_DAY">Demi-journée (12 h au plus)</option>
           </SelectField>
           <TextField
-            label="Quantité"
+            label={unit === 'DAY' ? 'Nombre de jours' : 'Quantité de demi-journées'}
             type="number"
             min={1}
+            max={365}
             step={1}
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            readOnly={unit === 'DAY'}
+            onChange={(e) => setHalfDayQuantity(e.target.value)}
+            hint={
+              unit === 'DAY'
+                ? 'Calcul automatique entre les dates, avec une journée minimum pour un séjour le même jour.'
+                : 'Chaque forfait couvre au plus 12 heures ; tout supplément doit être validé.'
+            }
             error={errors.quantity}
             required
           />

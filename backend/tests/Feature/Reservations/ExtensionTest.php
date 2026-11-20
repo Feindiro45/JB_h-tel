@@ -101,7 +101,7 @@ class ExtensionTest extends TestCase
 
     public function test_finished_stay_or_earlier_end_cannot_be_extended(): void
     {
-        $id = $this->bookOk(['start_date' => '2026-12-02', 'end_date' => '2026-12-03', 'quantity' => 2]);
+        $id = $this->bookOk(['start_date' => '2026-12-02', 'end_date' => '2026-12-03', 'quantity' => 1]);
 
         $this->actingAs($this->cashier)
             ->postJson("/api/v1/reservations/{$id}/extension/preview", ['end_date' => '2026-12-02', 'additional_quantity' => 0])

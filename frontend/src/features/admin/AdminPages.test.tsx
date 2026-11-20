@@ -287,7 +287,11 @@ describe('Administration', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /Utilisateur/ }))
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByLabelText('Mot de passe')).not.toBeRequired()
+    expect(within(dialog).getByLabelText('Mot de passe (facultatif)')).not.toBeRequired()
+    expect(within(dialog).getByLabelText('Confirmer le mot de passe')).not.toBeRequired()
+    expect(within(dialog).getByLabelText('Mot de passe (facultatif)')).toHaveAccessibleDescription(
+      'Laissez vide pour envoyer automatiquement un lien permettant à l’utilisateur de choisir son mot de passe.',
+    )
     await user.type(within(dialog).getByLabelText('Nom'), 'Nadia Kossi')
     await user.type(within(dialog).getByLabelText('Adresse e-mail'), 'nadia@hotel.cf')
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
@@ -309,5 +313,26 @@ describe('Administration', () => {
       }),
     )
     expect(await screen.findByText(`Invitation envoyée à ${account.email}.`)).toBeInTheDocument()
+  })
+  it('relance les envois en échec une fois le serveur d’envoi corrigé', async () => {
+    const calls = mockApi({
+      ...defaults,
+      'GET /api/v1/settings': { body: { data: [] } },
+      'GET /api/v1/settings/mail': {
+        body: { data: { ...MAIL, queue: { ...MAIL.queue, pending: 0, failed: 2 } } },
+      },
+      'POST /api/v1/settings/mail/retry': {
+        body: { message: '2 envois relancés.', data: MAIL },
+      },
+    })
+    renderApp('/admin/parametres')
+    const panel = await screen.findByRole('region', { name: 'Envoi des e-mails' })
+    expect(await within(panel).findByText(/2 envoi\(s\) n’ont pas pu partir/)).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(within(panel).getByRole('button', { name: 'Relancer les envois en échec' }))
+    expect(await screen.findByText('2 envois relancés.')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/settings/mail/retry')).toBe(
+      true,
+    )
   })
 })

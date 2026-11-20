@@ -58,17 +58,19 @@ export function UsersPage() {
     },
     {
       name: 'password',
-      label: 'Mot de passe',
+      label: editing === 'new' ? 'Mot de passe (facultatif)' : 'Mot de passe',
       type: 'password',
       hint:
         editing === 'new'
-          ? 'Facultatif. Laissé vide, la personne reçoit un e-mail pour choisir elle-même son mot de passe.'
+          ? 'Laissez vide pour envoyer automatiquement un lien permettant à l’utilisateur de choisir son mot de passe.'
           : 'Au moins 10 caractères, avec lettres et chiffres. Laisser vide pour conserver le mot de passe actuel.',
     },
     {
       name: 'password_confirmation',
       label: 'Confirmer le mot de passe',
       type: 'password',
+      hint:
+        editing === 'new' ? 'À remplir uniquement si vous saisissez un mot de passe.' : undefined,
     },
   ]
   return (

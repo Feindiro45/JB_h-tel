@@ -1,0 +1,91 @@
+/* D-058 : page de connexion sobre, centrée et sans image. */
+.auth.auth--simple {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  min-height: 100svh;
+  padding: 32px 20px;
+  background: #f5f7f6;
+}
+.auth--simple .auth-panel {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+}
+.auth--simple .auth-panel > div {
+  width: min(100%, 440px);
+  padding: 36px;
+  background: #fff;
+  border: 1px solid #dce5e0;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px #15382b08;
+}
+.auth--simple .login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 30px;
+  color: #164b39;
+  font-size: 1.15rem;
+  font-weight: 750;
+}
+.auth--simple .login-monogram {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #e7f3ec;
+  color: #006c43;
+  font:
+    700 21px Georgia,
+    serif;
+}
+.auth--simple .auth-panel h1 {
+  margin: 0 0 10px;
+  color: #152c24;
+  font-size: clamp(1.5rem, 4vw, 1.8rem);
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+.auth--simple .auth-panel .lead {
+  margin: 0 0 28px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.auth--simple .auth-form {
+  gap: 20px;
+}
+.auth--simple .auth-panel input {
+  min-height: 48px;
+  font-size: 0.95rem;
+}
+.auth--simple .login-password {
+  display: grid;
+  gap: 4px;
+}
+.auth--simple .login-password > button {
+  justify-self: end;
+  min-height: 32px;
+  padding: 4px 0 4px 8px;
+  font-size: 0.78rem;
+  color: #175d99;
+  background: transparent;
+}
+.auth--simple .auth-form > button[type='submit'] {
+  min-height: 48px;
+  width: 100%;
+  font-size: 0.95rem;
+  background: #007c46;
+}
+.auth--simple .auth-form > button[type='submit']:hover:not(:disabled) {
+  background: #006538;
+}
+@media (max-width: 480px) {
+  .auth.auth--simple {
+    padding: 24px 16px;
+  }
+  .auth--simple .auth-panel > div {
+    padding: 28px 22px;
+  }
+}

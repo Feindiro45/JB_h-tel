@@ -29,7 +29,9 @@ class AppServiceProvider extends ServiceProvider
         // Données financières : bloque migrate:fresh, db:wipe… en production.
         DB::prohibitDestructiveCommands($this->app->isProduction());
 
-        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)
+        // 120 requêtes par minute et par utilisateur ; réglable (API_RATE_LIMIT_PER_MINUTE), la
+        // recette navigateur enchaînant des pages bien plus vite qu'un humain.
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute((int) config('jbhotel.api_rate_limit', 120))
             ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
     }
 }

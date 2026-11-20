@@ -138,8 +138,30 @@ class Reservation extends Model
     public function scopeBlocking(Builder $query, int $roomId, \DateTimeInterface $from, \DateTimeInterface $until): Builder
     {
         return $query->where('room_id', $roomId)
-            ->whereIn('status', ReservationStatus::blockingValues())
+            ->overlapping($from, $until);
+    }
+
+    /**
+     * D-056 : après le départ prévu, une occupation sans départ enregistré reste bloquante.
+     *
+     * @param  Builder<Reservation>  $query
+     * @return Builder<Reservation>
+     */
+    public function scopeOverlapping(Builder $query, \DateTimeInterface $from, \DateTimeInterface $until): Builder
+    {
+        return $query->whereIn('status', ReservationStatus::blockingValues())
             ->where('blocked_from', '<', $until)
-            ->where('blocked_until', '>', $from);
+            ->where(fn (Builder $q) => $q->where('blocked_until', '>', $from)
+                ->orWhere(fn (Builder $overdue) => $overdue->overdue()));
+    }
+
+    /**
+     * @param  Builder<Reservation>  $query
+     * @return Builder<Reservation>
+     */
+    public function scopeOverdue(Builder $query, ?\DateTimeInterface $at = null): Builder
+    {
+        return $query->where('status', ReservationStatus::InProgress->value)
+            ->where('blocked_until', '<=', $at ?? now());
     }
 }

@@ -90,6 +90,8 @@ final class ReservationLifecycleService
     public function checkOut(Reservation $reservation, User $actor): Reservation
     {
         return DB::transaction(function () use ($reservation, $actor): Reservation {
+            // Même ordre de verrouillage que la réservation et la prolongation (D-056).
+            $this->rooms->lockForReservation($reservation->room_id) ?? throw ReservationQuoter::roomNotFound();
             $reservation = $this->lock($reservation);
             if ($reservation->status !== ReservationStatus::InProgress) {
                 throw self::invalidStatus($reservation, 'enregistrer le départ');

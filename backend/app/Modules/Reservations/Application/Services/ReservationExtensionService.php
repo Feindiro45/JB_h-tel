@@ -7,6 +7,7 @@ use App\Modules\Reservations\Application\ExtensionOutcome;
 use App\Modules\Reservations\Application\ExtensionPreview;
 use App\Modules\Reservations\Application\ReservationSnapshot;
 use App\Modules\Reservations\Contracts\StayInvoicing;
+use App\Modules\Reservations\Domain\Billing\CalendarDayQuantity;
 use App\Modules\Reservations\Domain\BlockedPeriod;
 use App\Modules\Reservations\Domain\Contracts\RoomAvailability;
 use App\Modules\Reservations\Domain\PriceBreakdown;
@@ -15,6 +16,7 @@ use App\Modules\Reservations\DTO\ExtensionData;
 use App\Modules\Reservations\Events\ReservationExtended;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Reservations\Models\ReservationExtension;
+use App\Modules\RoomCatalog\Contracts\BillingUnit;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
@@ -60,6 +62,19 @@ final class ReservationExtensionService
                 422,
                 'extension_not_later',
             );
+        }
+
+        // D-055 : seule la différence entre les départs est ajoutée, sans recalculer l'historique.
+        if ($reservation->billing_unit === BillingUnit::Day) {
+            $additionalQuantity = CalendarDayQuantity::between($reservation->end_date->toDateString(), $data->endDate);
+            if ($data->additionalQuantity !== $additionalQuantity) {
+                throw new BusinessRuleException(
+                    "Le nombre de jours à ajouter calculé entre les dates de départ est de {$additionalQuantity}.",
+                    'Nombre de jours incohérent',
+                    422,
+                    'day_quantity_mismatch',
+                );
+            }
         }
 
         $quantity = $reservation->quantity + $data->additionalQuantity;

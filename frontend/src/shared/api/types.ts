@@ -92,6 +92,7 @@ export interface Reservation {
   id: string
   status: string
   status_label: string
+  departure_overdue?: boolean
   room: RoomBrief | null
   customer: { id: string; full_name: string; phone: string | null } | null
   period: {

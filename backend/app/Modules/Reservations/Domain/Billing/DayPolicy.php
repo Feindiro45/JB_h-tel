@@ -3,8 +3,8 @@
 namespace App\Modules\Reservations\Domain\Billing;
 
 /**
- * Journée : la définition exacte (durée, plage, arrondis) n'est pas validée (Q-01). En attendant,
- * l'application n'impose aucune règle de durée : la caissière choisit la quantité (D-009, provisoire).
+ * D-055 : la quantité vient de l'écart entre les dates civiles, pas de la durée en minutes.
+ * Aucun horaire ni arrondi horaire n'est imposé (partie restante de Q-01).
  */
 final class DayPolicy implements BillingUnitPolicy
 {

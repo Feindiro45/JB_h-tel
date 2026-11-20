@@ -36,7 +36,7 @@ class AvailabilityTest extends TestCase
 
     public function test_period_states_are_computed_from_reservations_and_maintenance(): void
     {
-        $this->bookOk(['start_date' => '2026-12-02', 'end_date' => '2026-12-03', 'quantity' => 2]);
+        $this->bookOk(['start_date' => '2026-12-02', 'end_date' => '2026-12-03', 'quantity' => 1]);
 
         $this->assertSame(['101' => 'RESERVED', '102' => 'FREE'], $this->states(['start_date' => '2026-12-03', 'end_date' => '2026-12-03']));
         $this->assertSame(['101' => 'FREE', '102' => 'FREE'], $this->states(['start_date' => '2026-12-04', 'end_date' => '2026-12-04']));

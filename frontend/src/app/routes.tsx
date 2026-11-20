@@ -5,7 +5,12 @@ import { CashierPage, ReceiptPage } from '../features/cashier'
 import { CustomerDetailPage, CustomersPage } from '../features/customers'
 import { DashboardPage } from '../features/dashboard'
 import { DocumentsPage } from '../features/invoices'
-import { PlanningPage, ReservationDetailPage, ReservationsPage } from '../features/reservations'
+import {
+  AlertsPage,
+  PlanningPage,
+  ReservationDetailPage,
+  ReservationsPage,
+} from '../features/reservations'
 import { StatusPage } from '../features/system'
 import { RoomsPage, RatesPage, UsersPage, SettingsPage, AuditPage } from '../features/admin'
 import { ReportsPage } from '../features/reports'
@@ -44,6 +49,7 @@ export const routes: RouteObject[] = [
       { index: true, element: <Landing /> },
       { path: 'tableau-de-bord', element: guarded('reports.view', <DashboardPage />) },
       { path: 'reservations', element: guarded('reservations.view', <ReservationsPage />) },
+      { path: 'alertes', element: guarded('reservations.view', <AlertsPage />) },
       {
         path: 'reservations/:id',
         element: guarded('reservations.view', <ReservationDetailPage />),

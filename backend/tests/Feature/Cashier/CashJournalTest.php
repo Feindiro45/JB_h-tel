@@ -21,7 +21,7 @@ class CashJournalTest extends TestCase
         parent::setUp();
         $this->buildHotel();
         // Chambre 101 VIP, deux journées : 100 000 FCFA.
-        $this->stay = $this->bookOk(['end_date' => '2026-12-02', 'quantity' => 2]);
+        $this->stay = $this->bookOk(['end_date' => '2026-12-03', 'quantity' => 2]);
         $this->cashPayment = $this->pay($this->stay, 20000, 'CASH');
         $this->pay($this->stay, 30000, 'MOBILE_MONEY', 'MM-778');
         $cancelled = $this->pay($this->stay, 10000, 'CASH');

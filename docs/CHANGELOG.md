@@ -4,6 +4,58 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Menu latéral réductible sur PC — 20/11/2026
+- Bouton de réduction/déploiement dans la barre du haut ; rail compact de 80 px avec icônes et contenu central qui récupère automatiquement l’espace disponible. Libellés accessibles et infobulles conservés.
+- Préférence mémorisée dans le navigateur et restaurée au rechargement ; fonctionnement maintenu si le stockage local est bloqué. Le tiroir mobile reste complet. Décision D-057.
+- Tests : conservation du contenu et de la préférence pendant la navigation, restauration et stockage refusé ; contrôle navigateur du clavier, des largeurs réelles, du rechargement, de la déconnexion accessible et du passage PC/mobile, avec audit d’accessibilité.
+- Validation : 99 tests frontend, lint, Prettier, TypeScript, build et serveur actif réussis. Deux tests navigateur rejoués (menu PC et charte globale) ; contrôles de largeur à 1 024/1 440/1 920 px et affichages mobiles. Aucun changement de base ni de serveur applicatif.
+
+### Départs dépassés et menu Alertes — 20/11/2026
+- Une occupation dont le départ est dépassé ne redevient plus libre dans le planning, la recherche de chambres ou les contrôles de réservation. Le blocage reste actif jusqu’au départ réel ou à une prolongation explicite ; règle commune côté serveur et verrouillage cohérent lors du départ.
+- Menu « Alertes », cloche avec compteur réel et page avec vue d’ensemble, recherche client/chambre, filtre par forfait, pagination et liens vers les séjours. Mise à jour toutes les 30 secondes et au retour sur la fenêtre ; suppression de l’alerte après départ ou prolongation. Message de dépassement sur la fiche du séjour.
+- Accès protégé par `reservations.view`, UUID publics, aucune nouvelle table ni modification automatique des montants ou factures. Sans heure, la fin de journée demeure la référence. Décision D-056.
+- Tests ajoutés : bornes de l’échéance, disponibilité et réservation bloquées, départ/prolongation, conflits avec le client suivant, absence d’heure, pagination, recherche, droits et actualisation du compteur. Contrôle navigateur dédié aux alertes et ajout de la page à la recette visuelle.
+- Validation : 222 tests backend, 96 tests frontend et 5 tests navigateur réussis ; Pint, Larastan, lint, Prettier, TypeScript, build et serveur actif vérifiés. Affichages bureau/mobile inspectés et audits d’accessibilité verts. Débordement du fil d’Ariane à 320 px corrigé après ajout de la cloche.
+
+### Calcul automatique des jours — 20/11/2026
+- Choix confirmé par l’utilisateur : du 20 au 23 = 3 jours. La création calcule le forfait Journée à chaque changement de date (une unité minimum le même jour), actualise le devis et transmet la quantité calculée. Champ en lecture seule, aide et icône calendrier.
+- Prolongation : jours ajoutés calculés entre l’ancien et le nouveau départ ; conservation du prix et de la quantité déjà enregistrés. Demi-journée, contrôle des 12 h et validation du supplément conservés.
+- API : refus d’une quantité Journée incohérente au devis, à la création et à la prolongation. Tests sur dates absentes/inversées, changements d’année, année bissextile et réservations existantes ; fixtures des anciens tests alignées en conservant leurs montants et périmètres.
+- Décision D-055 et question Q-01 actualisées. Validation complète : 216 tests backend (1 539 assertions), 90 tests frontend, Pint, Larastan, lint, Prettier, TypeScript, build et contrôle du serveur actif réussis. Base de développement préservée ; e-mails simulés pendant les tests.
+
+### Nouvelle invitation — 20/11/2026
+- Invitation du compte administrateur réel renvoyée sur demande explicite ; nouveau lien de 72 h, précédent remplacé, envoi confirmé par l’audit applicatif. Aucun jeton enregistré dans la documentation.
+
+
+### Mot de passe facultatif à la création d’un compte — 20/11/2026
+- Formulaire : mention explicite « Mot de passe (facultatif) » et aide précisant l’envoi d’un lien pour choisir son mot de passe ; confirmation à remplir seulement si un mot de passe est saisi.
+- Comportement existant vérifié : création sans mot de passe, invitation, définition du mot de passe et connexion. Aucun mot de passe vide imposé ni transmis.
+- Validation : 12 tests frontend d’administration, 1 test backend avec 15 assertions, TypeScript, lint, build et contrôle du serveur actif réussis. Tests avec mails simulés, aucun envoi réel supplémentaire.
+
+
+### Nouveau départ et compte administrateur réel — 20/11/2026
+- Base `jb_hotel` sauvegardée puis données métier remises à zéro sur demande explicite ; suppression des 42 anciens envois, sans transmission. Schéma, paramètres, droits et administrateur de référence conservés.
+- Nouveau compte administrateur réel créé à l’adresse demandée ; invitation pour choisir son mot de passe envoyée et confirmée par l’audit applicatif.
+- Worker propre à la base de l’application démarré pour les notifications futures. L’ancien processus de queue a été identifié sur une autre base et laissé intact.
+- Vérifications : données métier vides, zéro envoi en attente/échec, API et base disponibles, connexion frontend affichée sans erreur.
+
+
+### Authentification SMTP rétablie — 20/11/2026
+- Mot de passe SMTP fourni par l’utilisateur appliqué uniquement dans la configuration locale ignorée par Git.
+- Connexion chiffrée et authentification LOGIN vérifiées avec succès, sans transmission d’e-mail et sans journaliser le secret.
+- 41 notifications restent en attente (36 clients, 5 personnel) ; la remise effective et le démarrage de leur traitement attendent l’accord de l’utilisateur.
+
+
+### Diagnostic e-mails — 20/11/2026
+- Configuration effective vérifiée sans exposer de secret : SMTP de l’hébergeur actif sur 465/SMTPS ; les journaux locaux montrent un refus d’authentification 535.
+- File de travail : 41 tâches en attente, aucune réservée, aucun échec définitif. Ancien constat « aucun worker » corrigé : un processus est présent mais antérieur à la configuration actuelle.
+- Aucun message envoyé, aucun traitement forcé, aucune tâche supprimée ; les identifiants doivent être vérifiés auprès de l’hébergeur.
+
+
+### E-mails jamais perdus et CI des parcours — 20/11/2026
+- Chaque e-mail (clients et personnel) est retenté pendant 24 h ; après 3 refus du serveur SMTP en 10 minutes, tous les envois se mettent en pause 10 minutes au lieu de répéter des connexions refusées. Bouton « Relancer les envois en échec » dans Paramètres.
+- Limite d’API réglable (`API_RATE_LIMIT_PER_MINUTE`, 120 par défaut) : la recette navigateur, qui enchaîne les pages bien plus vite qu’un humain, l’utilise à 1 000. La fenêtre d’erreur d’un test en échec est publiée en annotation GitHub.
+
 ### Envoi réel des e-mails, alerte de connexion et invitations — 20/11/2026 (D-054)
 - SMTP de l’hébergeur configurable dans `backend/.env` (documenté dans `.env.example` et EXPLOITATION). Panneau « Envoi des e-mails » dans Paramètres et commande `php artisan jb:mail-test` : mode, serveur, expéditeur, file d’attente, e-mail de test, causes d’échec expliquées en français ; aucun secret affiché.
 - Alerte par e-mail à chaque connexion d’un membre du personnel (date, heure, adresse IP, navigateur).

@@ -21,7 +21,7 @@ class DashboardAndPlanningTest extends TestCase
     public function test_dashboard_separates_invoiced_collected_and_receivables(): void
     {
         $today = $this->bookOk(['start_time' => '15:00', 'end_time' => '23:00', 'billing_unit' => 'HALF_DAY']); // 30 000
-        $stay = $this->bookOk(['room_id' => $this->room102->uuid, 'start_date' => '2026-12-01', 'end_date' => '2026-12-02', 'quantity' => 2]); // 60 000
+        $stay = $this->bookOk(['room_id' => $this->room102->uuid, 'start_date' => '2026-12-01', 'end_date' => '2026-12-03', 'quantity' => 2]); // 60 000
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$stay}/check-in")->assertOk();
         $payment = $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$stay}/payments", ['amount_fcfa' => 20000, 'method' => 'CASH'])->json('data.id');
         $this->actingAs($this->admin)->postJson("/api/v1/payments/{$payment}/refunds", ['amount_fcfa' => 5000, 'reason' => 'Geste'])->assertCreated();
@@ -53,7 +53,7 @@ class DashboardAndPlanningTest extends TestCase
 
     public function test_planning_gives_each_room_state_day_by_day(): void
     {
-        $this->bookOk(['start_date' => '2026-12-02', 'end_date' => '2026-12-03', 'quantity' => 2]);
+        $this->bookOk(['start_date' => '2026-12-02', 'end_date' => '2026-12-03', 'quantity' => 1]);
         $this->room102->forceFill(['maintenance_status' => 'MAINTENANCE'])->save();
 
         $response = $this->actingAs($this->cashier)->getJson('/api/v1/planning?from=2026-12-01&days=4')->assertOk();

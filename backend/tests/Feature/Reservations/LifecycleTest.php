@@ -140,7 +140,7 @@ class LifecycleTest extends TestCase
     public function test_customer_history_and_reservation_list_filters(): void
     {
         $this->bookOk();
-        $this->bookOk(['room_id' => $this->room102->uuid, 'start_date' => '2026-12-04', 'end_date' => '2026-12-05', 'quantity' => 2]);
+        $this->bookOk(['room_id' => $this->room102->uuid, 'start_date' => '2026-12-04', 'end_date' => '2026-12-05', 'quantity' => 1]);
 
         $this->actingAs($this->cashier)->getJson("/api/v1/customers/{$this->customer->uuid}/reservations")
             ->assertOk()->assertJsonCount(2, 'data');

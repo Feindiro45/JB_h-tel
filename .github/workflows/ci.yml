@@ -109,6 +109,9 @@ jobs:
         run: |
           for file in test-results/*/error-context.md; do
             [ -f "$file" ] || continue
+            # Fenêtre d'erreur en premier : l'annotation est limitée à 4 096 caractères.
+            dialog=$(grep -A 14 'alertdialog' "$file" | grep -v '^\s*$' | head -c 3000 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            [ -n "$dialog" ] && echo "::warning title=Fenêtre d’erreur::${dialog}"
             body=$(grep -v '^\s*$' "$file" | head -c 6000 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::warning title=$(dirname "$file" | cut -c14-80)::${body}"
           done

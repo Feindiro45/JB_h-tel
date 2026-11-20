@@ -65,6 +65,7 @@ final class AuditLogQuery
         'notification.sent' => 'E-mail envoyé au client',
         'setting.updated' => 'Paramètre modifié',
         'mail.test_sent' => 'E-mail de test envoyé',
+        'mail.retry_requested' => 'Envois en échec relancés',
     ];
 
     /** Table de chaque type d'entité, pour retrouver son UUID public. */

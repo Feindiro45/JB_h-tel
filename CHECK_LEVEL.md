@@ -3,7 +3,7 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
-**Dernière mise à jour :** 20/11/2026 — 6L (D-053, signalé par l’utilisateur) : l’annulation rembourse l’encaissé et crédite la facture, payée ou non ; la prolongation d’un séjour facturé remplace la facture par une facture détaillée (séjour initial + prolongation). 6M (D-054) : envoi réel des e-mails par le SMTP de l’hébergeur, alerte de connexion et invitation du personnel ; **authentification SMTP refusée (535) pour l’identifiant fourni, à corriger par l’utilisateur** ; 35 e-mails clients en attente faute de `queue:work`. Livraison locale vérifiée : **206 tests backend (1 475 assertions), 84 tests frontend, 4 tests navigateur (2 parcours réels, pagination et charte visuelle), 60 contrôles de contrats réels pour l’administration et les filtres**. Relecture finale : modification de catégorie corrigée (le code figé était renvoyé, 422). Sauvegarde restaurée (27 tables), PDF A4 et affichages bureau/tablette/mobile contrôlés. Charte de contenu, vues d’ensemble généralisées, boutons voisins verts/bleus, champs avec icônes, filtres/pagination par tableau et facture vert/or appliqués ; chambres occupées en rouge et aside conservé. Facture, avoir et document long rendus et inspectés, QR décodés. Suite navigateur finale : quatre tests réussis, y compris recherche et effacement automatiques. Incident de page blanche du serveur actif corrigé : cache Vite régénéré, contrôle `check:dev` vert sur quatre routes et rechargement. Validation hôtel et nouvelle CI MySQL 8.4 encore attendues.
+**Dernière mise à jour :** 20/11/2026 — 6P (D-057) : menu latéral réductible sur PC, contenu adaptable et préférence mémorisée. 6O (D-056) : blocage des chambres en dépassement et menu Alertes avec compteur, filtres/pagination et actualisation automatique. 6N (D-055) : calcul automatique des jours depuis les dates, choix confirmé du 20 au 23 = 3 jours ; contrôles création et prolongation. 6L (D-053, signalé par l’utilisateur) : l’annulation rembourse l’encaissé et crédite la facture, payée ou non ; la prolongation d’un séjour facturé remplace la facture par une facture détaillée (séjour initial + prolongation). 6M (D-054) : envoi réel des e-mails par le SMTP de l’hébergeur, alerte de connexion et invitation du personnel ; **authentification SMTP rétablie et invitation réelle du nouveau compte administrateur envoyée** ; base métier remise à zéro sur demande, 42 anciens envois supprimés et worker propre à l’application démarré. Livraison locale vérifiée : **222 tests backend, 99 tests frontend, 6 scénarios navigateur (2 rejoués pour le menu PC) (2 parcours réels, alertes, pagination et charte visuelle), 60 contrôles de contrats réels pour l’administration et les filtres**. Relecture finale : modification de catégorie corrigée (le code figé était renvoyé, 422). Sauvegarde restaurée (27 tables), PDF A4 et affichages bureau/tablette/mobile contrôlés. Charte de contenu, vues d’ensemble généralisées, boutons voisins verts/bleus, champs avec icônes, filtres/pagination par tableau et facture vert/or appliqués ; chambres occupées en rouge et aside conservé. Facture, avoir et document long rendus et inspectés, QR décodés. Six scénarios navigateur au catalogue ; repli PC et recette visuelle globale rejoués pour la dernière évolution. Incident de page blanche du serveur actif corrigé : cache Vite régénéré, contrôle `check:dev` vert sur quatre routes et rechargement. Validation hôtel et nouvelle CI MySQL 8.4 encore attendues.
 
 **Légende :**
 - `[x]` fait et vérifié (testé ou exécuté) ;
@@ -21,7 +21,7 @@
 | 3 | Catalogue et tarifs | ✅ Fait (CI verte) | 100 % |
 | 4 | Clients et réservations | ✅ Fait (CI verte) | 100 % |
 | 5 | Caisse, factures, QR code, notifications | ✅ Fait (5A à 5E) | 100 % |
-| 6 | Frontend (écrans métier) | ✅ 6A à 6M terminées, recette locale verte (SMTP de l’hébergeur : identifiant refusé) | 100 % |
+| 6 | Frontend (écrans métier) | ✅ 6A à 6P terminées ; SMTP authentifié, invitation réelle envoyée | 100 % |
 | 7 | Reporting | ✅ Implémenté, tests API verts | 100 % |
 | 8 | Qualité et livraison | 🟡 Livraison locale vérifiée ; recette hôtel et CI distante restantes | 90 % |
 
@@ -249,7 +249,7 @@
 - [x] Si le client a donné son e-mail : message à chaque opération sur son séjour (confirmation et bienvenue, arrivée, prolongation, annulation, départ, reçu de paiement, remboursement, **facture en PDF joint**, avoir)
 - [x] Envoi en file d'attente, après validation de la transaction ; échec d'envoi sans blocage de l'opération (3 essais) ; journalisé sans l'adresse e-mail
 - [x] Modèles d'e-mail en français ; **lien de désinscription signé** ; préférence modifiable sur la fiche client
-- [!] Serveur d'envoi (SMTP) et adresse d'expédition de l'hôtel à fournir (Q-22) ; en local, les e-mails sont écrits dans `storage/logs`
+- [x] SMTP de l’hébergeur et expéditeur configurés localement (20/11/2026) ; authentification et invitation réelle vérifiées. La réception dans la boîte du destinataire reste à confirmer ; configuration de production à valider selon Q-22.
 - [x] Tests : **8 tests** (parcours complet de 10 e-mails, PDF joint, reçu, désinscription, aucun envoi sans e-mail ni en cas d'échec) ; vérifié en réel (file d'attente traitée, e-mail produit)
 
 ### 5E — Design du PDF de facture depuis la référence (19/11/2026) ✅
@@ -390,19 +390,47 @@
 - [x] Contrats réels sur `jb_hotel_e2e` : **21 contrôles verts** (refus caissière 403, montant 409, annulation remboursée, caisse du jour, avoir de la non payée, facture de remplacement à deux lignes, PDF) ; rendu de la facture de remplacement inspecté
 - [x] Base de travail : migration additive `reservation_extensions` appliquée sans réinitialisation (retour arrière vérifié en simulation)
 - [x] Documentation : D-053 (D-035 marquée remplacée), Q-14, SCHEMA, MCD (28 tables), CHANGELOG, CLAUDE.md
-- [~] CI : échecs navigateur publiés en annotations (journal GitHub illisible sans droits d’administrateur) ; causes trouvées : PDF de chaque facture rendu pour rien quand le client n’a pas d’e-mail (~4 s par facture, désormais produit seulement à l’envoi), parcours complet trop long pour 60 s (2 min), serveur PHP de recette à un seul processus (4 processus sous Linux) ; erreurs serveur publiées en annotations ; nouvelle CI à confirmer
+- [~] CI (20/11/2026) : les deux parcours réels et la pagination passent désormais sur GitHub ; le test visuel ouvrait une fenêtre d’erreur sur Rapports, car il enchaîne les pages plus vite que la limite de 120 requêtes/min. Limite rendue réglable (`API_RATE_LIMIT_PER_MINUTE`, 120 par défaut, 1 000 en recette). Historique : échecs navigateur publiés en annotations (journal GitHub illisible sans droits d’administrateur) ; causes trouvées : PDF de chaque facture rendu pour rien quand le client n’a pas d’e-mail (~4 s par facture, désormais produit seulement à l’envoi), parcours complet trop long pour 60 s (2 min), serveur PHP de recette à un seul processus (4 processus sous Linux) ; erreurs serveur publiées en annotations ; nouvelle CI à confirmer
 
 ### 6M — Envoi réel des e-mails (demande du 20/11/2026)
 > Choix de l’utilisateur : vrai envoi par le SMTP de l’hébergeur de l’hôtel, alerte à chaque connexion, e-mail de bienvenue à la création d’un compte.
 - [x] SMTP de l’hébergeur : réglages documentés dans `.env.example` et EXPLOITATION, sans secret dans Git ; identifiants fournis par l’utilisateur placés dans `backend/.env` (ignoré par Git)
-- [!] Envoi réel par `mail.banguiweb-tech.com:465` : serveur joint et chiffrement établi, mais **authentification refusée (535)** pour l’identifiant fourni ; identifiant ou mot de passe à vérifier par l’utilisateur dans le panneau de l’hébergeur
+- [x] SMTP de l’hébergeur vérifié : nouveau mot de passe local, authentification SMTPS réussie puis invitation réelle du nouveau compte administrateur envoyée le 20/11/2026. Confirmation dans l’audit `user.invitation_sent`, lien de mot de passe créé et file sans échec. La réception en boîte reste à confirmer par le destinataire.
 - [x] Test d’envoi : commande `jb:mail-test` et panneau « Envoi des e-mails » dans Paramètres (mode, serveur, expéditeur, file d’attente, e-mail de test), sans aucun secret exposé ; causes d’échec expliquées en français
 - [x] Alerte de connexion au membre du personnel (date, heure de Bangui, adresse IP, navigateur et système), en file d’attente ; jamais vers un domaine réservé (`@jbhotel.local`)
 - [x] Création de compte : mot de passe facultatif ; sans mot de passe, invitation avec un lien à usage unique valable 72 h ; avec mot de passe, e-mail de bienvenue ; bouton « Inviter » pour renvoyer un lien
 - [x] Écran public « Choisir mon mot de passe » (`/mot-de-passe`), lien expiré ou déjà utilisé expliqué
 - [x] Tests : 12 backend (alerte, invitation, lien à usage unique et expiré, renvoi, droits, domaines réservés, état sans secret, serveur injoignable, commande), 5 frontend ; **12 contrôles verts par un vrai échange SMTP** (serveur de capture local) : test d’envoi, invitation, mot de passe choisi depuis le lien reçu, connexion et alerte
 - [x] Corrigé au passage : le PDF de la facture était rendu même quand aucun e-mail ne partait (~4 s par facture)
-- [!] Pourquoi les clients ne reçoivent pas d’e-mail (question du 20/11/2026) : aucun `queue:work` ne tourne en local (**35 e-mails clients en attente** depuis le 19/11 17:21) et le SMTP refuse l’identifiant. Raccourci `composer queue` ajouté ; envoi ou purge des 35 anciens messages à décider par l’utilisateur
+- [x] « Corrige tout, le client doit recevoir les e-mails s’il a communiqué » (20/11/2026) : la règle est déjà respectée (e-mail demandé à la réservation et sur la fiche, accord coché par défaut, envoi si adresse et accord). Ajouts : chaque envoi est retenté pendant 24 h, avec une pause commune de 10 min après 3 refus du serveur pour ne pas faire bloquer le compte ; bouton « Relancer les envois en échec » ; 2 tests backend, 1 frontend
+- [x] Incident SMTP résolu le 20/11/2026 : après les refus initiaux 535, authentification rétablie avec le secret corrigé ; invitation réelle acceptée par le serveur et worker de l’application démarré (détails ci-dessous).
+- [x] À la demande de remise à zéro du 20/11/2026 : **42 anciens envois supprimés sans transmission**. Après création du compte réel demandé, sa seule invitation a été traitée dans une file dédiée ; un worker propre à `jb_hotel` traite maintenant les nouveaux envois. L’ancien worker identifié appartenait à une autre base et n’a pas été touché.
+
+### 6N — Nombre de jours automatique (demande du 20/11/2026, D-055)
+
+- [x] Choix confirmé par l’utilisateur : différence entre les dates, **du 20 au 23 = 3 jours**.
+- [x] Création : nombre de jours en lecture seule, recalcul immédiat et devis actualisé ; minimum existant d’une unité le même jour.
+- [x] Prolongation : jours ajoutés calculés depuis le départ actuel, montant historique conservé, aperçu et confirmation explicite.
+- [x] Serveur : quantité incohérente refusée au devis, à la création et à la prolongation ; demi-journée et contrôle des 12 h conservés.
+- [x] Tests ciblés : 48 backend (436 assertions) et 16 frontend, dates absentes/inversées, changement de mois/année, année bissextile, modification des deux dates, transmission au devis et à la création.
+- [x] Vérification générale : **216 tests backend (1 539 assertions), 90 tests frontend**, Pint, Larastan niveau 6, lint, Prettier, TypeScript et build réussis ; quatre routes du serveur actif et rechargement sans erreur JavaScript. Base de développement préservée, tests sur `jb_hotel_test` avec e-mails simulés.
+
+### 6O — Départs dépassés et menu Alertes (demande du 20/11/2026, D-056)
+
+- [x] Une chambre en cours de séjour après sa fin prévue reste occupée dans le planning et les disponibilités ; devis et création/confirmation vérifient la même règle, jusqu’au départ réel ou à la prolongation.
+- [x] Menu « Alertes » et cloche avec compteur réel, vue d’ensemble, recherche client/chambre automatique, filtre par forfait, pagination et liens vers les séjours (UUID). Style de l’aside conservé.
+- [x] Dépassement présenté en jours/heures/minutes, fiche signalée, actualisation toutes les 30 secondes et au retour sur la fenêtre. Départ/prolongation : invalidation du cache immédiate.
+- [x] Autorisation `reservations.view` ; actions de départ/prolongation gardent leurs droits et confirmations. Aucun frais ni clôture automatique, aucune migration, données métier conservées.
+- [x] Tests ciblés : 24 backend (218 assertions) et 16 frontend ; limites temporelles, disponibilité, réservation, conflits, départ, prolongation, droits, filtres, pagination, mise à jour automatique et résolution du compteur.
+- [x] Vérification générale : **222 tests backend, 96 tests frontend et 5 tests navigateur réussis**. Régression départs dépassés rejouée : 6 tests, 80 assertions. Pint, Larastan, lint, Prettier, TypeScript, build et contrôle du serveur actif verts ; affichage et accessibilité des alertes contrôlés sur bureau/mobile. Débordement de 4 px à 320 px corrigé dans le fil d’Ariane, recette visuelle globale verte.
+
+### 6P — Menu latéral réductible sur PC (demande du 20/11/2026, D-057)
+
+- [x] Bouton réduire/déployer dans la barre du haut ; rail compact de 80 px, grille centrale qui récupère l’espace, y compris au-delà de 1 600 px de contenu.
+- [x] Préférence conservée à la navigation et au rechargement ; bouton utilisable même si le stockage local est refusé.
+- [x] Icônes, état actif, infobulles, libellés accessibles et déconnexion conservés ; tiroir mobile complet, impression indépendante.
+- [x] Contrôles ciblés : 3 tests frontend et 1 test navigateur (clavier, largeurs réelles, rechargement, PC/mobile, accessibilité).
+- [x] Vérification générale : **99 tests frontend réussis**, lint, Prettier, TypeScript, build et serveur actif verts. Deux tests navigateur rejoués : repli PC et recette visuelle globale. Largeurs 1 024, 1 440 et 1 920 px, retour au tiroir mobile, rechargement et audit d’accessibilité vérifiés. Aucun changement backend ni remise à zéro de base pour cette évolution.
 
 ## Phase 7 — Reporting ✅
 
@@ -412,10 +440,23 @@
 - [x] Export CSV et PDF
 - [x] Rapprochement des encaissements, paiements et remboursements
 
+- [x] Création d’utilisateur sans mot de passe confirmée (20/11/2026) : libellé « Mot de passe (facultatif) », aide sur le lien envoyé et confirmation laissée vide. Le serveur accepte déjà l’absence de mot de passe et envoie l’invitation pour le choisir. Contrôles ciblés : 12 tests frontend d’administration et 1 test backend complet (15 assertions), TypeScript, lint, build et serveur actif verts.
+
+- [x] Invitation du compte administrateur réel renvoyée sur demande (20/11/2026) : nouveau lien valable 72 h, ancien lien remplacé, confirmation d’envoi dans l’audit et aucune tâche restante dans la file dédiée.
+
+### Remise à zéro et nouvel administrateur réel — 20/11/2026 ✅
+
+- [x] Cible contrôlée : `jb_hotel`, 28 tables ; maintenance temporaire et sauvegarde SQL complète avec SHA-256 avant toute suppression (`backups/jb-hotel-20261120-001448-2d5a69.sql`, hors Git).
+- [x] Suppression transactionnelle des données métier et techniques transitoires : clients, chambres, catégories, tarifs, réservations/occupants/prolongations, caisse, factures/avoirs, historiques, séquences documentaires et anciennes files. Compte administrateur de référence, rôles, droits, réglages et schéma conservés.
+- [x] Contrôles après suppression : zéro donnée métier et zéro ancien envoi ; API/base opérationnelles, maintenance levée, serveur frontend actif vérifié sans page blanche.
+- [x] Compte administrateur réel demandé créé via le service métier, actif et doté des 27 permissions ; mot de passe choisi par son titulaire depuis un lien d’invitation, sans réutiliser le secret SMTP.
+- [x] Invitation autorisée envoyée via une file dédiée, audit confirmé, lien valable 72 h ; worker local correctement rattaché à `jb_hotel` démarré pour les prochaines notifications. File finale vide et aucun échec définitif.
+- [x] L’ancien administrateur reste disponible pendant la prise en main du compte réel ; les catalogues et opérations restent vides pour les nouveaux enregistrements.
+
 ## Phase 8 — Qualité et livraison 🟡 (livraison locale vérifiée)
 
 - [~] Migrations propres : suites locales sur MariaDB ; MySQL 8.4 prévu dans la CI (Docker absent du poste, nouvelle exécution distante non réalisée)
-- [x] Tests : **206 backend / 84 frontend / 4 tests navigateur / 60 + 21 + 12 contrats réels (administration, filtres, D-053, SMTP)** ; Pint, Larastan niveau 6, lint, Prettier, TypeScript et build verts (relecture finale du 19/11/2026)
+- [x] Tests : **222 backend / 99 frontend / 6 scénarios navigateur** vérifiés le 20/11/2026 ; Pint, Larastan niveau 6, lint, Prettier, TypeScript, build et contrôle du serveur actif verts. Recette navigateur complète rejouée ; 60 + 21 + 12 contrats réels antérieurs (administration, filtres, D-053, SMTP)
 - [x] Contrôle d’accès : permissions API et routes frontend, CSRF réel, UUID des annuaires, export réservé à `reports.export`, données d’audit sans secrets et erreurs françaises ; tests verts
 - [x] Sauvegarde et restauration réelle vérifiées : `php infra/database-backup.php --verify`, 27 tables avec nombres de lignes identiques et empreinte SHA-256 ; cible de contrôle distincte et refus d’une base déjà remplie
 - [x] PDF A4 : export navigateur téléchargé, deux pages rendues et inspectées ; journal imprimé complet même si la liste est paginée à l’écran
@@ -440,7 +481,7 @@
 ## Questions en attente de l'hôtel
 
 Voir `docs/QUESTIONS.md`. Questions **P1**, qui bloquent la mise en production :
-- Q-01 : définition de la journée ;
+- Q-01 : règles horaires de la journée restantes ; comptage des dates confirmé (D-055) ;
 - Q-02 et Q-03 : période bloquée sans heure ;
 - Q-07 : réservations non payées ;
 - Q-08 : remboursements ;

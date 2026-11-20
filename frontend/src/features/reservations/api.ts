@@ -95,12 +95,16 @@ export const planningQuery = (from: string, days: number, roomTypeId: string) =>
         signal,
       }),
     placeholderData: (previous) => previous,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   })
 
 export const occupancyQuery = queryOptions({
   queryKey: ['occupancy'],
   queryFn: ({ signal }) =>
     api.get<{ at: string; data: OccupancyRow[] }>('/api/v1/occupancy', { signal }),
+  refetchInterval: 30_000,
+  refetchOnWindowFocus: true,
 })
 
 export async function freeRooms(params: {

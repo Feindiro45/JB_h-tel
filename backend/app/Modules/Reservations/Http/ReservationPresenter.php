@@ -53,6 +53,7 @@ final class ReservationPresenter
             'id' => $reservation->uuid,
             'status' => $reservation->status->value,
             'status_label' => $reservation->status->label(),
+            'departure_overdue' => $reservation->status === ReservationStatus::InProgress && $reservation->blocked_until->lte(now()),
             'room' => $room === null ? null : self::room($room),
             'customer' => $customer === null ? null : [
                 'id' => $customer->uuid,

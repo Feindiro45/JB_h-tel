@@ -1,4 +1,80 @@
 /* Référence visuelle fournie par l’hôtel. Styles limités au contenu : aside conservé. */
+@media screen {
+  .workspace .alerts-guidance {
+    margin-bottom: 24px;
+  }
+  .workspace .departure-alerts-table td > small {
+    display: block;
+    margin-top: 4px;
+    color: #566579;
+  }
+  .workspace .alert-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid #cfdeed;
+    border-radius: 12px;
+    color: #1558a6;
+    background: #f0f6ff;
+    text-decoration: none;
+  }
+  .workspace .alert-link:hover {
+    background: #e2eeff;
+  }
+  .workspace .topbar .alert-link span {
+    color: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+  .workspace .topbar .alert-link .alert-link__count {
+    background: #b91c1c;
+    color: white;
+    border-radius: 999px;
+    padding: 3px 7px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    min-width: 24px;
+    text-align: center;
+  }
+  .workspace .departure-warning {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-color: #f1b7b7;
+    color: #991b1b;
+    background: #fff4f4;
+  }
+  .workspace .departure-warning > svg {
+    flex: none;
+  }
+  @media (max-width: 520px) {
+    .workspace .topbar > div:first-child {
+      flex: 1;
+    }
+    .workspace .topbar > div:last-child {
+      flex-shrink: 0;
+    }
+    .workspace .breadcrumb li:last-child,
+    .workspace .breadcrumb li:last-child span {
+      min-width: 0;
+    }
+    .workspace .breadcrumb li:last-child span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .workspace .alert-link {
+      padding: 10px;
+    }
+    .workspace .alert-link__label {
+      display: none;
+    }
+  }
+}
 @media print {
   .page-heading__icon,
   .metric__icon {

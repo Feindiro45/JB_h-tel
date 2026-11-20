@@ -28,6 +28,12 @@ export const NAVIGATION: { group: string; items: NavItem[] }[] = [
         permission: 'reservations.view',
       },
       {
+        path: '/alertes',
+        label: 'Alertes',
+        icon: 'bell',
+        permission: 'reservations.view',
+      },
+      {
         path: '/disponibilites',
         label: 'Disponibilités',
         icon: 'rooms',

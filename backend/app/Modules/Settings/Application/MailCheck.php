@@ -7,6 +7,7 @@ use App\Modules\Settings\Mail\MailTestMail;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
 use App\Shared\Mail\Recipients;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -87,6 +88,21 @@ final class MailCheck
             'recipient_domain' => substr((string) strrchr($to, '@'), 1),
             'mailer' => (string) config('mail.default'),
         ], actorId: $actor?->id);
+    }
+
+    /**
+     * Remet en file les envois classés en échec (D-054), par exemple après correction du mot de
+     * passe SMTP. Renvoie le nombre d'envois relancés.
+     */
+    public function retryFailed(User $actor): int
+    {
+        $count = Schema::hasTable('failed_jobs') ? DB::table('failed_jobs')->count() : 0;
+        if ($count > 0) {
+            Artisan::call('queue:retry', ['id' => ['all']]);
+        }
+        $this->audit->record('mail.retry_requested', 'setting', 0, after: ['count' => $count], actorId: $actor->id);
+
+        return $count;
     }
 
     /** @return array{0: string, 1: string} Message et piste de correction, en français. */

@@ -1,0 +1,79 @@
+/* D-057 : repli demandé sur PC ; la présentation mobile et l'impression restent indépendantes. */
+.workspace .topbar .icon-button.sidebar-toggle {
+  display: none;
+}
+
+@media screen and (min-width: 681px) {
+  .workspace .topbar > div:first-child {
+    flex: 1;
+  }
+  .workspace .topbar > div:last-child {
+    flex-shrink: 0;
+  }
+  .workspace .topbar .breadcrumb li:last-child,
+  .workspace .topbar .breadcrumb li:last-child span {
+    min-width: 0;
+  }
+  .workspace .topbar .breadcrumb li:last-child span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .workspace .topbar .icon-button.sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    flex: none;
+  }
+
+  .layout.layout--sidebar-collapsed {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+  .layout--sidebar-collapsed .workspace main {
+    max-width: none;
+  }
+  .layout--sidebar-collapsed .sidebar {
+    padding-inline: 12px;
+  }
+  .layout--sidebar-collapsed .sidebar .brand {
+    margin: 0 auto 28px;
+  }
+
+  /* Les libellés restent accessibles aux lecteurs d'écran ; les titres servent d'infobulles. */
+  .layout--sidebar-collapsed .brand-name,
+  .layout--sidebar-collapsed .nav-label,
+  .layout--sidebar-collapsed .nav-group > p,
+  .layout--sidebar-collapsed .profile-details {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .layout--sidebar-collapsed .nav-group a {
+    justify-content: center;
+    min-height: 44px;
+    padding: 12px;
+  }
+  .layout--sidebar-collapsed .nav-group a > svg {
+    flex: none;
+  }
+  .layout--sidebar-collapsed .profile {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .layout--sidebar-collapsed .profile button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: 0;
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

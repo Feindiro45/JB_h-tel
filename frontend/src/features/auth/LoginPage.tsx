@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import hotelImage from '../../assets/jb-hotel.webp'
 import { config } from '../../shared/config'
 import { TextField } from '../../shared/ui/fields'
 import { Icon } from '../../shared/ui/Icon'
 import { login, ME_KEY } from './api'
+import './login.css'
 
-/** Connexion de l'équipe (design du prototype) : session Sanctum par cookie, jamais de jeton stocké. */
+/** Connexion simple sans image : session Sanctum par cookie, jamais de jeton stocké. */
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -36,33 +36,17 @@ export function LoginPage() {
   }
 
   return (
-    <main id="contenu" className="auth">
-      <section
-        className="auth-visual"
-        style={{
-          backgroundImage: `linear-gradient(0deg, #081e18da 0%, #112b2355 55%, #0c261f70), url(${hotelImage})`,
-        }}
-      >
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            JB
-          </span>
-          <span>
-            <b>{config.appName}</b>
-            <small>BANGUI · HÔTELLERIE</small>
-          </span>
-        </div>
+    <main id="contenu" className="auth auth--simple">
+      <section className="auth-panel" aria-labelledby="login-title">
         <div>
-          <p className="eyebrow">Réception et gestion</p>
-          <h1>Bienvenue à JB Hôtel.</h1>
-          <p>Gérez vos chambres, vos séjours et vos encaissements en toute sérénité.</p>
-        </div>
-      </section>
-
-      <section className="auth-panel">
-        <div>
-          <h2>Connexion de l’équipe</h2>
-          <p className="lead">Identifiez-vous avec le compte fourni par l’administrateur.</p>
+          <div className="login-brand">
+            <span className="login-monogram" aria-hidden="true">
+              JB
+            </span>
+            <span>{config.appName}</span>
+          </div>
+          <h1 id="login-title">Connexion de l’équipe</h1>
+          <p className="lead">Connectez-vous à votre espace de gestion.</p>
           <form className="auth-form" onSubmit={submit} noValidate>
             <TextField
               label="Adresse e-mail"
@@ -74,7 +58,7 @@ export function LoginPage() {
               error={errors.email}
               required
             />
-            <div className="password-field">
+            <div className="login-password">
               <TextField
                 label="Mot de passe"
                 type={showPassword ? 'text' : 'password'}
@@ -90,6 +74,7 @@ export function LoginPage() {
                 className="text-button"
                 onClick={() => setShowPassword((value) => !value)}
                 aria-pressed={showPassword}
+                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
               >
                 <Icon name={showPassword ? 'eyeOff' : 'eye'} size={17} />
                 {showPassword ? 'Masquer' : 'Afficher'}

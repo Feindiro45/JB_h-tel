@@ -27,6 +27,11 @@ export function mockApi(handlers: Record<string, Handler>): ApiCall[] {
     const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
     calls.push({ method, path: url.pathname, query: Object.fromEntries(url.searchParams), body })
     const defaultHandlers: Record<string, Reply> = {
+      'GET /api/v1/alerts/summary': {
+        body: {
+          data: { at: '2026-12-01T10:00:00+01:00', total: 0, rooms: 0, day: 0, half_day: 0 },
+        },
+      },
       'GET /api/v1/payment-methods': {
         body: {
           data: [

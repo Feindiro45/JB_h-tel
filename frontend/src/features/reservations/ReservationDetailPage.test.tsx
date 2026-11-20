@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Reservation } from '../../shared/api/types'
@@ -178,6 +178,31 @@ describe('Fiche réservation', () => {
       amount_fcfa: 30000,
       method: 'CASH',
       reference: null,
+    })
+  })
+
+  it('calcule les jours ajoutés depuis le départ actuel et transmet ce calcul à l’aperçu', async () => {
+    const stay = reservation()
+    const calls = serve(stay)
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Prolonger' }))
+    const dialog = screen.getByRole('dialog', { name: 'Prolonger le séjour' })
+    const days = within(dialog).getByLabelText('Jours à ajouter')
+    expect(days).toHaveValue(1)
+    expect(days).toHaveAttribute('readonly')
+    const departure = within(dialog).getByLabelText('Nouvelle date de départ')
+    fireEvent.change(departure, { target: { value: '' } })
+    expect(days).toHaveValue(null)
+    expect(within(dialog).getByRole('button', { name: 'Calculer le supplément' })).toBeDisabled()
+    const end = addDays(stay.period.end_date, 3)
+    fireEvent.change(departure, { target: { value: end } })
+    expect(days).toHaveValue(3)
+    await user.click(within(dialog).getByRole('button', { name: 'Calculer le supplément' }))
+    await screen.findByRole('dialog', { name: 'Valider la prolongation' })
+    expect(calls.find((call) => call.path.endsWith('/extension/preview'))?.body).toMatchObject({
+      end_date: end,
+      additional_quantity: 3,
     })
   })
 

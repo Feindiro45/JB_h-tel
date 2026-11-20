@@ -8,6 +8,7 @@ use App\Modules\Identity\Mail\StaffMail;
 use App\Modules\Identity\Models\User;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Mail\Recipients;
+use App\Shared\Mail\RetriesMailDelivery;
 use App\Shared\Support\Format;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,8 +24,8 @@ final class SendStaffEmails implements ShouldQueue
 {
     public const EVENTS = [UserLoggedIn::class, UserInvited::class];
 
-    /** Nombre d'essais avant que l'envoi soit classé en échec (visible dans Paramètres). */
-    public int $tries = 3;
+    // Retenté pendant 24 h, pause commune si le serveur SMTP refuse (D-054).
+    use RetriesMailDelivery;
 
     public function __construct(private readonly AuditTrail $audit) {}
 

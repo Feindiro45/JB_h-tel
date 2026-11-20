@@ -23,6 +23,19 @@ final class SettingsController
         return new JsonResponse(['data' => $this->mail->status()]);
     }
 
+    /** Relance les envois en échec (après correction du serveur SMTP). */
+    public function mailRetry(Request $request): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $count = $this->mail->retryFailed($actor);
+
+        return new JsonResponse([
+            'message' => $count === 0 ? 'Aucun envoi en échec à relancer.' : ($count === 1 ? '1 envoi relancé.' : "{$count} envois relancés."),
+            'data' => $this->mail->status(),
+        ]);
+    }
+
     /** E-mail de test envoyé immédiatement ; par défaut à l'adresse de l'administrateur connecté. */
     public function mailTest(Request $request): JsonResponse
     {

@@ -25,7 +25,7 @@ describe('Connexion et navigation', () => {
     const router = renderApp('/clients')
 
     expect(
-      await screen.findByRole('heading', { name: 'Bienvenue à JB Hôtel.' }),
+      await screen.findByRole('heading', { name: 'Connexion de l’équipe' }),
     ).toBeInTheDocument()
     // Le 401 de /auth/me est attendu : aucune modale d'erreur au démarrage.
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()

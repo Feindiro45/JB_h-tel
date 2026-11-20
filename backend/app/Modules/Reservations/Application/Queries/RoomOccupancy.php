@@ -45,9 +45,7 @@ final class RoomOccupancy
         $rooms = $this->filteredRooms($roomTypeId, $minCapacity);
         $reservations = Reservation::query()
             ->whereIn('room_id', array_map(fn (RoomSnapshot $room) => $room->id, $rooms))
-            ->whereIn('status', ReservationStatus::blockingValues())
-            ->where('blocked_from', '<', $period->until)
-            ->where('blocked_until', '>', $period->from)
+            ->overlapping($period->from, $period->until)
             ->orderBy('blocked_from')
             ->get()
             ->groupBy('room_id');

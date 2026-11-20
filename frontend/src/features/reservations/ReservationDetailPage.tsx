@@ -35,6 +35,7 @@ import {
   type CancellationInput,
 } from './api'
 import { CancelDialog, ConfirmDialog, ExtendDialog, OccupantsDialog } from './dialogs'
+import { ALERTS_KEY } from './alerts'
 
 type Dialog =
   | 'confirm'
@@ -49,7 +50,11 @@ type Dialog =
 
 export function ReservationDetailPage() {
   const { id = '' } = useParams()
-  const reservation = useQuery(reservationQuery(id))
+  const reservation = useQuery({
+    ...reservationQuery(id),
+    refetchInterval: (query) => (query.state.data?.status === 'IN_PROGRESS' ? 30_000 : false),
+    refetchOnWindowFocus: true,
+  })
 
   if (reservation.isPending) return <LoadingBlock lines={6} label="Chargement de la réservation…" />
   if (!reservation.data) {
@@ -94,6 +99,8 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
       ['reservations', 'list'],
       ['occupancy'],
       ['planning'],
+      ['free-rooms'],
+      ALERTS_KEY,
       ['invoices'],
       ...CASH_KEYS,
     ]) {
@@ -152,6 +159,15 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         actions={<ReservationStatusBadge status={r.status} label={r.status_label} />}
       />
 
+      {r.departure_overdue && (
+        <p className="notice departure-warning" role="status">
+          <Icon name="bell" size={21} />
+          <span>
+            <strong>Départ prévu dépassé.</strong> La chambre reste occupée. Enregistrez le départ
+            réel ou prolongez le séjour avec validation du supplément.
+          </span>
+        </p>
+      )}
       <PageOverview
         items={[
           cancelled

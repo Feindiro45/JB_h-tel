@@ -12,6 +12,7 @@ use App\Modules\Reservations\Events\ReservationCheckedIn;
 use App\Modules\Reservations\Events\ReservationCheckedOut;
 use App\Modules\Reservations\Events\ReservationConfirmed;
 use App\Modules\Reservations\Events\ReservationExtended;
+use App\Shared\Mail\RetriesMailDelivery;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
 /**
@@ -32,10 +33,8 @@ final class NotifyCustomer implements ShouldQueue
         InvoiceIssued::class,
     ];
 
-    public int $tries = 3;
-
-    /** @var list<int> */
-    public array $backoff = [60, 300];
+    // Retenté pendant 24 h, pause commune si le serveur SMTP refuse (D-054).
+    use RetriesMailDelivery;
 
     public function __construct(
         private readonly StayMessageFactory $messages,

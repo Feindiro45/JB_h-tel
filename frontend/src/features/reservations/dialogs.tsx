@@ -6,7 +6,8 @@ import type { ExtensionPreview, Reservation } from '../../shared/api/types'
 import { SelectField, TextAreaField, TextField } from '../../shared/ui/fields'
 import { Pair } from '../../shared/ui/layout'
 import { Modal } from '../../shared/ui/Modal'
-import { formatDateTime, formatFcfa } from '../../shared/utils/format'
+import { addDays, formatDateTime, formatDay, formatFcfa } from '../../shared/utils/format'
+import { calendarDaysBetween } from './calendarDays'
 import {
   extendReservation,
   previewExtension,
@@ -202,17 +203,23 @@ export function ExtendDialog({
   onClose: () => void
 }) {
   const [input, setInput] = useState<ExtensionInput>({
-    end_date: reservation.period.end_date,
+    end_date:
+      reservation.price.billing_unit === 'DAY'
+        ? addDays(reservation.period.end_date, 1)
+        : reservation.period.end_date,
     end_time: reservation.period.end_time,
     additional_quantity: 1,
   })
+  const isDay = reservation.price.billing_unit === 'DAY'
+  const addedDays = calendarDaysBetween(reservation.period.end_date, input.end_date)
+  const extensionInput = isDay ? { ...input, additional_quantity: addedDays ?? 0 } : input
   const [preview, setPreview] = useState<ExtensionPreview | null>(null)
   const previewMutation = useMutation({
-    mutationFn: () => previewExtension(reservation.id, input),
+    mutationFn: () => previewExtension(reservation.id, extensionInput),
     onSuccess: setPreview,
   })
   const extendMutation = useMutation({
-    mutationFn: () => extendReservation(reservation.id, input),
+    mutationFn: () => extendReservation(reservation.id, extensionInput),
     onSuccess: (result) => onDone(result.replacementInvoiceNumber),
   })
 
@@ -266,6 +273,7 @@ export function ExtendDialog({
       onSubmit={() => previewMutation.mutate()}
       submitLabel="Calculer le supplément"
       submitting={previewMutation.isPending}
+      submitDisabled={isDay && (addedDays === null || addedDays > 365)}
       size="small"
     >
       <div className="fields">
@@ -285,13 +293,24 @@ export function ExtendDialog({
         />
         <TextField
           className="full"
-          label={`${reservation.price.billing_unit_label}(s) à ajouter`}
+          label={isDay ? 'Jours à ajouter' : `${reservation.price.billing_unit_label}(s) à ajouter`}
           type="number"
           min={0}
           step={1}
-          value={String(input.additional_quantity)}
+          value={
+            isDay
+              ? addedDays === null
+                ? ''
+                : String(addedDays)
+              : String(input.additional_quantity)
+          }
+          readOnly={isDay}
           onChange={(e) => setInput({ ...input, additional_quantity: Number(e.target.value) })}
-          hint={`Quantité actuelle : ${reservation.price.quantity}. Une demi-journée couvre 12 h au plus.`}
+          hint={
+            isDay
+              ? `Calcul automatique depuis le départ actuel (${formatDay(reservation.period.end_date)}). Quantité déjà enregistrée : ${reservation.price.quantity}.`
+              : `Quantité actuelle : ${reservation.price.quantity}. Une demi-journée couvre 12 h au plus.`
+          }
         />
       </div>
     </Modal>

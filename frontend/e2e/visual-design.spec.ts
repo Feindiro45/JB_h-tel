@@ -25,6 +25,7 @@ test('charte du contenu sur toutes les pages, aside conservé et adaptation mobi
   const screens = [
     ['/tableau-de-bord', 'tableau-de-bord'],
     ['/reservations', 'reservations'],
+    ['/alertes', 'alertes'],
     ['/disponibilites', 'disponibilites'],
     ['/clients', 'clients'],
     ['/caisse', 'caisse'],

@@ -3,6 +3,7 @@
 namespace App\Modules\Reservations\Http\Requests;
 
 use App\Modules\Customers\Contracts\CustomerDirectory;
+use App\Modules\Reservations\Domain\Billing\CalendarDayQuantity;
 use App\Modules\Reservations\Domain\Discount;
 use App\Modules\Reservations\Domain\DiscountType;
 use App\Modules\Reservations\DTO\OccupantData;
@@ -54,6 +55,14 @@ class ReservationRequest extends FormRequest
     public function after(): array
     {
         return [function (Validator $validator): void {
+            if ($this->input('billing_unit') === BillingUnit::Day->value
+                && ! $validator->errors()->hasAny(['start_date', 'end_date', 'quantity'])) {
+                $quantity = CalendarDayQuantity::forStay($this->string('start_date')->toString(), $this->string('end_date')->toString());
+                if ($this->integer('quantity') !== $quantity) {
+                    $validator->errors()->add('quantity', "Le nombre de jours calculé entre les dates est de {$quantity} (une journée minimum).");
+                }
+            }
+
             $occupants = $this->input('occupants');
             if (is_array($occupants) && count(array_filter($occupants, fn ($o) => is_array($o) && filter_var($o['is_primary'] ?? false, FILTER_VALIDATE_BOOL))) > 1) {
                 $validator->errors()->add('occupants', 'Un seul occupant peut être désigné comme principal.');

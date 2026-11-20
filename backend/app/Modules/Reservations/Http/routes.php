@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Identity\Domain\PermissionName;
+use App\Modules\Reservations\Http\Controllers\DepartureAlertsController;
 use App\Modules\Reservations\Http\Controllers\OccupancyController;
 use App\Modules\Reservations\Http\Controllers\ReservationController;
 use App\Modules\Reservations\Http\Controllers\ReservationExtensionController;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('authenticated')->group(function (): void {
     Route::middleware('permission:'.PermissionName::ReservationsView->value)->group(function (): void {
+        Route::get('alerts', [DepartureAlertsController::class, 'index'])->name('alerts.index');
+        Route::get('alerts/summary', [DepartureAlertsController::class, 'summary'])->name('alerts.summary');
         Route::get('availability', [OccupancyController::class, 'availability'])->name('availability');
         Route::get('occupancy', [OccupancyController::class, 'occupancy'])->name('occupancy');
         Route::get('planning', [OccupancyController::class, 'planning'])->name('planning');
