@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
-import { Navigate, useLocation } from 'react-router'
-import { LoadingBlock, PageHeading } from '../../shared/ui/layout'
+import { Link, Navigate, useLocation } from 'react-router'
+import { ErrorState } from '../../shared/ui/ErrorState'
+import { Icon } from '../../shared/ui/Icon'
+import { LoadingBlock } from '../../shared/ui/layout'
 import { useCurrentUser } from './api'
 
 /** Toute l'application exige une session ; sinon, retour à la connexion puis à la page demandée. */
@@ -34,10 +36,19 @@ export function RequirePermission({
   const { can } = useCurrentUser()
   if (!can(permission)) {
     return (
-      <PageHeading
-        eyebrow="Accès"
+      <ErrorState
+        code="403"
+        tone="ko"
+        icon="shield"
         title="Accès refusé"
-        description="Votre rôle ne permet pas d’ouvrir cette page. Contactez l’administrateur si vous en avez besoin."
+        message="Votre rôle ne permet pas d’ouvrir cette page."
+        hint="Si vous en avez besoin pour votre travail, demandez à l’administrateur de vous donner ce droit."
+        actions={
+          <Link to="/" className="primary">
+            <Icon name="dashboard" size={17} />
+            Retour à l’accueil
+          </Link>
+        }
       />
     )
   }

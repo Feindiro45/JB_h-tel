@@ -41,6 +41,9 @@ export interface Setting {
   min?: number
   max?: number
   options?: Record<string, string>
+  unit?: string | null
+  updated_at?: string | null
+  updated_by?: string | null
 }
 export interface Role {
   name: string

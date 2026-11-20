@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { ErrorState } from '../../shared/ui/ErrorState'
 import { EmptyState, PageHeading, Panel } from '../../shared/ui/layout'
 
 /** Écran annoncé dans la navigation mais livré dans une étape suivante de la phase 6. */
@@ -27,10 +28,12 @@ export function UpcomingPage({
 /** Compte actif mais sans aucune permission d'écran. */
 export function NoAccessPage() {
   return (
-    <PageHeading
-      eyebrow="Accès"
+    <ErrorState
+      tone="info"
+      icon="key"
       title="Accès à configurer"
-      description="Votre compte est actif, mais aucun écran ne vous est encore attribué. Contactez l’administrateur."
+      message="Votre compte est actif, mais aucun écran ne vous est encore attribué."
+      hint="Contactez l’administrateur pour qu’il vous donne les droits nécessaires."
     />
   )
 }

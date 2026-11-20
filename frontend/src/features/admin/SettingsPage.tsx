@@ -1,7 +1,7 @@
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { api } from '../../shared/api/client'
 import type { Envelope } from '../../shared/api/types'
 import { Badge } from '../../shared/ui/Badge'
@@ -12,6 +12,110 @@ import { useToast } from '../../shared/ui/toastContext'
 import { adminQuery, type Setting } from './api'
 import { useCurrentUser } from '../auth'
 import { EditDialog } from './EditDialog'
+import './settings.css'
+
+/** Domaines des paramètres (D-060), d'après le préfixe de leur clé. */
+const GROUPS: { prefix: string; title: string; description: string }[] = [
+  {
+    prefix: 'discounts',
+    title: 'Remises',
+    description: 'Plafonds et arrondis appliqués aux réductions.',
+  },
+  {
+    prefix: 'payments',
+    title: 'Encaissements',
+    description: 'Moyens de paiement proposés à la caisse.',
+  },
+  {
+    prefix: 'reservations',
+    title: 'Réservations',
+    description: 'Blocage des chambres quand l’heure n’est pas saisie.',
+  },
+  {
+    prefix: 'billing',
+    title: 'Facturation et caisse',
+    description: 'Forfaits, numérotation des pièces et trop-perçu.',
+  },
+]
+
+function settingGroups(settings: Setting[]) {
+  const known = GROUPS.map((group) => ({
+    key: group.prefix,
+    title: group.title,
+    description: group.description,
+    items: settings.filter((s) => s.key.startsWith(`${group.prefix}.`)),
+  }))
+  const others = settings.filter((s) => !GROUPS.some((g) => s.key.startsWith(`${g.prefix}.`)))
+  return [
+    ...known,
+    { key: 'others', title: 'Autres règles', description: 'Règles générales.', items: others },
+  ].filter((group) => group.items.length > 0)
+}
+
+function displayValue(s: Setting): ReactNode {
+  if (Array.isArray(s.value))
+    return (
+      <span className="setting-chips">
+        {s.value.map((v) => (
+          <span key={v} className="setting-chip">
+            {s.options?.[v] ?? v}
+          </span>
+        ))}
+      </span>
+    )
+  if (typeof s.value === 'boolean') return s.value ? 'Oui' : 'Non'
+  if (s.value === null || s.value === undefined) return 'Non défini'
+  const text = s.options?.[String(s.value)] ?? String(s.value)
+  return s.unit ? `${text} ${s.unit}` : text
+}
+
+/** « 2026-11-20 09:15:00 » (heure de l'hôtel, renvoyée par le serveur) → « 20/11/2026 à 09:15 ». */
+function displayUpdatedAt(value: string): string {
+  const [date = '', time = ''] = value.split(' ')
+  const [y, m, d] = date.split('-')
+  return d && m && y ? `${d}/${m}/${y} à ${time.slice(0, 5)}` : value
+}
+
+function SettingRow({ setting: s, onEdit }: { setting: Setting; onEdit: () => void }) {
+  const titleId = useId()
+  return (
+    <article className="setting" aria-labelledby={titleId}>
+      <div className="setting__main">
+        <h3 id={titleId}>{s.label}</h3>
+        <p>{s.help}</p>
+        <p className="setting__meta">
+          <span className="setting__ref">Réf. {s.reference}</span>
+          {s.updated_at && (
+            <span>
+              Modifié le {displayUpdatedAt(s.updated_at)}
+              {s.updated_by ? ` par ${s.updated_by}` : ''}
+            </span>
+          )}
+        </p>
+      </div>
+      <div className="setting__side">
+        <Badge
+          tone={s.status === 'VALIDATED' ? 'green' : 'amber'}
+          label={s.status === 'VALIDATED' ? 'Validé' : 'Provisoire'}
+        />
+        <strong className={`setting__value${s.type === 'text' ? ' setting__value--code' : ''}`}>
+          {displayValue(s)}
+        </strong>
+        {s.editable ? (
+          <button type="button" className="secondary" onClick={onEdit} aria-describedby={titleId}>
+            <Icon name="edit" size={17} />
+            Modifier
+          </button>
+        ) : (
+          <span className="setting__locked">
+            <Icon name="key" size={14} />
+            Fixé par décision
+          </span>
+        )}
+      </div>
+    </article>
+  )
+}
 
 export function SettingsPage() {
   const settings = useQuery(adminQuery<Envelope<Setting[]>>('settings'))
@@ -22,7 +126,7 @@ export function SettingsPage() {
         icon="settings"
         eyebrow="Administration"
         title="Paramètres"
-        description="Les règles provisoires restent soumises à la validation de l’hôtel."
+        description="Règles de fonctionnement de l’hôtel, regroupées par domaine. Les règles provisoires attendent la validation de l’hôtel."
       />
       <PageOverview
         items={[
@@ -56,43 +160,31 @@ export function SettingsPage() {
           },
         ]}
       />
-      <MailPanel />
+      <div className="settings-legend" role="note">
+        <span>
+          <Badge tone="green" label="Validé" /> règle confirmée par l’hôtel
+        </span>
+        <span>
+          <Badge tone="amber" label="Provisoire" /> valeur par défaut, en attente de validation
+        </span>
+        <span>
+          <Icon name="key" size={15} /> fixée par une décision : modifiable seulement après accord
+        </span>
+      </div>
       {settings.isPending ? (
         <LoadingBlock />
       ) : (
-        settings.data?.data.map((s) => (
-          <Panel
-            key={s.key}
-            title={s.label}
-            subtitle={s.help}
-            action={
-              <Badge
-                tone={s.status === 'VALIDATED' ? 'green' : 'amber'}
-                label={s.status === 'VALIDATED' ? 'Validé' : 'Provisoire'}
-              />
-            }
-          >
-            <div className="filterbar">
-              <strong>
-                {Array.isArray(s.value)
-                  ? s.value.map((v) => s.options?.[v] ?? v).join(', ')
-                  : typeof s.value === 'boolean'
-                    ? s.value
-                      ? 'Oui'
-                      : 'Non'
-                    : (s.options?.[String(s.value)] ?? String(s.value ?? 'Non défini'))}
-              </strong>
-              <span className="caption">{s.reference}</span>
-              {s.editable && (
-                <button className="secondary" onClick={() => setEditing(s)}>
-                  <Icon name="edit" size={17} />
-                  Modifier
-                </button>
-              )}
+        settingGroups(settings.data?.data ?? []).map((group) => (
+          <Panel key={group.key} title={group.title} subtitle={group.description}>
+            <div className="settings-list">
+              {group.items.map((s) => (
+                <SettingRow key={s.key} setting={s} onEdit={() => setEditing(s)} />
+              ))}
             </div>
           </Panel>
         ))
       )}
+      <MailPanel />
       {editing &&
         (editing.type === 'methods' ? (
           <MethodsDialog setting={editing} onClose={() => setEditing(null)} />

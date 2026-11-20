@@ -1,0 +1,130 @@
+/* D-060 : pages d'erreur de l'application (404, 403, erreur inattendue). */
+.error-state {
+  --tone: #a55309;
+  --tone-soft: #fff4e2;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  justify-items: center;
+  width: min(100%, 560px);
+  margin: 32px auto;
+  padding: 38px 32px 32px;
+  border: 1px solid #dde6e1;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px #0f2a2008,
+    0 22px 48px -22px #0f2a2033;
+  text-align: center;
+}
+.error-state::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: var(--tone);
+}
+.error-state--ko {
+  --tone: #b42318;
+  --tone-soft: #fdecea;
+}
+.error-state--info {
+  --tone: #175d99;
+  --tone-soft: #e8f1fb;
+}
+.error-state__visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+}
+.error-state__code {
+  color: var(--tone);
+  font-size: clamp(4.2rem, 16vw, 6.2rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  opacity: 0.14;
+}
+.error-state__icon {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--tone-soft);
+  color: var(--tone);
+  box-shadow: 0 0 0 7px #fff;
+}
+.error-state__code + .error-state__icon {
+  position: absolute;
+  bottom: -10px;
+}
+.error-state__label {
+  margin: 22px 0 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.error-state h1 {
+  margin: 4px 0 10px;
+  color: #12261e;
+  font-size: clamp(1.4rem, 4vw, 1.75rem);
+  letter-spacing: -0.03em;
+}
+.error-state__message {
+  max-width: 46ch;
+  margin: 0;
+  color: #34483f;
+  line-height: 1.6;
+}
+.error-state__hint {
+  max-width: 46ch;
+  margin: 10px 0 0;
+  color: #5d6f67;
+  font-size: 0.9rem;
+}
+.error-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+.error-screen {
+  display: grid;
+  align-content: center;
+  min-height: 100svh;
+  padding: 24px 16px;
+  background: #f2f5f3;
+}
+.error-screen__brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #133d2e;
+  font-weight: 750;
+}
+.error-screen__brand span:first-child {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #0f4d38;
+  color: #f0d995;
+  font:
+    700 19px Georgia,
+    serif;
+}
+@media (max-width: 480px) {
+  .error-state {
+    padding: 32px 20px 24px;
+  }
+}

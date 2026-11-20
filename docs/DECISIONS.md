@@ -386,3 +386,17 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
   - *Contenu :* seulement les données nécessaires (initiales du client), avec l’heure de la vérification.
   - *Aide :* si le document est introuvable, une aide pas à pas et le contact de l’hôtel (configuration).
   - *Format :* adaptée au mobile et à l’impression, sans ressource externe.
+
+### D-060 — Pages d’erreur et page Paramètres (Validé par l’utilisateur le 20/11/2026)
+- **Pages d’erreur de l’application** (React) sur un composant commun `shared/ui/ErrorState` : code en grand, pastille « Erreur … », titre, message, aide et actions. Ton ambre pour 404, rouge pour 403 et 500, bleu pour « Accès à configurer ».
+  - *404 :* « Page introuvable », boutons « Retour à l’accueil » et « Page précédente ».
+  - *403 :* « Accès refusé » quand le rôle n’a pas le droit de la page (`RequirePermission`) ; le serveur reste l’autorité.
+  - *500 :* page de secours du routeur (« Erreur inattendue »), avec « Recharger la page » ; aucun détail technique affiché.
+- **Pages d’erreur du serveur** (liens ouverts hors de l’application, par exemple le QR code d’une facture) : vues Blade autonomes dans `resources/views/errors` (403, 404, 419, 429, 500, 503, puis 4xx et 5xx génériques qui affichent le code reçu, par exemple 505). Elles sont en français, sans ressource externe, avec le contact de l’hôtel.
+  - *Pas de lien vers l’application :* ces pages peuvent être vues par un client, qui ne doit pas être envoyé vers l’écran de connexion du personnel. Seuls « Revenir en arrière » et, pour les erreurs passagères (419, 429, 5xx), « Réessayer » sont proposés.
+  - *API :* les routes `/api/*` gardent le contrat d’erreur JSON (`ApiExceptionRenderer`) ; aucune trace, même avec `APP_DEBUG=true` côté API. Les pages web ne montrent jamais le message de l’exception quand `APP_DEBUG=false` (production).
+- **Page Paramètres** :
+  - *Regroupement :* règles rangées par domaine d’après le préfixe de leur clé (Remises, Encaissements, Réservations, Facturation et caisse, puis « Autres règles » pour une clé nouvelle).
+  - *Lecture :* chaque règle montre sa valeur en grand (pastilles pour une liste, Oui/Non, unité), son statut Validé ou Provisoire, sa référence (D-xx, Q-xx) et la date de dernière modification.
+  - *Actions :* « Modifier » seulement pour les règles modifiables ; les autres affichent « Fixé par décision ». Une légende explique les trois états. Le panneau « Envoi des e-mails » reste en bas de page.
+  - Aucune règle, valeur ou droit n’a changé : présentation uniquement.

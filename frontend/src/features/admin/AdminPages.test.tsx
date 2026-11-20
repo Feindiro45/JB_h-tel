@@ -205,7 +205,12 @@ describe('Administration', () => {
       },
     })
     renderApp('/admin/parametres')
-    await screen.findByText('Provisoire')
+    const rule = await screen.findByRole('article', { name: 'Plafond de remise' })
+    expect(rule).toHaveTextContent('Provisoire')
+    expect(rule).toHaveTextContent('Réf. D-016')
+    expect(screen.getByRole('article', { name: 'Durée validée' })).toHaveTextContent(
+      'Fixé par décision',
+    )
     expect(screen.getAllByRole('button', { name: 'Modifier' })).toHaveLength(1)
   })
 

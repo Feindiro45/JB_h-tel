@@ -4,6 +4,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Pages d’erreur et page Paramètres — 20/11/2026 (D-060)
+- Pages d’erreur de l’application redessinées sur un composant commun : 404 « Page introuvable », 403 « Accès refusé », « Accès à configurer » et 500 « Erreur inattendue », avec code, message, aide et boutons (accueil, page précédente, recharger).
+- Pages d’erreur du serveur pour les liens ouverts hors de l’application (QR code, liens d’e-mail) : 403, 404, 419, 429, 500, 503 et pages génériques 4xx/5xx (par exemple 505), en français, aux couleurs de l’hôtel, sans détail technique ni lien vers l’espace du personnel. L’API garde ses erreurs JSON.
+- Page Paramètres redessinée : vue d’ensemble, légende, règles regroupées par domaine (Remises, Encaissements, Réservations, Facturation et caisse), valeur mise en avant, statut Validé/Provisoire, référence et date de modification ; « Modifier » seulement si la règle est modifiable. Aucune règle ni valeur changée.
+- Tests : 3 backend (234 au total), 2 frontend nouveaux et le test Paramètres réécrit (109 au total), 1 parcours navigateur qui audite l’accessibilité des pages 404 (8 au total, tous verts). L’audit Axe a révélé un gris trop pâle sur la page Paramètres (contraste 4,41), corrigé à 5,56. Captures PC et mobile inspectées.
+
 ### Pages d’accès, mot de passe oublié et vérification de facture — 20/11/2026 (D-059)
 - Connexion, mot de passe oublié et choix du mot de passe redessinés sur une mise en page commune (carte centrée sans image, bandeau vert et or, règles du mot de passe vérifiées en direct).
 - Mot de passe oublié : le compte est vérifié avant l’envoi du lien (60 minutes, usage unique) ; invitations sur une table de jetons distincte.
