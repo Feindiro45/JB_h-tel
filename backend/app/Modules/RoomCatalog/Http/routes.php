@@ -26,6 +26,12 @@ Route::middleware('authenticated')->group(function (): void {
         Route::put('rooms/{room}/maintenance', [RoomController::class, 'updateMaintenance'])->name('rooms.maintenance');
     });
 
+    // Suppression définitive (D-058) : administrateur seulement.
+    Route::middleware('permission:'.PermissionName::RecordsDelete->value)->group(function (): void {
+        Route::delete('room-types/{roomType}', [RoomTypeController::class, 'destroy'])->name('room-types.destroy');
+        Route::delete('rooms/{room}', [RoomController::class, 'destroy'])->name('rooms.destroy');
+    });
+
     Route::middleware('permission:'.PermissionName::RatesView->value)->group(function (): void {
         Route::get('room-rates', [RoomRateController::class, 'index'])->name('room-rates.index');
         Route::get('room-rates/grid', [RoomRateController::class, 'grid'])->name('room-rates.grid');

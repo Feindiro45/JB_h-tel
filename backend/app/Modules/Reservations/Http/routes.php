@@ -4,6 +4,7 @@ use App\Modules\Identity\Domain\PermissionName;
 use App\Modules\Reservations\Http\Controllers\DepartureAlertsController;
 use App\Modules\Reservations\Http\Controllers\OccupancyController;
 use App\Modules\Reservations\Http\Controllers\ReservationController;
+use App\Modules\Reservations\Http\Controllers\ReservationCorrectionController;
 use App\Modules\Reservations\Http\Controllers\ReservationExtensionController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,7 +33,14 @@ Route::middleware('authenticated')->group(function (): void {
         Route::put('reservations/{reservation}/occupants', [ReservationController::class, 'occupants'])->name('reservations.occupants');
         Route::post('reservations/{reservation}/extension/preview', [ReservationExtensionController::class, 'preview'])->name('reservations.extension.preview');
         Route::post('reservations/{reservation}/extension', [ReservationExtensionController::class, 'store'])->name('reservations.extension.store');
+        // Correction avant le séjour (D-058).
+        Route::post('reservations/{reservation}/modification/preview', [ReservationCorrectionController::class, 'preview'])->name('reservations.modification.preview');
+        Route::post('reservations/{reservation}/modification', [ReservationCorrectionController::class, 'modify'])->name('reservations.modification');
     });
+
+    // Suppression définitive d'une réservation saisie par erreur (D-058) : administrateur seulement.
+    Route::middleware('permission:'.PermissionName::RecordsDelete->value)
+        ->delete('reservations/{reservation}', [ReservationCorrectionController::class, 'destroy'])->name('reservations.destroy');
 
     Route::middleware('permission:'.PermissionName::ReservationsCancel->value)->group(function (): void {
         Route::post('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');

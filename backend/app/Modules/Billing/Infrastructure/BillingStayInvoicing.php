@@ -34,11 +34,25 @@ final class BillingStayInvoicing implements StayInvoicing
 
     public function replaceAfterExtension(int $reservationId, User $actor): ?string
     {
+        return $this->replaceAfterChange($reservationId, 'Prolongation du séjour : la nouvelle facture détaille le séjour initial et la prolongation.', $actor);
+    }
+
+    public function hasActiveInvoice(int $reservationId): bool
+    {
+        return $this->active($reservationId) !== null;
+    }
+
+    public function hasDocuments(int $reservationId): bool
+    {
+        return Invoice::query()->where('reservation_id', $reservationId)->exists();
+    }
+
+    public function replaceAfterChange(int $reservationId, string $reason, User $actor): ?string
+    {
         $active = $this->active($reservationId);
         if ($active === null) {
             return null;
         }
-        $reason = 'Prolongation du séjour : la nouvelle facture détaille le séjour initial et la prolongation.';
         $this->invoices->credit($active, $reason, $actor);
         $due = $this->reservations->find($reservationId)
             ?? throw new BusinessRuleException("La réservation n'existe pas.", 'Élément introuvable', 404, 'reservation_not_found');

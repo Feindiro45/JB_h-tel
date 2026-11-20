@@ -26,7 +26,7 @@ final class RoleController
             'data' => array_map(fn (PermissionName $permission) => [
                 'name' => $permission->value,
                 'label' => $permission->label(),
-            ], PermissionName::cases()),
+            ], array_values(array_filter(PermissionName::cases(), fn (PermissionName $permission) => ! in_array($permission, PermissionName::adminOnly(), true)))),
         ]);
     }
 

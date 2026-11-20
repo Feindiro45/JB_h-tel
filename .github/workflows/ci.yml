@@ -41,6 +41,8 @@ jobs:
           php-version: '8.2'
           extensions: mbstring, pdo_mysql, bcmath, intl, zip, gd
           coverage: none
+          # JIT désactivé : erreur « CarbonImmutable given » apparue sous JIT sur le serveur de recette (20/11/2026).
+          ini-values: opcache.jit=disable, opcache.jit_buffer_size=0
         env:
           # Téléchargements GitHub authentifiés : évite la limite anonyme (HTTP 429).
           COMPOSER_TOKEN: ${{ secrets.GITHUB_TOKEN }}

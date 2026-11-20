@@ -6,6 +6,7 @@ use App\Modules\Customers\Application\Services\CustomerService;
 use App\Modules\Customers\Http\Requests\CustomerRequest;
 use App\Modules\Customers\Http\Resources\CustomerResource;
 use App\Modules\Customers\Models\Customer;
+use App\Shared\Http\DeletionRequest;
 use App\Shared\Http\PerPage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,5 +47,13 @@ final class CustomerController
     public function update(CustomerRequest $request, Customer $customer): CustomerResource
     {
         return new CustomerResource($this->customers->update($customer, $request->fields()));
+    }
+
+    /** Suppression définitive (D-058, administrateur) : motif obligatoire, copie au journal d'audit. */
+    public function destroy(DeletionRequest $request, Customer $customer): JsonResponse
+    {
+        $this->customers->delete($customer, $request->reason(), $request->actor());
+
+        return new JsonResponse(['message' => 'Fiche client supprimée. Une copie est conservée dans le journal d’audit.']);
     }
 }

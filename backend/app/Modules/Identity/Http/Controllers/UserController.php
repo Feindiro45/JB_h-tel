@@ -8,6 +8,7 @@ use App\Modules\Identity\Http\Requests\StoreUserRequest;
 use App\Modules\Identity\Http\Requests\UpdateUserRequest;
 use App\Modules\Identity\Http\Resources\UserResource;
 use App\Modules\Identity\Models\User;
+use App\Shared\Http\DeletionRequest;
 use App\Shared\Http\PerPage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,5 +68,13 @@ final class UserController
         $user = $this->users->update($user, $request->toData(), $actor);
 
         return new UserResource($user->load(self::RELATIONS));
+    }
+
+    /** Suppression définitive (D-058, administrateur) : motif obligatoire, copie au journal d'audit. */
+    public function destroy(DeletionRequest $request, User $user): JsonResponse
+    {
+        $this->users->delete($user, $request->reason(), $request->actor());
+
+        return new JsonResponse(['message' => 'Compte supprimé. Une copie est conservée dans le journal d’audit.']);
     }
 }

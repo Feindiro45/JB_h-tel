@@ -35,6 +35,7 @@ enum PermissionName: string
     case ReportsExport = 'reports.export';
     case SettingsManage = 'settings.manage';
     case AuditView = 'audit.view';
+    case RecordsDelete = 'records.delete';
 
     public function label(): string
     {
@@ -66,7 +67,18 @@ enum PermissionName: string
             self::ReportsExport => 'Exporter les rapports',
             self::SettingsManage => 'Modifier les paramètres',
             self::AuditView => "Consulter le journal d'audit",
+            self::RecordsDelete => 'Supprimer définitivement des saisies',
         };
+    }
+
+    /**
+     * Réservées au rôle administrateur, jamais attribuables à un autre rôle (D-058).
+     *
+     * @return list<self>
+     */
+    public static function adminOnly(): array
+    {
+        return [self::RecordsDelete];
     }
 
     /** @return list<string> */

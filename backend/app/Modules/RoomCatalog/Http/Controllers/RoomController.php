@@ -9,6 +9,7 @@ use App\Modules\RoomCatalog\Http\Requests\UpdateRoomMaintenanceRequest;
 use App\Modules\RoomCatalog\Http\Requests\UpdateRoomRequest;
 use App\Modules\RoomCatalog\Http\Resources\RoomResource;
 use App\Modules\RoomCatalog\Models\Room;
+use App\Shared\Http\DeletionRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -61,5 +62,13 @@ final class RoomController
         $room = $this->rooms->setMaintenance($room, $request->status(), $request->note());
 
         return new RoomResource($room->load('roomType'));
+    }
+
+    /** Suppression définitive (D-058, administrateur) : motif obligatoire, copie au journal d'audit. */
+    public function destroy(DeletionRequest $request, Room $room): JsonResponse
+    {
+        $this->rooms->delete($room, $request->reason(), $request->actor());
+
+        return new JsonResponse(['message' => 'Chambre supprimée. Une copie est conservée dans le journal d’audit.']);
     }
 }

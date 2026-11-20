@@ -138,6 +138,7 @@ export function admin(overrides: Partial<CurrentUser> = {}): CurrentUser {
       'settings.manage',
       'audit.view',
       'reports.export',
+      'records.delete',
     ],
     ...overrides,
   })

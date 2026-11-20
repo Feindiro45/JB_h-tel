@@ -323,3 +323,141 @@ describe('Fiche réservation', () => {
     expect(normalize(metric?.textContent ?? '')).toContain('prix initial 50 000 FCFA')
   })
 })
+
+describe('Corrections et suppressions (D-058)', () => {
+  const room102 = {
+    id: 'room-102',
+    number: '102',
+    capacity: 2,
+    room_type: { id: 't-std', code: 'STANDARD', label: 'Standard', description: null },
+    maintenance_status: 'AVAILABLE',
+    maintenance_label: 'Disponible',
+    maintenance_note: null,
+    notes: null,
+  }
+  const payment = (cashierId: string, receipt: string) => ({
+    id: `pay-${receipt}`,
+    receipt_number: receipt,
+    amount_fcfa: 20000,
+    refunded_fcfa: 0,
+    method: 'CASH',
+    method_label: 'Espèces',
+    reference: null,
+    received_at: new Date().toISOString(),
+    cashier: { id: cashierId, name: 'Agent' },
+    status: 'VALID',
+    status_label: 'Validé',
+    cancelled_at: null,
+    cancellation_reason: null,
+    refunds: [],
+  })
+
+  it('modifie la réservation en deux temps : nouveau prix, puis motif obligatoire', async () => {
+    const r = reservation()
+    const calls = serve(r, undefined, {
+      'GET /api/v1/rooms': { body: { data: [room102] } },
+      [`POST /api/v1/reservations/${ID}/modification/preview`]: {
+        body: {
+          data: {
+            room: { ...room102, under_maintenance: false },
+            period: r.period,
+            price: { ...r.price, unit_price_fcfa: 30000, net_fcfa: 30000, gross_fcfa: 30000 },
+            available: true,
+            conflicts: [],
+            current_net_fcfa: 50000,
+          },
+        },
+      },
+      [`POST /api/v1/reservations/${ID}/modification`]: {
+        body: { data: r, meta: { replacement_invoice_number: null } },
+      },
+    })
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier la réservation' }))
+    const dialog = screen.getByRole('dialog', { name: 'Modifier la réservation' })
+    await within(dialog).findByRole('option', { name: /^102/ })
+    await user.selectOptions(within(dialog).getByLabelText('Chambre'), 'room-102')
+    await user.click(within(dialog).getByRole('button', { name: 'Calculer le nouveau prix' }))
+    expect(
+      await within(dialog).findByText('30 000 FCFA', { normalizer: normalize }),
+    ).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer la modification' }))
+    expect(
+      within(dialog).getByText('Le motif de la modification est obligatoire.'),
+    ).toBeInTheDocument()
+    await user.type(within(dialog).getByLabelText('Motif de la modification'), 'Chambre mal saisie')
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer la modification' }))
+
+    expect(await screen.findByText('Réservation modifiée')).toBeInTheDocument()
+    expect(calls.find((c) => c.path.endsWith('/modification'))?.body).toMatchObject({
+      room_id: 'room-102',
+      billing_unit: 'DAY',
+      reason: 'Chambre mal saisie',
+    })
+  })
+
+  it('l’administrateur supprime avec avertissement, motif et confirmation explicite', async () => {
+    const calls = serve(reservation(), admin().permissions, {
+      [`DELETE /api/v1/reservations/${ID}`]: {
+        body: {
+          message: 'Réservation supprimée. Une copie est conservée dans le journal d’audit.',
+        },
+      },
+      'GET /api/v1/reservations': {
+        body: { data: [], meta: { total: 0, current_page: 1, last_page: 1 } },
+      },
+    })
+    const router = renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Supprimer' }))
+    const warning = screen.getByRole('alertdialog', { name: 'Supprimer la réservation' })
+    expect(warning).toHaveTextContent('irréversible')
+    const submit = within(warning).getByRole('button', { name: 'Supprimer définitivement' })
+    expect(submit).toBeDisabled()
+    await user.type(within(warning).getByLabelText('Motif de la suppression'), 'Saisie en double')
+    await user.click(within(warning).getByLabelText('Je confirme la suppression définitive'))
+    await user.click(submit)
+
+    expect(
+      await screen.findByText(
+        'Réservation supprimée. Une copie est conservée dans le journal d’audit.',
+      ),
+    ).toBeInTheDocument()
+    expect(calls.find((c) => c.method === 'DELETE')?.body).toEqual({ reason: 'Saisie en double' })
+    await waitFor(() => expect(router.state.location.pathname).toBe('/reservations'))
+  })
+
+  it('la caissière n’a pas le bouton Supprimer', async () => {
+    serve(reservation())
+    renderApp(`/reservations/${ID}`)
+    await screen.findByRole('heading', { name: 'NGUEMA Paul' })
+    expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument()
+  })
+
+  it('la caissière peut annuler son propre encaissement du jour, pas celui d’une collègue', async () => {
+    serve(reservation(), undefined, {
+      [`GET /api/v1/reservations/${ID}/payments`]: {
+        body: {
+          data: [
+            payment(cashier().id, 'REC-2026-000010'),
+            payment('autre-agent', 'REC-2026-000011'),
+          ],
+          summary: SUMMARY,
+        },
+      },
+    })
+    renderApp(`/reservations/${ID}`)
+
+    expect(
+      await screen.findByRole('button', { name: 'Annuler le reçu REC-2026-000010' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Annuler le reçu REC-2026-000011' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Rembourser le reçu/ })).not.toBeInTheDocument()
+  })
+})

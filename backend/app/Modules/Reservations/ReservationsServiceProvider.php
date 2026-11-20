@@ -2,10 +2,14 @@
 
 namespace App\Modules\Reservations;
 
+use App\Modules\Customers\Contracts\CustomerUsage;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Modules\Reservations\Domain\Contracts\RoomAvailability;
+use App\Modules\Reservations\Infrastructure\CustomerReservationUsage;
 use App\Modules\Reservations\Infrastructure\EloquentReservationLedger;
 use App\Modules\Reservations\Infrastructure\EloquentRoomAvailability;
+use App\Modules\Reservations\Infrastructure\RoomReservationUsage;
+use App\Modules\RoomCatalog\Contracts\RoomUsage;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -18,5 +22,8 @@ final class ReservationsServiceProvider extends ServiceProvider
     {
         $this->app->bind(RoomAvailability::class, EloquentRoomAvailability::class);
         $this->app->bind(ReservationLedger::class, EloquentReservationLedger::class);
+        // Ports de Customers et RoomCatalog : suppression refusée si la fiche est utilisée (D-058).
+        $this->app->bind(CustomerUsage::class, CustomerReservationUsage::class);
+        $this->app->bind(RoomUsage::class, RoomReservationUsage::class);
     }
 }

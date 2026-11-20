@@ -14,6 +14,9 @@ interface CancellationRefunds
     /** Encaissé net du séjour : versements valides moins remboursements. */
     public function netCollected(int $reservationId): int;
 
+    /** Au moins un encaissement, même annulé (D-058 : une réservation avec de l'argent ne se supprime pas). */
+    public function hasPayments(int $reservationId): bool;
+
     /** @return list<string> Moyens de remboursement acceptés. */
     public function acceptedMethods(): array;
 

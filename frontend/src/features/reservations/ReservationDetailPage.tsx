@@ -3,9 +3,10 @@ import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import type { InvoiceSummary, Reservation } from '../../shared/api/types'
 import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
+import { DeleteDialog } from '../../shared/ui/DeleteDialog'
 import { EmptyState, LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatDateTime, formatDay, formatFcfa, todayIso } from '../../shared/utils/format'
@@ -34,7 +35,7 @@ import {
   reservationQuery,
   type CancellationInput,
 } from './api'
-import { CancelDialog, ConfirmDialog, ExtendDialog, OccupantsDialog } from './dialogs'
+import { CancelDialog, ConfirmDialog, ExtendDialog, ModifyDialog, OccupantsDialog } from './dialogs'
 import { ALERTS_KEY } from './alerts'
 
 type Dialog =
@@ -46,6 +47,8 @@ type Dialog =
   | 'occupants'
   | 'payment'
   | 'invoice'
+  | 'modify'
+  | 'delete'
   | null
 
 export function ReservationDetailPage() {
@@ -77,6 +80,7 @@ export function ReservationDetailPage() {
 
 function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
   const { can } = useCurrentUser()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [dialog, setDialog] = useState<Dialog>(null)
@@ -156,7 +160,17 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         eyebrow="Réservations"
         title={r.customer?.full_name ?? 'Réservation'}
         description={`Chambre ${r.room?.number} · ${r.room?.room_type.label} · ${formatDay(r.period.start_date)} → ${formatDay(r.period.end_date)}`}
-        actions={<ReservationStatusBadge status={r.status} label={r.status_label} />}
+        actions={
+          <>
+            <ReservationStatusBadge status={r.status} label={r.status_label} />
+            {can('records.delete') && (
+              <button type="button" className="danger" onClick={() => setDialog('delete')}>
+                <Icon name="trash" size={17} />
+                Supprimer
+              </button>
+            )}
+          </>
+        }
       />
 
       {r.departure_overdue && (
@@ -259,6 +273,12 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
               Modifier les occupants
             </button>
           </>
+        )}
+        {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.update') && (
+          <button type="button" className="secondary" onClick={() => setDialog('modify')}>
+            <Icon name="calendar" size={17} />
+            Modifier la réservation
+          </button>
         )}
         {summary &&
           summary.balance_fcfa > 0 &&
@@ -401,6 +421,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
                                 refundable_fcfa:
                                   p.status === 'VALID' ? p.amount_fcfa - p.refunded_fcfa : 0,
                                 has_refunds: p.refunds.length > 0,
+                                cashier_id: p.cashier.id,
                               }}
                             />
                           </td>
@@ -652,6 +673,38 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         />
       )}
       {crediting && <CreditNoteDialog invoice={crediting} onClose={() => setCrediting(null)} />}
+      {dialog === 'modify' && (
+        <ModifyDialog
+          reservation={r}
+          activeInvoiceNumber={activeInvoice?.number ?? null}
+          onClose={() => setDialog(null)}
+          onDone={(invoiceNumber) =>
+            done(
+              invoiceNumber
+                ? `Réservation modifiée · nouvelle facture ${invoiceNumber}`
+                : 'Réservation modifiée',
+            )
+          }
+        />
+      )}
+      {dialog === 'delete' && (
+        <DeleteDialog
+          title="Supprimer la réservation"
+          path={`/api/v1/reservations/${r.id}`}
+          onClose={() => setDialog(null)}
+          onDeleted={() => {
+            for (const key of [['reservations'], ['occupancy'], ['planning'], ['dashboard']]) {
+              void queryClient.invalidateQueries({ queryKey: key })
+            }
+            navigate('/reservations', { replace: true })
+          }}
+        >
+          La réservation de <strong>{r.customer?.full_name ?? 'ce client'}</strong> (chambre{' '}
+          {r.room?.number}, {formatDay(r.period.start_date)} → {formatDay(r.period.end_date)}) sera
+          supprimée. Seule une réservation sans aucun encaissement ni facture peut l’être ; sinon,
+          annulez-la.
+        </DeleteDialog>
+      )}
     </>
   )
 }

@@ -9,6 +9,7 @@ use App\Modules\Identity\Events\UserInvited;
 use App\Modules\Identity\Models\User;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
+use App\Shared\Support\RecordDeletion;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -18,7 +19,40 @@ use Illuminate\Support\Str;
  */
 final class UserAdministrationService
 {
-    public function __construct(private readonly AuditTrail $audit) {}
+    public function __construct(
+        private readonly AuditTrail $audit,
+        private readonly RecordDeletion $deletion,
+    ) {}
+
+    /**
+     * Suppression définitive (D-058) : seulement un compte jamais utilisé (aucune connexion, aucune
+     * opération). Un compte qui a servi se désactive : son historique lui reste attribué.
+     */
+    public function delete(User $user, string $reason, User $actor): void
+    {
+        if ($user->is($actor)) {
+            throw new BusinessRuleException('Vous ne pouvez pas supprimer votre propre compte.', 'Suppression impossible', 409, 'cannot_delete_self');
+        }
+        if ($user->last_login_at !== null) {
+            throw new BusinessRuleException(
+                "Le compte de {$user->name} a déjà été utilisé : il ne peut pas être supprimé. Désactivez-le plutôt, son historique reste attribué.",
+                'Suppression impossible',
+                409,
+                'user_has_activity',
+            );
+        }
+        if ($user->primaryRole() === RoleName::Admin && $user->active && $this->otherActiveAdminCount($user) === 0) {
+            throw new BusinessRuleException("Cet utilisateur est le dernier administrateur actif. Nommez d'abord un autre administrateur.", 'Suppression impossible', 409, 'last_active_admin');
+        }
+
+        DB::transaction(function () use ($user, $reason, $actor): void {
+            $snapshot = $this->snapshot($user);
+            $user->syncRoles([]);
+            DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+            $this->deletion->delete($user, 'user.deleted', 'user', $snapshot, $reason, $actor,
+                "Le compte de {$user->name} a déjà des opérations enregistrées : désactivez-le plutôt.");
+        });
+    }
 
     public function create(CreateUserData $data): User
     {

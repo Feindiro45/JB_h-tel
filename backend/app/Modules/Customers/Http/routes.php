@@ -16,4 +16,8 @@ Route::middleware('authenticated')->group(function (): void {
         Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
         Route::patch('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
     });
+
+    // Suppression définitive (D-058) : administrateur seulement.
+    Route::middleware('permission:'.PermissionName::RecordsDelete->value)
+        ->delete('customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
 });

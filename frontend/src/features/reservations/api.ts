@@ -165,3 +165,33 @@ export async function extendReservation(id: string, input: ExtensionInput) {
     replacementInvoiceNumber: response.meta?.replacement_invoice_number ?? null,
   }
 }
+
+/** Correction avant le séjour (D-058) : chambre, période, forfait ; motif obligatoire à l'enregistrement. */
+export interface ModificationInput {
+  room_id: string
+  start_date: string
+  end_date: string
+  start_time: string | null
+  end_time: string | null
+  billing_unit: 'DAY' | 'HALF_DAY'
+  quantity: number
+  reason?: string
+}
+
+export const previewModification = async (id: string, input: ModificationInput) =>
+  (
+    await api.post<Envelope<Quote & { current_net_fcfa: number }>>(
+      `/api/v1/reservations/${id}/modification/preview`,
+      input,
+    )
+  ).data
+
+export async function modifyReservation(id: string, input: ModificationInput) {
+  const response = await api.post<
+    Envelope<Reservation> & { meta?: { replacement_invoice_number: string | null } }
+  >(`/api/v1/reservations/${id}/modification`, input)
+  return {
+    reservation: response.data,
+    replacementInvoiceNumber: response.meta?.replacement_invoice_number ?? null,
+  }
+}

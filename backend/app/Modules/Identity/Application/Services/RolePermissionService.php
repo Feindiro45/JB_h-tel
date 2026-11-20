@@ -31,6 +31,16 @@ final class RolePermissionService
             );
         }
 
+        $adminOnly = array_values(array_intersect(array_map(fn (PermissionName $p) => $p->value, $permissions), array_map(fn (PermissionName $p) => $p->value, PermissionName::adminOnly())));
+        if ($adminOnly !== []) {
+            throw new BusinessRuleException(
+                'Ce droit est réservé à l’administrateur et ne peut pas être accordé à un autre rôle : '.implode(', ', $adminOnly).'.',
+                'Droit réservé',
+                409,
+                'permission_admin_only',
+            );
+        }
+
         return DB::transaction(function () use ($role, $permissions): Role {
             $before = $role->permissions()->pluck('name')->sort()->values()->all();
             $after = collect($permissions)->map(fn (PermissionName $p) => $p->value)->unique()->sort()->values()->all();

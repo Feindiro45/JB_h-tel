@@ -1,7 +1,7 @@
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Room, RoomType } from '../../shared/api/types'
 import { SelectField, TextField } from '../../shared/ui/fields'
@@ -12,6 +12,7 @@ import { roomsQuery, roomTypesQuery } from '../catalog'
 import { useCurrentUser } from '../auth'
 import { occupancyQuery } from '../reservations'
 import { RoomStateBadge } from '../../shared/ui/Badge'
+import { DeleteDialog } from '../../shared/ui/DeleteDialog'
 import { EditDialog, type EditField } from './EditDialog'
 
 export function RoomsPage() {
@@ -24,6 +25,10 @@ export function RoomsPage() {
   const [type, setType] = useState('')
   const [status, setStatus] = useState('')
   const [occupation, setOccupation] = useState('')
+  const [deleting, setDeleting] = useState<{ path: string; title: string; text: string } | null>(
+    null,
+  )
+  const queryClient = useQueryClient()
   const [dialog, setDialog] = useState<{
     kind: 'room' | 'type' | 'maintenance'
     room?: Room
@@ -203,6 +208,22 @@ export function RoomsPage() {
                         <Icon name="tool" size={17} />
                         Maintenance
                       </button>
+                      {can('records.delete') && (
+                        <button
+                          className="text-button text-button--danger"
+                          onClick={() =>
+                            setDeleting({
+                              path: `/api/v1/rooms/${r.id}`,
+                              title: 'Supprimer la chambre',
+                              text: `La chambre ${r.number} sera supprimée. Seule une chambre jamais réservée peut l’être ; sinon, mettez-la en maintenance.`,
+                            })
+                          }
+                          aria-label={`Supprimer la chambre ${r.number}`}
+                        >
+                          <Icon name="trash" size={17} />
+                          Supprimer
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -243,6 +264,22 @@ export function RoomsPage() {
                           <Icon name="edit" size={17} />
                           Modifier
                         </button>
+                        {can('records.delete') && (
+                          <button
+                            className="text-button text-button--danger"
+                            onClick={() =>
+                              setDeleting({
+                                path: `/api/v1/room-types/${t.id}`,
+                                title: 'Supprimer la catégorie',
+                                text: `La catégorie ${t.label} sera supprimée. Seule une catégorie sans chambre ni tarif publié peut l’être.`,
+                              })
+                            }
+                            aria-label={`Supprimer la catégorie ${t.label}`}
+                          >
+                            <Icon name="trash" size={17} />
+                            Supprimer
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -331,6 +368,19 @@ export function RoomsPage() {
           }
           onClose={() => setDialog(null)}
         />
+      )}
+      {deleting && (
+        <DeleteDialog
+          title={deleting.title}
+          path={deleting.path}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            void queryClient.invalidateQueries({ queryKey: ['catalog'] })
+            setDeleting(null)
+          }}
+        >
+          {deleting.text}
+        </DeleteDialog>
       )}
     </>
   )

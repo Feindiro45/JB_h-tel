@@ -6,7 +6,8 @@ import { Link } from 'react-router'
 import { SelectField, TextAreaField, TextField } from '../../shared/ui/fields'
 import { Modal } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/toastContext'
-import { formatFcfa } from '../../shared/utils/format'
+import { config } from '../../shared/config'
+import { formatFcfa, todayIso } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
 import { CASH_KEYS, cancelPayment, refundPayment } from './api'
 
@@ -19,6 +20,25 @@ export interface PaymentActionTarget {
   /** Montant encore remboursable (versement − remboursements déjà faits). */
   refundable_fcfa: number
   has_refunds: boolean
+  /** Auteur et date du versement : la caissière annule ses propres saisies du jour (D-058). */
+  cashier_id?: string
+  received_at?: string
+}
+
+/** Annulation permise : administrateur, ou caissière pour son propre versement d'aujourd'hui. */
+function canCancel(
+  payment: PaymentActionTarget,
+  userId: string | undefined,
+  can: (permission: string) => boolean,
+): boolean {
+  if (can('payments.cancel')) return true
+  return (
+    can('payments.record') &&
+    payment.cashier_id !== undefined &&
+    payment.cashier_id === userId &&
+    payment.received_at !== undefined &&
+    todayIso(config.timeZone, new Date(payment.received_at)) === todayIso()
+  )
 }
 
 /** Après un mouvement, tous les écrans de caisse et la fiche du séjour sont rechargés. */
@@ -36,7 +56,7 @@ function useCashRefresh() {
  * `refunds.create` et `payments.cancel`, réservés à l'administrateur par défaut, D-035).
  */
 export function PaymentActions({ payment }: { payment: PaymentActionTarget }) {
-  const { can } = useCurrentUser()
+  const { can, user } = useCurrentUser()
   const [dialog, setDialog] = useState<'refund' | 'cancel' | null>(null)
   const valid = payment.status === 'VALID'
 
@@ -61,7 +81,7 @@ export function PaymentActions({ payment }: { payment: PaymentActionTarget }) {
           Rembourser
         </button>
       )}
-      {valid && !payment.has_refunds && can('payments.cancel') && (
+      {valid && !payment.has_refunds && canCancel(payment, user?.id, can) && (
         <button
           type="button"
           className="text-button text-button--danger"

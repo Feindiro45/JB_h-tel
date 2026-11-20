@@ -83,8 +83,9 @@ export const api = {
     apiRequest<T>(path, { ...options, method: 'PATCH', body }),
   put: <T>(path: string, body?: unknown, options?: Options) =>
     apiRequest<T>(path, { ...options, method: 'PUT', body }),
-  delete: <T>(path: string, options?: Options) =>
-    apiRequest<T>(path, { ...options, method: 'DELETE' }),
+  /** Le corps est facultatif (motif d'une suppression définitive, D-058). */
+  delete: <T>(path: string, body?: unknown, options?: Options) =>
+    apiRequest<T>(path, { ...options, method: 'DELETE', body }),
   /** Dépose le cookie `XSRF-TOKEN` (Sanctum, mode SPA) avant la connexion. */
   csrf: () => apiRequest<void>('/sanctum/csrf-cookie'),
 }

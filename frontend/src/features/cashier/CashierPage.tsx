@@ -498,6 +498,8 @@ function Movements({ rows }: { rows: CashMovement[] }) {
                       method_label: row.method_label,
                       refundable_fcfa: row.refundable_fcfa,
                       has_refunds: row.has_refunds,
+                      cashier_id: row.agent?.id,
+                      received_at: row.at,
                     }}
                   />
                 )}

@@ -7,6 +7,7 @@ use App\Modules\RoomCatalog\Http\Requests\StoreRoomTypeRequest;
 use App\Modules\RoomCatalog\Http\Requests\UpdateRoomTypeRequest;
 use App\Modules\RoomCatalog\Http\Resources\RoomTypeResource;
 use App\Modules\RoomCatalog\Models\RoomType;
+use App\Shared\Http\DeletionRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -29,5 +30,13 @@ final class RoomTypeController
     public function update(UpdateRoomTypeRequest $request, RoomType $roomType): RoomTypeResource
     {
         return new RoomTypeResource($this->types->update($roomType, $request->toData()));
+    }
+
+    /** Suppression définitive (D-058, administrateur) : motif obligatoire, copie au journal d'audit. */
+    public function destroy(DeletionRequest $request, RoomType $roomType): JsonResponse
+    {
+        $this->types->delete($roomType, $request->reason(), $request->actor());
+
+        return new JsonResponse(['message' => 'Catégorie supprimée. Une copie est conservée dans le journal d’audit.']);
     }
 }

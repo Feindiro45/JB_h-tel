@@ -22,4 +22,16 @@ interface StayInvoicing
      * facture, ou null s'il n'y avait pas de facture active (la prochaine facture sera détaillée).
      */
     public function replaceAfterExtension(int $reservationId, User $actor): ?string;
+
+    /**
+     * Séjour modifié par l'administrateur (D-058) : comme pour une prolongation, la facture active
+     * est remplacée ; le motif figure sur l'avoir et sur la nouvelle facture.
+     */
+    public function replaceAfterChange(int $reservationId, string $reason, User $actor): ?string;
+
+    /** Une facture émise et non créditée existe pour ce séjour. */
+    public function hasActiveInvoice(int $reservationId): bool;
+
+    /** Au moins un document (facture ou avoir) existe pour ce séjour. */
+    public function hasDocuments(int $reservationId): bool;
 }

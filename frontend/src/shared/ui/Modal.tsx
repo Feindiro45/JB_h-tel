@@ -16,6 +16,8 @@ export interface ModalProps {
   submitDisabled?: boolean
   danger?: boolean
   size?: 'small' | 'large'
+  /** Avertissement qui exige une réponse (suppression définitive) : rôle « alertdialog ». */
+  alert?: boolean
 }
 
 /** Modale de saisie accessible (dialogue, focus piégé, Échap, retour du focus). */
@@ -31,6 +33,7 @@ export function Modal({
   submitDisabled = false,
   danger = false,
   size = 'large',
+  alert = false,
 }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -81,7 +84,7 @@ export function Modal({
       <div
         ref={dialogRef}
         className={`modal${size === 'small' ? ' modal--small' : ''}`}
-        role="dialog"
+        role={alert ? 'alertdialog' : 'dialog'}
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={handleKeyDown}

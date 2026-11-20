@@ -8,6 +8,7 @@ use App\Modules\Cashier\Events\PaymentRecorded;
 use App\Modules\Cashier\Events\PaymentRefunded;
 use App\Modules\Cashier\Models\Payment;
 use App\Modules\Cashier\Models\Refund;
+use App\Modules\Identity\Domain\PermissionName;
 use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Contracts\ReservationDue;
 use App\Modules\Reservations\Contracts\ReservationLedger;
@@ -119,6 +120,19 @@ final class CashierService
                     409,
                     'payment_has_refunds',
                 );
+            }
+            // Caissière (D-058) : seulement ses propres encaissements, saisis aujourd'hui (heure de l'hôtel).
+            if (! $actor->can(PermissionName::PaymentsCancel->value)) {
+                $timezone = (string) config('app.timezone');
+                $sameDay = $payment->received_at->copy()->setTimezone($timezone)->toDateString() === now($timezone)->toDateString();
+                if ($payment->cashier_id !== $actor->id || ! $sameDay) {
+                    throw new BusinessRuleException(
+                        'Vous pouvez annuler seulement vos propres encaissements saisis aujourd’hui. Pour celui-ci, demandez à un administrateur.',
+                        'Annulation réservée',
+                        403,
+                        'payment_cancel_not_allowed',
+                    );
+                }
             }
 
             $before = self::snapshot($payment);

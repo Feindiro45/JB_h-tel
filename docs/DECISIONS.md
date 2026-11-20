@@ -359,3 +359,15 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
 - Libellés visuellement masqués en mode compact mais conservés pour les lecteurs d’écran ; infobulles natives sur les liens. Bouton accessible au clavier, `aria-expanded` et `aria-controls`. Le fil d’Ariane s’adapte aux largeurs intermédiaires.
 - Préférence locale au navigateur, clé `jb-hotel.sidebar-collapsed`, conservée lors de la navigation et du rechargement. Si le stockage local est refusé, le bouton continue de fonctionner pour la session affichée.
 - Sur mobile, le tiroir existant reste complet, même si le choix PC est « réduit » ; le bouton PC est masqué. Styles de repli limités à l’écran : l’impression n’est pas affectée. Aucun changement serveur ni de base de données.
+
+### D-058 — Corrections de la caissière et suppression définitive par l’administrateur (Validé par l’utilisateur le 20/11/2026)
+- **Ce qui ne se supprime jamais :** encaissements, remboursements, factures et avoirs (obligation comptable). Ils se corrigent par une annulation tracée, un remboursement ou un avoir.
+- **Caissière, ses saisies du jour :** elle annule, avec un motif, un encaissement qu’elle a saisi aujourd’hui (heure de Bangui) et qui n’a pas été remboursé, puis le ressaisit. Les encaissements d’une collègue ou des jours précédents, et tout remboursement, restent à l’administrateur (Q-08).
+- **Modifier une réservation** (chambre, dates, heures, forfait, quantité) tant qu’elle est en attente ou confirmée, non prolongée et non commencée. Ce sont les mêmes contrôles qu’à la création : disponibilité sous verrou, maintenance, capacité, durée et journées calendaires. Le prix est recalculé au tarif en vigueur, avec la même remise. Le motif est obligatoire, l’audit `reservation.modified` conserve l’avant et l’après, et le client reçoit un e-mail. Le nouveau montant ne descend jamais sous l’encaissé (D-014). Une réservation facturée n’est modifiable que par l’administrateur : la facture est alors remplacée (avoir et nouvelle facture, comme D-053).
+- **Suppression définitive :** réservée au droit `records.delete`, toujours attribué au rôle administrateur et jamais attribuable à un autre rôle (refus 409 `permission_admin_only`). Elle passe par une fenêtre d’avertissement, avec motif obligatoire et confirmation explicite. Le journal d’audit garde une copie complète (`*.deleted`, avant, motif, auteur). Elle est permise seulement pour :
+  - un client sans aucune réservation ;
+  - une réservation sans aucun encaissement, même annulé, ni aucune facture ou avoir (ses occupants et prolongations partent avec elle) ;
+  - une chambre jamais réservée ;
+  - une catégorie sans chambre ni tarif publié ;
+  - un compte jamais utilisé : aucune connexion, aucune opération, ni le sien propre, ni le dernier administrateur actif.
+- **Filet de sécurité :** les clés étrangères en RESTRICT refusent toute suppression d’une saisie encore référencée ; la réponse est alors un 409 `record_in_use` en français, et rien n’est supprimé (copie au journal comprise).

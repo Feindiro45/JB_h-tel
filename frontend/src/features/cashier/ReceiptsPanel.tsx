@@ -182,6 +182,7 @@ export function ReceiptsPanel() {
                           refundable_fcfa:
                             p.status === 'VALID' ? p.amount_fcfa - p.refunded_fcfa : 0,
                           has_refunds: p.refunds.length > 0,
+                          cashier_id: p.cashier.id,
                         }}
                       />
                     </td>

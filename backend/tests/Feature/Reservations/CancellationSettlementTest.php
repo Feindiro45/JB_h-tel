@@ -195,4 +195,19 @@ final class FailingStayInvoicing implements StayInvoicing
     {
         return $this->onCancel ? null : throw new RuntimeException('Panne simulée de la facturation');
     }
+
+    public function replaceAfterChange(int $reservationId, string $reason, User $actor): ?string
+    {
+        return null;
+    }
+
+    public function hasActiveInvoice(int $reservationId): bool
+    {
+        return false;
+    }
+
+    public function hasDocuments(int $reservationId): bool
+    {
+        return false;
+    }
 }

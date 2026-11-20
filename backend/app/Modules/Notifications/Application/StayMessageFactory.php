@@ -39,6 +39,14 @@ final class StayMessageFactory
         ]);
     }
 
+    /** Réservation corrigée avant le séjour (D-058) : chambre, dates ou forfait. */
+    public function modified(int $reservationId): ?StayMessage
+    {
+        return $this->forStay($reservationId, 'reservation.modified', 'Votre réservation est modifiée', 'Modification de votre réservation', [
+            'Votre réservation a été modifiée. Voici les conditions à jour de votre séjour.',
+        ], withBalance: true);
+    }
+
     public function extended(int $reservationId): ?StayMessage
     {
         return $this->forStay($reservationId, 'reservation.extended', 'Votre séjour est prolongé', 'Prolongation de votre séjour', [

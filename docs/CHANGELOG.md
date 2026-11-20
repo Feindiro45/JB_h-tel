@@ -4,6 +4,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Corrections de la caissière et suppression par l’administrateur — 20/11/2026 (D-058)
+- La caissière annule elle-même, avec motif, un encaissement qu’elle a saisi aujourd’hui, puis le ressaisit ; le reste demeure à l’administrateur.
+- « Modifier la réservation » : chambre, dates, heures et forfait avant le séjour, avec disponibilité revérifiée, nouveau prix, motif, journal et e-mail au client ; facture remplacée si l’administrateur modifie un séjour facturé.
+- « Supprimer » (administrateur seulement) : clients sans séjour, réservations sans argent ni facture, chambres et catégories inutilisées, comptes jamais utilisés ; fenêtre d’avertissement, motif obligatoire, copie complète dans le journal d’audit. Encaissements et factures ne se suppriment jamais.
+- Nouveau droit `records.delete`, réservé au rôle administrateur.
+
 ### Menu latéral réductible sur PC — 20/11/2026
 - Bouton de réduction/déploiement dans la barre du haut ; rail compact de 80 px avec icônes et contenu central qui récupère automatiquement l’espace disponible. Libellés accessibles et infobulles conservés.
 - Préférence mémorisée dans le navigateur et restaurée au rechargement ; fonctionnement maintenu si le stockage local est bloqué. Le tiroir mobile reste complet. Décision D-057.

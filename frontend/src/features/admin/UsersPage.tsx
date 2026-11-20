@@ -12,6 +12,7 @@ import { Pagination } from '../../shared/ui/Pagination'
 import { useToast } from '../../shared/ui/toastContext'
 import { useCurrentUser } from '../auth'
 import { adminQuery, type Role, type Users } from './api'
+import { DeleteDialog } from '../../shared/ui/DeleteDialog'
 import { EditDialog, type EditField } from './EditDialog'
 
 export function UsersPage() {
@@ -27,6 +28,8 @@ export function UsersPage() {
   const roles = useQuery({ ...adminQuery<Envelope<Role[]>>('roles'), enabled: can('roles.manage') })
   const [editing, setEditing] = useState<CurrentUser | 'new' | null>(null)
   const [permissions, setPermissions] = useState<string[] | null>(null)
+  const [deleting, setDeleting] = useState<CurrentUser | null>(null)
+  const queryClient = useQueryClient()
   const cashier = roles.data?.data.find((r) => r.name === 'caissiere')
   const { notify } = useToast()
   // Nouveau lien pour choisir son mot de passe (6M) : invitation expirée ou mot de passe oublié.
@@ -189,6 +192,16 @@ export function UsersPage() {
                             <Icon name="mail" size={17} />
                             Inviter
                           </button>
+                          {can('records.delete') && (
+                            <button
+                              className="text-button text-button--danger"
+                              onClick={() => setDeleting(u)}
+                              aria-label={`Supprimer le compte de ${u.name}`}
+                            >
+                              <Icon name="trash" size={17} />
+                              Supprimer
+                            </button>
+                          )}
                         </span>
                       )}
                     </td>
@@ -255,6 +268,20 @@ export function UsersPage() {
           }}
           onClose={() => setEditing(null)}
         />
+      )}
+      {deleting && (
+        <DeleteDialog
+          title="Supprimer le compte"
+          path={`/api/v1/users/${deleting.id}`}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+            setDeleting(null)
+          }}
+        >
+          Le compte de <strong>{deleting.name}</strong> ({deleting.email}) sera supprimé. Seul un
+          compte jamais utilisé peut l’être ; sinon, désactivez-le.
+        </DeleteDialog>
       )}
       {permissions && (
         <PermissionsDialog initial={permissions} onClose={() => setPermissions(null)} />

@@ -25,6 +25,9 @@ Route::middleware('authenticated')->group(function (): void {
     Route::get('users/{user}', [UserController::class, 'show'])->name('users.show')->can('view', 'user');
     Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update')->can('update', 'user');
     Route::post('users/{user}/invitation', [UserController::class, 'invite'])->name('users.invitation')->can('update', 'user');
+    // Suppression définitive d'un compte jamais utilisé (D-058) : administrateur seulement.
+    Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy')
+        ->middleware('permission:'.PermissionName::RecordsDelete->value);
 
     Route::middleware('permission:'.PermissionName::RolesManage->value)->group(function (): void {
         Route::get('roles', [RoleController::class, 'index'])->name('roles.index');

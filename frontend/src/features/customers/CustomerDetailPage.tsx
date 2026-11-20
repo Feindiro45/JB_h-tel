@@ -1,9 +1,10 @@
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
+import { DeleteDialog } from '../../shared/ui/DeleteDialog'
 import { EmptyState, LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
 import { formatDate, formatDay, formatFcfa } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
@@ -17,6 +18,9 @@ export function CustomerDetailPage() {
   const { id = '' } = useParams()
   const { can } = useCurrentUser()
   const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const customer = useQuery(customerQuery(id))
   const stays = useQuery({ ...customerReservationsQuery(id), enabled: can('reservations.view') })
 
@@ -110,6 +114,12 @@ export function CustomerDetailPage() {
             Modifier la fiche
           </button>
         )}
+        {can('records.delete') && (
+          <button type="button" className="danger" onClick={() => setDeleting(true)}>
+            <Icon name="trash" size={17} />
+            Supprimer
+          </button>
+        )}
       </div>
 
       <Panel title="Coordonnées">
@@ -198,6 +208,20 @@ export function CustomerDetailPage() {
         </Panel>
       )}
       {editing && <CustomerFormDialog customer={c} onClose={() => setEditing(false)} />}
+      {deleting && (
+        <DeleteDialog
+          title="Supprimer la fiche client"
+          path={`/api/v1/customers/${c.id}`}
+          onClose={() => setDeleting(false)}
+          onDeleted={() => {
+            void queryClient.invalidateQueries({ queryKey: ['customers'] })
+            navigate('/clients', { replace: true })
+          }}
+        >
+          La fiche de <strong>{[c.name, c.first_name].filter(Boolean).join(' ')}</strong> sera
+          supprimée. Seul un client sans aucun séjour peut l’être.
+        </DeleteDialog>
+      )}
     </>
   )
 }

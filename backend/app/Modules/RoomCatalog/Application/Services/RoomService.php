@@ -2,10 +2,14 @@
 
 namespace App\Modules\RoomCatalog\Application\Services;
 
+use App\Modules\Identity\Models\User;
+use App\Modules\RoomCatalog\Contracts\RoomUsage;
 use App\Modules\RoomCatalog\Domain\MaintenanceStatus;
 use App\Modules\RoomCatalog\DTO\RoomData;
 use App\Modules\RoomCatalog\Models\Room;
 use App\Shared\Contracts\AuditTrail;
+use App\Shared\Exceptions\BusinessRuleException;
+use App\Shared\Support\RecordDeletion;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -13,7 +17,26 @@ use Illuminate\Support\Facades\DB;
  */
 final class RoomService
 {
-    public function __construct(private readonly AuditTrail $audit) {}
+    public function __construct(
+        private readonly AuditTrail $audit,
+        private readonly RoomUsage $usage,
+        private readonly RecordDeletion $deletion,
+    ) {}
+
+    /** Suppression définitive (D-058) : seulement une chambre jamais réservée. */
+    public function delete(Room $room, string $reason, User $actor): void
+    {
+        if ($this->usage->isUsed($room->id)) {
+            throw new BusinessRuleException(
+                "La chambre {$room->number} figure dans des réservations : elle ne peut pas être supprimée. Mettez-la plutôt en maintenance.",
+                'Suppression impossible',
+                409,
+                'room_in_use',
+            );
+        }
+        $this->deletion->delete($room, 'room.deleted', 'room', $this->snapshot($room), $reason, $actor,
+            "La chambre {$room->number} est encore utilisée ailleurs : elle ne peut pas être supprimée.");
+    }
 
     public function create(RoomData $data): Room
     {

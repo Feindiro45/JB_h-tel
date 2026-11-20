@@ -3,6 +3,7 @@
 namespace Tests\Feature\Cashier;
 
 use App\Modules\Cashier\Models\Payment;
+use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Models\Reservation;
 use App\Shared\Audit\AuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -186,15 +187,32 @@ class CashierTest extends TestCase
     }
 
     /** Provisoire (Q-08) : la caissière encaisse, mais seul l'administrateur annule ou rembourse. */
-    public function test_cashier_cannot_cancel_or_refund(): void
+    /**
+     * D-058 : la caissière corrige ses propres encaissements du jour (annulation motivée) ; les
+     * encaissements d'une collègue ou des jours précédents, et tout remboursement, restent à
+     * l'administrateur (provisoire, Q-08).
+     */
+    public function test_cashier_cancels_only_her_own_payments_of_the_day_and_never_refunds(): void
     {
-        $paymentId = $this->pay(20000)->json('data.id');
+        $own = $this->pay(20000)->json('data.id');
+        $this->actingAs($this->cashier)->postJson("/api/v1/payments/{$own}/refunds", ['amount_fcfa' => 100, 'reason' => 'x'])->assertStatus(403);
+        $this->actingAs($this->cashier)->postJson("/api/v1/payments/{$own}/cancel", ['reason' => 'Montant mal saisi'])
+            ->assertOk()->assertJsonPath('data.status', 'CANCELLED');
 
-        $this->actingAs($this->cashier)->postJson("/api/v1/payments/{$paymentId}/cancel", ['reason' => 'x'])->assertStatus(403);
-        $this->actingAs($this->cashier)->postJson("/api/v1/payments/{$paymentId}/refunds", ['amount_fcfa' => 100, 'reason' => 'x'])->assertStatus(403);
+        $colleague = User::factory()->cashier()->create();
+        $theirs = $this->actingAs($colleague)->postJson("/api/v1/reservations/{$this->reservation}/payments", ['amount_fcfa' => 5000, 'method' => 'CASH'])->json('data.id');
+        $this->actingAs($this->cashier)->postJson("/api/v1/payments/{$theirs}/cancel", ['reason' => 'x'])
+            ->assertStatus(403)->assertJsonPath('code', 'payment_cancel_not_allowed');
+
+        $yesterday = $this->pay(3000)->json('data.id');
+        $this->travel(1)->days();
+        $this->actingAs($this->cashier)->postJson("/api/v1/payments/{$yesterday}/cancel", ['reason' => 'x'])
+            ->assertStatus(403)->assertJsonPath('code', 'payment_cancel_not_allowed');
+        $this->actingAs($this->admin)->postJson("/api/v1/payments/{$yesterday}/cancel", ['reason' => 'Erreur de la veille'])->assertOk();
 
         Role::findByName('caissiere', 'web')->revokePermissionTo('payments.record');
         $this->pay(1000)->assertStatus(403);
+        $this->assertSame(2, AuditLog::query()->where('action', 'payment.cancelled')->count());
     }
 
     public function test_receipt_numbers_are_continuous_and_not_consumed_by_failures(): void

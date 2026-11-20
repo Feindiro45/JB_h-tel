@@ -2,7 +2,7 @@ import { Icon } from '../../shared/ui/Icon'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { paymentMethodsQuery } from '../../shared/api/lookups'
-import type { ExtensionPreview, Reservation } from '../../shared/api/types'
+import type { ExtensionPreview, Quote, Reservation } from '../../shared/api/types'
 import { SelectField, TextAreaField, TextField } from '../../shared/ui/fields'
 import { Pair } from '../../shared/ui/layout'
 import { Modal } from '../../shared/ui/Modal'
@@ -10,11 +10,15 @@ import { addDays, formatDateTime, formatDay, formatFcfa } from '../../shared/uti
 import { calendarDaysBetween } from './calendarDays'
 import {
   extendReservation,
+  modifyReservation,
   previewExtension,
+  previewModification,
   replaceOccupants,
   type CancellationInput,
   type ExtensionInput,
+  type ModificationInput,
 } from './api'
+import { roomsQuery } from '../catalog'
 
 /** Confirmation simple d'une opération tracée (arrivée, départ, confirmation, facture). */
 export function ConfirmDialog({
@@ -313,6 +317,186 @@ export function ExtendDialog({
           }
         />
       </div>
+    </Modal>
+  )
+}
+
+/**
+ * Correction d'une réservation avant le séjour (D-058) : chambre, dates, heures et forfait. Le
+ * serveur recalcule le prix au tarif en vigueur (même remise), revérifie la disponibilité et
+ * exige un motif. Une réservation facturée n'est modifiable que par l'administrateur ; la facture
+ * est alors remplacée.
+ */
+export function ModifyDialog({
+  reservation,
+  activeInvoiceNumber,
+  onDone,
+  onClose,
+}: {
+  reservation: Reservation
+  activeInvoiceNumber: string | null
+  onDone: (replacementInvoiceNumber: string | null) => void
+  onClose: () => void
+}) {
+  const rooms = useQuery(roomsQuery)
+  const [input, setInput] = useState({
+    room_id: reservation.room?.id ?? '',
+    start_date: reservation.period.start_date,
+    end_date: reservation.period.end_date,
+    start_time: reservation.period.start_time ?? '',
+    end_time: reservation.period.end_time ?? '',
+    billing_unit: reservation.price.billing_unit,
+    half_days: String(reservation.price.quantity),
+  })
+  const [reason, setReason] = useState('')
+  const [reasonError, setReasonError] = useState<string>()
+  const [preview, setPreview] = useState<(Quote & { current_net_fcfa: number }) | null>(null)
+  const days = calendarDaysBetween(input.start_date, input.end_date)
+  const quantity =
+    input.billing_unit === 'DAY' ? Math.max(1, days ?? 1) : Number(input.half_days) || 0
+  const payload: ModificationInput = {
+    room_id: input.room_id,
+    start_date: input.start_date,
+    end_date: input.end_date,
+    start_time: input.start_time || null,
+    end_time: input.end_time || null,
+    billing_unit: input.billing_unit,
+    quantity,
+  }
+  const change = (patch: Partial<typeof input>) => {
+    setInput({ ...input, ...patch })
+    setPreview(null)
+  }
+  const previewMutation = useMutation({
+    mutationFn: () => previewModification(reservation.id, payload),
+    onSuccess: setPreview,
+  })
+  const save = useMutation({
+    mutationFn: () => modifyReservation(reservation.id, { ...payload, reason: reason.trim() }),
+    onSuccess: (result) => onDone(result.replacementInvoiceNumber),
+  })
+
+  return (
+    <Modal
+      title="Modifier la réservation"
+      subtitle="Correction avant le séjour : la disponibilité et le prix sont recalculés par le serveur."
+      onClose={onClose}
+      onSubmit={() => {
+        if (!preview) return previewMutation.mutate()
+        if (!reason.trim()) return setReasonError('Le motif de la modification est obligatoire.')
+        save.mutate()
+      }}
+      submitLabel={preview ? 'Enregistrer la modification' : 'Calculer le nouveau prix'}
+      submitIcon={preview ? 'check' : 'refresh'}
+      submitting={previewMutation.isPending || save.isPending}
+      submitDisabled={Boolean(preview && !preview.available) || days === null}
+    >
+      <div className="fields">
+        <SelectField
+          className="full"
+          label="Chambre"
+          value={input.room_id}
+          onChange={(event) => change({ room_id: event.target.value })}
+          required
+        >
+          {(rooms.data ?? []).map((room) => (
+            <option key={room.id} value={room.id}>
+              {room.number} · {room.room_type.label} · {room.capacity} pers.
+              {room.maintenance_status === 'MAINTENANCE' ? ' · en maintenance' : ''}
+            </option>
+          ))}
+        </SelectField>
+        <TextField
+          label="Arrivée"
+          type="date"
+          value={input.start_date}
+          onChange={(event) => change({ start_date: event.target.value })}
+          required
+        />
+        <TextField
+          label="Départ"
+          type="date"
+          min={input.start_date}
+          value={input.end_date}
+          onChange={(event) => change({ end_date: event.target.value })}
+          required
+        />
+        <TextField
+          label="Heure d’arrivée"
+          type="time"
+          value={input.start_time}
+          onChange={(event) => change({ start_time: event.target.value })}
+        />
+        <TextField
+          label="Heure de départ"
+          type="time"
+          value={input.end_time}
+          onChange={(event) => change({ end_time: event.target.value })}
+        />
+        <SelectField
+          label="Forfait"
+          value={input.billing_unit}
+          onChange={(event) => change({ billing_unit: event.target.value as 'DAY' | 'HALF_DAY' })}
+        >
+          <option value="DAY">Journée</option>
+          <option value="HALF_DAY">Demi-journée</option>
+        </SelectField>
+        {input.billing_unit === 'DAY' ? (
+          <TextField
+            label="Journées"
+            value={days === null ? '' : String(quantity)}
+            readOnly
+            hint="Calculées à partir des dates (une journée minimum)."
+          />
+        ) : (
+          <TextField
+            label="Demi-journées"
+            type="number"
+            min={1}
+            max={365}
+            step={1}
+            value={input.half_days}
+            onChange={(event) => change({ half_days: event.target.value })}
+          />
+        )}
+      </div>
+      {preview && (
+        <>
+          <div className="pairs grid-pairs" style={{ marginTop: 12 }}>
+            <Pair label="Chambre">
+              {preview.room.number} · {preview.room.room_type.label}
+            </Pair>
+            <Pair label="Période bloquée">
+              {formatDateTime(preview.period.blocked_from)} →{' '}
+              {formatDateTime(preview.period.blocked_until)}
+            </Pair>
+            <Pair label="Montant actuel">{formatFcfa(preview.current_net_fcfa)}</Pair>
+            <Pair label="Nouveau montant">{formatFcfa(preview.price.net_fcfa)}</Pair>
+          </div>
+          {!preview.available ? (
+            <p className="notice" role="alert" style={{ marginTop: 12 }}>
+              La chambre {preview.room.number} n’est pas libre sur cette période : choisissez une
+              autre chambre ou d’autres dates.
+            </p>
+          ) : (
+            <TextAreaField
+              className="full"
+              label="Motif de la modification"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              error={reasonError}
+              maxLength={255}
+              required
+            />
+          )}
+          {activeInvoiceNumber && preview.available && (
+            <p className="caption" style={{ marginTop: 8 }}>
+              La facture {activeInvoiceNumber} sera annulée par un avoir et remplacée
+              (administrateur seulement).
+            </p>
+          )}
+        </>
+      )}
     </Modal>
   )
 }

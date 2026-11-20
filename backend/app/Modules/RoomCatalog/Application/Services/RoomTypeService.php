@@ -2,14 +2,43 @@
 
 namespace App\Modules\RoomCatalog\Application\Services;
 
+use App\Modules\Identity\Models\User;
 use App\Modules\RoomCatalog\DTO\RoomTypeData;
 use App\Modules\RoomCatalog\Models\RoomType;
 use App\Shared\Contracts\AuditTrail;
+use App\Shared\Exceptions\BusinessRuleException;
+use App\Shared\Support\RecordDeletion;
 use Illuminate\Support\Facades\DB;
 
 final class RoomTypeService
 {
-    public function __construct(private readonly AuditTrail $audit) {}
+    public function __construct(
+        private readonly AuditTrail $audit,
+        private readonly RecordDeletion $deletion,
+    ) {}
+
+    /** Suppression définitive (D-058) : seulement une catégorie sans chambre ni tarif publié. */
+    public function delete(RoomType $type, string $reason, User $actor): void
+    {
+        if ($type->rooms()->exists()) {
+            throw new BusinessRuleException(
+                "La catégorie {$type->label} contient des chambres : supprimez-les ou changez leur catégorie d’abord.",
+                'Suppression impossible',
+                409,
+                'room_type_has_rooms',
+            );
+        }
+        if ($type->rates()->exists()) {
+            throw new BusinessRuleException(
+                "Des tarifs ont été publiés pour la catégorie {$type->label} : elle ne peut pas être supprimée (historique des prix).",
+                'Suppression impossible',
+                409,
+                'room_type_has_rates',
+            );
+        }
+        $this->deletion->delete($type, 'room_type.deleted', 'room_type', $this->snapshot($type), $reason, $actor,
+            "La catégorie {$type->label} est encore utilisée ailleurs : elle ne peut pas être supprimée.");
+    }
 
     public function create(RoomTypeData $data): RoomType
     {

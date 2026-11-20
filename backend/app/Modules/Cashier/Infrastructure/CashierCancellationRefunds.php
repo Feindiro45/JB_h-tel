@@ -28,6 +28,11 @@ final class CashierCancellationRefunds implements CancellationRefunds
         return $this->history->forReservation($reservationId)->netPaidFcfa();
     }
 
+    public function hasPayments(int $reservationId): bool
+    {
+        return Payment::query()->where('reservation_id', $reservationId)->exists();
+    }
+
     public function acceptedMethods(): array
     {
         return $this->methods->accepted();

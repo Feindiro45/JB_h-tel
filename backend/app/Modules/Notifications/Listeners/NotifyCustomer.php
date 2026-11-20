@@ -12,6 +12,7 @@ use App\Modules\Reservations\Events\ReservationCheckedIn;
 use App\Modules\Reservations\Events\ReservationCheckedOut;
 use App\Modules\Reservations\Events\ReservationConfirmed;
 use App\Modules\Reservations\Events\ReservationExtended;
+use App\Modules\Reservations\Events\ReservationModified;
 use App\Shared\Mail\RetriesMailDelivery;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -26,6 +27,7 @@ final class NotifyCustomer implements ShouldQueue
         ReservationConfirmed::class,
         ReservationCheckedIn::class,
         ReservationExtended::class,
+        ReservationModified::class,
         ReservationCancelled::class,
         ReservationCheckedOut::class,
         PaymentRecorded::class,
@@ -47,6 +49,7 @@ final class NotifyCustomer implements ShouldQueue
             $event instanceof ReservationConfirmed => $this->messages->confirmed($event->reservationId),
             $event instanceof ReservationCheckedIn => $this->messages->checkedIn($event->reservationId),
             $event instanceof ReservationExtended => $this->messages->extended($event->reservationId),
+            $event instanceof ReservationModified => $this->messages->modified($event->reservationId),
             $event instanceof ReservationCancelled => $this->messages->cancelled($event->reservationId),
             $event instanceof ReservationCheckedOut => $this->messages->checkedOut($event->reservationId),
             $event instanceof PaymentRecorded => $this->messages->paymentRecorded($event->paymentId),
