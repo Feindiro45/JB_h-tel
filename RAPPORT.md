@@ -86,7 +86,7 @@ Ta base de travail n'a pas été touchée : les captures ont été faites sur la
 ## 6. CI GitHub
 
 - Le commit précédent (D-059) est **vert** : backend avec MySQL 8.4 et parcours navigateur, frontend.
-- Le commit de ce soir (D-060) : poussé, CI en cours au moment de ce commit (résultat ajouté juste après).
+- Le commit de ce soir (D-060, `d742202`) est **vert** lui aussi : backend avec MySQL 8.4 et les 8 parcours navigateur, frontend.
 
 ## 7. Ce qui reste (hors code)
 
