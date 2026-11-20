@@ -158,4 +158,52 @@ class StaffEmailsTest extends TestCase
 
         return $token;
     }
+
+    /** D-059 : « mot de passe oublié », lien de 60 minutes à usage unique. */
+    public function test_forgotten_password_sends_a_single_use_reset_link(): void
+    {
+        $user = User::factory()->cashier()->create(['email' => 'grace@hotel.cf']);
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'GRACE@hotel.cf'])
+            ->assertStatus(202)
+            ->assertJsonPath('message', 'Un e-mail contenant un lien de réinitialisation vient d’être envoyé à grace@hotel.cf. Ce lien est valable 60 minutes.');
+
+        $link = '';
+        Mail::assertSent(StaffMail::class, function (StaffMail $mail) use (&$link): bool {
+            $link = (string) $mail->actionUrl;
+            $this->assertStringContainsString('Choisir un nouveau mot de passe', $mail->render());
+
+            return $mail->kind === 'staff.password_reset' && $mail->hasTo('grace@hotel.cf');
+        });
+        parse_str((string) parse_url($link, PHP_URL_QUERY), $query);
+        $this->assertSame('oubli', $query['motif']);
+
+        // Un lien de réinitialisation ne vaut pas invitation, et inversement.
+        $this->postJson('/api/v1/auth/password', ['email' => $user->email, 'token' => $query['token'], 'password' => 'Nouveau2026x', 'password_confirmation' => 'Nouveau2026x'])
+            ->assertStatus(422)->assertJsonPath('code', 'invitation_invalid');
+        $this->postJson('/api/v1/auth/password', ['email' => $user->email, 'token' => $query['token'], 'password' => 'Nouveau2026x', 'password_confirmation' => 'Nouveau2026x', 'purpose' => 'reset'])
+            ->assertOk();
+        $this->withHeaders(self::FRONTEND)->postJson('/api/v1/auth/login', ['email' => 'grace@hotel.cf', 'password' => 'Nouveau2026x'])->assertOk();
+        $this->assertSame(1, AuditLog::query()->where('action', 'user.password_reset')->count());
+
+        $this->app['auth']->forgetGuards();
+        $this->postJson('/api/v1/auth/password', ['email' => $user->email, 'token' => $query['token'], 'password' => 'Encore2026xx', 'password_confirmation' => 'Encore2026xx', 'purpose' => 'reset'])
+            ->assertStatus(422)->assertJsonPath('message', 'Ce lien n’est plus valable : il a expiré ou a déjà servi. Refaites une demande depuis « Mot de passe oublié ».');
+    }
+
+    /** Demande de l'utilisateur (20/11/2026) : le compte est vérifié avant l'envoi, et la réponse le dit. */
+    public function test_the_account_is_checked_before_sending_the_link(): void
+    {
+        User::factory()->cashier()->create(['email' => 'ancien@hotel.cf', 'active' => false]);
+        User::factory()->cashier()->create(['email' => 'demo@jbhotel.local']);
+
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'personne@hotel.cf'])
+            ->assertStatus(404)->assertJsonPath('code', 'account_not_found')->assertJsonPath('title', 'Compte introuvable');
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'ancien@hotel.cf'])
+            ->assertStatus(403)->assertJsonPath('code', 'account_disabled');
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'demo@jbhotel.local'])
+            ->assertStatus(422)->assertJsonPath('code', 'account_email_undeliverable');
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'pas-une-adresse'])->assertStatus(422)->assertJsonValidationErrors(['email']);
+        Mail::assertNothingSent();
+        $this->assertSame(0, AuditLog::query()->where('action', 'user.password_reset_requested')->count());
+    }
 }

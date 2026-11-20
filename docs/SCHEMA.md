@@ -60,7 +60,8 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 |---|---|
 | `audit_logs` | `actor_id`, `action`, `entity_type`, `entity_id`, `before_json`, `after_json`, `ip_address`, `occurred_at`. Append-only. **Sert aussi de journal des modifications des réservations** (D-022). |
 | `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (8 valeurs par défaut, dont plusieurs provisoires). |
-| `cache`, `jobs`, `password_reset_tokens` | Tables techniques de Laravel |
+| `cache`, `jobs`, `password_reset_tokens` | Tables techniques de Laravel (`password_reset_tokens` : liens « mot de passe oublié », 60 min) |
+| `invitation_tokens` | Liens d’invitation d’un nouveau compte (72 h), séparés des liens « mot de passe oublié » pour qu’aucun ne puisse servir à la place de l’autre (D-059, migration `2026_11_20_110000`) |
 
 ## Écarts avec `09_schema_reference.sql` et le MCD
 
@@ -80,4 +81,4 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | Identifiants publics | Absents | Colonne `uuid` sur 11 tables | Les routes et les liens n’exposent jamais la clé entière (D-026) |
 | Prolongations | Absentes (historique dans l’audit seulement) | Table `reservation_extensions` (migration `190000`) | Facture détaillée séjour initial + prolongation (D-053, demande du 19/11/2026) |
 
-> Le fichier `04_MCD_JB_Hotel.drawio` a été régénéré le 19/11/2026 depuis le schéma réel : 27 tables et 27 relations de clés étrangères ; complété le 20/11/2026 avec `reservation_extensions` (28 tables, 29 relations), y compris UUID, Spatie, paramètres, audits et tables techniques. Les associations polymorphes de Spatie restent documentées par leurs colonnes, sans fausse clé étrangère.
+> Le fichier `04_MCD_JB_Hotel.drawio` a été régénéré le 19/11/2026 depuis le schéma réel : 27 tables et 27 relations de clés étrangères ; complété le 20/11/2026 avec `reservation_extensions` (28 tables, 29 relations), puis `invitation_tokens` (29 tables), y compris UUID, Spatie, paramètres, audits et tables techniques. Les associations polymorphes de Spatie restent documentées par leurs colonnes, sans fausse clé étrangère.

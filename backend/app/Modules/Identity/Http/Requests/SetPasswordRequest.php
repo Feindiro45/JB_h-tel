@@ -15,6 +15,7 @@ final class SetPasswordRequest extends FormRequest
             'email' => ['required', 'string', 'email'],
             'token' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string', 'confirmed', Password::min(10)->letters()->numbers()],
+            'purpose' => ['nullable', 'string', 'in:invitation,reset'],
         ];
     }
 

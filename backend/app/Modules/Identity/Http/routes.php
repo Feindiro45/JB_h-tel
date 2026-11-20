@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Route;
 Route::post('auth/login', [AuthController::class, 'login'])->name('auth.login');
 // Lien de l'invitation (6M), sans connexion : 10 essais par minute.
 Route::post('auth/password', [AuthController::class, 'setPassword'])->middleware('throttle:10,1')->name('auth.password');
+// « Mot de passe oublié » (D-059), sans connexion : 5 demandes par minute.
+Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1')->name('auth.forgot-password');
 
 Route::middleware('authenticated')->group(function (): void {
     Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');

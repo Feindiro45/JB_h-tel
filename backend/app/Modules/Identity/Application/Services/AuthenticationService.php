@@ -2,10 +2,12 @@
 
 namespace App\Modules\Identity\Application\Services;
 
+use App\Modules\Identity\Events\PasswordResetRequested;
 use App\Modules\Identity\Events\UserLoggedIn;
 use App\Modules\Identity\Models\User;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
+use App\Shared\Mail\Recipients;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
@@ -78,19 +80,60 @@ final class AuthenticationService
      * Mot de passe choisi depuis le lien de l'invitation (6M). Le lien sert une seule fois et
      * expire après 72 h ; un lien inconnu, expiré ou déjà utilisé reçoit la même réponse.
      */
-    public function setPassword(string $email, string $token, string $password): void
+    /**
+     * « Mot de passe oublié » (D-059). À la demande de l'utilisateur, le compte est vérifié avant
+     * tout envoi et la réponse le dit clairement (compte introuvable, désactivé ou adresse qui ne peut
+     * rien recevoir). Les demandes sont limitées à 5 par minute pour freiner les essais d'adresses.
+     */
+    public function requestPasswordReset(string $email): User
     {
-        $status = Password::broker('invitations')->reset(
+        $user = User::query()->where('email', Str::lower(trim($email)))->first();
+        if ($user === null) {
+            throw new BusinessRuleException(
+                'Aucun compte du personnel ne correspond à cette adresse e-mail. Vérifiez-la ou contactez l’administrateur.',
+                'Compte introuvable',
+                404,
+                'account_not_found',
+            );
+        }
+        if (! $user->active) {
+            throw new BusinessRuleException(
+                'Ce compte est désactivé : aucun lien ne peut être envoyé. Contactez l’administrateur.',
+                'Compte désactivé',
+                403,
+                'account_disabled',
+            );
+        }
+        if (! Recipients::deliverable($user->email)) {
+            throw new BusinessRuleException(
+                'L’adresse de ce compte ne peut recevoir aucun e-mail. Demandez à l’administrateur de changer votre mot de passe.',
+                'Envoi impossible',
+                422,
+                'account_email_undeliverable',
+            );
+        }
+        $this->audit->record('user.password_reset_requested', 'user', $user->id);
+        event(new PasswordResetRequested($user->id));
+
+        return $user;
+    }
+
+    /** @param  'invitation'|'reset'  $purpose  Lien d'invitation (72 h) ou de réinitialisation (60 min). */
+    public function setPassword(string $email, string $token, string $password, string $purpose = 'invitation'): void
+    {
+        $status = Password::broker($purpose === 'reset' ? 'users' : 'invitations')->reset(
             ['email' => Str::lower(trim($email)), 'token' => $token, 'password' => $password],
-            function (User $user, string $password): void {
+            function (User $user, string $password) use ($purpose): void {
                 $user->forceFill(['password' => $password])->save();
-                $this->audit->record('user.password_set', 'user', $user->id, actorId: $user->id);
+                $this->audit->record($purpose === 'reset' ? 'user.password_reset' : 'user.password_set', 'user', $user->id, actorId: $user->id);
             },
         );
 
         if ($status !== PasswordBroker::PASSWORD_RESET) {
             throw new BusinessRuleException(
-                'Ce lien n’est plus valable : il a expiré ou a déjà servi. Demandez à l’administrateur de vous renvoyer l’invitation.',
+                $purpose === 'reset'
+                    ? 'Ce lien n’est plus valable : il a expiré ou a déjà servi. Refaites une demande depuis « Mot de passe oublié ».'
+                    : 'Ce lien n’est plus valable : il a expiré ou a déjà servi. Demandez à l’administrateur de vous renvoyer l’invitation.',
                 'Lien expiré',
                 422,
                 'invitation_invalid',

@@ -4,6 +4,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Pages d’accès, mot de passe oublié et vérification de facture — 20/11/2026 (D-059)
+- Connexion, mot de passe oublié et choix du mot de passe redessinés sur une mise en page commune (carte centrée sans image, bandeau vert et or, règles du mot de passe vérifiées en direct).
+- Mot de passe oublié : le compte est vérifié avant l’envoi du lien (60 minutes, usage unique) ; invitations sur une table de jetons distincte.
+- Page publique de vérification de facture redessinée : en-tête de l’hôtel, verdict lisible, montant mis en avant, aide si le document est introuvable.
+- CI GitHub entièrement verte depuis la désactivation du JIT de PHP.
+
 ### Corrections de la caissière et suppression par l’administrateur — 20/11/2026 (D-058)
 - La caissière annule elle-même, avec motif, un encaissement qu’elle a saisi aujourd’hui, puis le ressaisit ; le reste demeure à l’administrateur.
 - « Modifier la réservation » : chambre, dates, heures et forfait avant le séjour, avec disponibilité revérifiée, nouveau prix, motif, journal et e-mail au client ; facture remplacée si l’administrateur modifie un séjour facturé.

@@ -1,13 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router'
-import { config } from '../../shared/config'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { TextField } from '../../shared/ui/fields'
 import { Icon } from '../../shared/ui/Icon'
 import { login, ME_KEY } from './api'
-import './login.css'
+import { AuthLayout } from './AuthLayout'
 
-/** Connexion simple sans image : session Sanctum par cookie, jamais de jeton stocké. */
+/** Connexion de l'équipe (D-059) : session Sanctum par cookie, jamais de jeton stocké. */
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -36,60 +35,54 @@ export function LoginPage() {
   }
 
   return (
-    <main id="contenu" className="auth auth--simple">
-      <section className="auth-panel" aria-labelledby="login-title">
-        <div>
-          <div className="login-brand">
-            <span className="login-monogram" aria-hidden="true">
-              JB
-            </span>
-            <span>{config.appName}</span>
-          </div>
-          <h1 id="login-title">Connexion de l’équipe</h1>
-          <p className="lead">Connectez-vous à votre espace de gestion.</p>
-          <form className="auth-form" onSubmit={submit} noValidate>
-            <TextField
-              label="Adresse e-mail"
-              type="email"
-              name="email"
-              autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              error={errors.email}
-              required
-            />
-            <div className="login-password">
-              <TextField
-                label="Mot de passe"
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                error={errors.password}
-                required
-              />
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-pressed={showPassword}
-                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-              >
-                <Icon name={showPassword ? 'eyeOff' : 'eye'} size={17} />
-                {showPassword ? 'Masquer' : 'Afficher'}
-              </button>
-            </div>
-            <button type="submit" className="primary" disabled={mutation.isPending}>
-              <Icon
-                name={mutation.isPending ? 'loader' : 'login'}
-                className={mutation.isPending ? 'is-spinning' : undefined}
-              />
-              {mutation.isPending ? 'Connexion…' : 'Se connecter'}
+    <AuthLayout
+      title="Connexion de l’équipe"
+      lead="Connectez-vous à votre espace de gestion : réservations, caisse et factures."
+    >
+      <form className="auth-form" onSubmit={submit} noValidate>
+        <TextField
+          label="Adresse e-mail"
+          type="email"
+          name="email"
+          autoComplete="username"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          error={errors.email}
+          required
+        />
+        <div className="login-password">
+          <TextField
+            label="Mot de passe"
+            type={showPassword ? 'text' : 'password'}
+            name="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            error={errors.password}
+            required
+          />
+          <div className="login-password-row">
+            <Link to="/mot-de-passe-oublie">Mot de passe oublié ?</Link>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-pressed={showPassword}
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            >
+              <Icon name={showPassword ? 'eyeOff' : 'eye'} size={17} />
+              {showPassword ? 'Masquer' : 'Afficher'}
             </button>
-          </form>
+          </div>
         </div>
-      </section>
-    </main>
+        <button type="submit" className="primary" disabled={mutation.isPending}>
+          <Icon
+            name={mutation.isPending ? 'loader' : 'login'}
+            className={mutation.isPending ? 'is-spinning' : undefined}
+          />
+          {mutation.isPending ? 'Connexion…' : 'Se connecter'}
+        </button>
+      </form>
+    </AuthLayout>
   )
 }

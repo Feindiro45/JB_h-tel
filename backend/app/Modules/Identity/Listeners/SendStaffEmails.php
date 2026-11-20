@@ -2,6 +2,7 @@
 
 namespace App\Modules\Identity\Listeners;
 
+use App\Modules\Identity\Events\PasswordResetRequested;
 use App\Modules\Identity\Events\UserInvited;
 use App\Modules\Identity\Events\UserLoggedIn;
 use App\Modules\Identity\Mail\StaffMail;
@@ -22,14 +23,14 @@ use Illuminate\Support\Facades\Password;
  */
 final class SendStaffEmails implements ShouldQueue
 {
-    public const EVENTS = [UserLoggedIn::class, UserInvited::class];
+    public const EVENTS = [UserLoggedIn::class, UserInvited::class, PasswordResetRequested::class];
 
     // Retenté pendant 24 h, pause commune si le serveur SMTP refuse (D-054).
     use RetriesMailDelivery;
 
     public function __construct(private readonly AuditTrail $audit) {}
 
-    public function handle(UserLoggedIn|UserInvited $event): void
+    public function handle(UserLoggedIn|UserInvited|PasswordResetRequested $event): void
     {
         $user = User::query()->find($event->userId);
         // Comptes de démonstration (@jbhotel.local) : aucun serveur ne peut les recevoir.
@@ -37,7 +38,11 @@ final class SendStaffEmails implements ShouldQueue
             return;
         }
 
-        $event instanceof UserLoggedIn ? $this->loginAlert($user, $event) : $this->invitation($user, $event);
+        match (true) {
+            $event instanceof UserLoggedIn => $this->loginAlert($user, $event),
+            $event instanceof UserInvited => $this->invitation($user, $event),
+            default => $this->passwordReset($user),
+        };
     }
 
     private function loginAlert(User $user, UserLoggedIn $event): void
@@ -55,6 +60,32 @@ final class SendStaffEmails implements ShouldQueue
             ],
             footnote: 'Si ce n’est pas vous, prévenez immédiatement l’administrateur : il peut désactiver le compte. Ne communiquez jamais votre mot de passe.',
         ));
+    }
+
+    /** Lien « mot de passe oublié » (D-059) : valable 60 minutes, à usage unique. */
+    private function passwordReset(User $user): void
+    {
+        if (! $user->active) {
+            return;
+        }
+        $token = Password::broker('users')->createToken($user);
+        $url = config('jbhotel.frontend_url').'/mot-de-passe?'.http_build_query(['token' => $token, 'email' => $user->email, 'motif' => 'oubli']);
+        $minutes = (int) config('auth.passwords.users.expire', 60);
+        Mail::to($user->email, $user->name)->send(new StaffMail(
+            kind: 'staff.password_reset',
+            subjectLine: 'Réinitialisation de votre mot de passe',
+            heading: 'Choisissez un nouveau mot de passe',
+            recipientName: $user->name,
+            lines: [
+                'Une demande de réinitialisation du mot de passe de votre compte JB Hôtel vient d’être faite.',
+                "Ce lien est personnel, valable {$minutes} minutes et ne sert qu’une fois.",
+            ],
+            details: ['Identifiant' => $user->email],
+            actionLabel: 'Choisir un nouveau mot de passe',
+            actionUrl: $url,
+            footnote: 'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message : votre mot de passe actuel reste valable. Ne transférez jamais ce lien.',
+        ));
+        $this->audit->record('user.password_reset_sent', 'user', $user->id, after: ['kind' => 'staff.password_reset']);
     }
 
     private function invitation(User $user, UserInvited $event): void

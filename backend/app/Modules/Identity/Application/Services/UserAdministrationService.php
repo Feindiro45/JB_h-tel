@@ -49,6 +49,7 @@ final class UserAdministrationService
             $snapshot = $this->snapshot($user);
             $user->syncRoles([]);
             DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+            DB::table('invitation_tokens')->where('email', $user->email)->delete();
             $this->deletion->delete($user, 'user.deleted', 'user', $snapshot, $reason, $actor,
                 "Le compte de {$user->name} a déjà des opérations enregistrées : désactivez-le plutôt.");
         });

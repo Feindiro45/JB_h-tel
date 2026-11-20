@@ -176,6 +176,9 @@
         <mxCell id="fk-28" value="extended_by → id" edge="1" parent="1" source="table-reservation_extensions" target="table-users" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=ERone;startArrow=ERmany;strokeColor=#aa813b;fontSize=10;">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
+        <mxCell id="table-invitation_tokens" value="&lt;b&gt;invitation_tokens&lt;/b&gt;&lt;hr&gt;PK email : varchar(255)&lt;br&gt;token : varchar(255)&lt;br&gt;created_at : datetime ?" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;fillColor=#e9f3ef;strokeColor=#215347;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="3600" width="450" height="111" as="geometry"/>
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>

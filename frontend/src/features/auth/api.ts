@@ -32,9 +32,17 @@ export async function setPassword(input: {
   token: string
   password: string
   password_confirmation: string
+  /** Lien « mot de passe oublié » (D-059) ; absent pour une invitation. */
+  purpose?: 'reset'
 }): Promise<string> {
   await api.csrf()
   return (await api.post<{ message: string }>('/api/v1/auth/password', input)).message
+}
+
+/** Mot de passe oublié (D-059) : réponse identique que le compte existe ou non. */
+export async function requestPasswordReset(email: string): Promise<string> {
+  await api.csrf()
+  return (await api.post<{ message: string }>('/api/v1/auth/forgot-password', { email })).message
 }
 
 export async function logout(): Promise<void> {

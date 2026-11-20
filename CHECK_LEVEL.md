@@ -440,6 +440,12 @@
 - [x] Écrans : « Supprimer » (administrateur) sur les fiches client et réservation, les chambres, catégories et comptes ; fenêtre d’avertissement (alertdialog) avec motif et case de confirmation ; « Modifier la réservation » en deux temps ; « Annuler » proposé à la caissière sur ses encaissements du jour
 - [x] Tests : 8 backend nouveaux ou réécrits (229 au total), 4 frontend (103 au total) ; documentation D-058, CHANGELOG, CLAUDE.md
 
+### 6R — Design : vérification de facture, mot de passe oublié, connexion (demande du 20/11/2026, D-059)
+- [x] Page publique de vérification de facture : en-tête de l’hôtel, verdict clair (authentique, annulée, introuvable), montant mis en avant, aide et contact, mobile et impression ; tests de vérification verts
+- [x] Mot de passe oublié : lien sur la connexion, page de demande ; **compte vérifié avant l’envoi** (introuvable 404, désactivé 403, adresse non joignable 422), e-mail avec lien valable 60 min à usage unique, nouveau mot de passe ; jetons d’invitation séparés (table `invitation_tokens`)
+- [x] Pages d’accès harmonisées (connexion, mot de passe oublié, choix du mot de passe) : carte centrée sans image, bandeau vert et or, règles du mot de passe vérifiées en direct
+- [x] Tests : 231 backend, 107 frontend, 7 parcours navigateur (dont centrage et accessibilité de la connexion) ; captures PC et mobile inspectées
+
 ## Phase 7 — Reporting ✅
 
 - [x] API d'agrégation, indicateurs définis (facturé ≠ encaissé ≠ chiffre d'affaires)

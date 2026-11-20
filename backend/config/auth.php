@@ -102,7 +102,8 @@ return [
         // Invitation d'un nouveau compte (6M) : lien pour choisir son mot de passe, valable 72 h.
         'invitations' => [
             'provider' => 'users',
-            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            // Table distincte : un lien « mot de passe oublié » ne vaut jamais invitation (D-059).
+            'table' => env('AUTH_INVITATION_TOKEN_TABLE', 'invitation_tokens'),
             'expire' => (int) env('AUTH_INVITATION_EXPIRE_MINUTES', 4320),
             'throttle' => 0,
         ],

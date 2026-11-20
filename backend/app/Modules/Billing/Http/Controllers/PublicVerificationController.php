@@ -2,7 +2,9 @@
 
 namespace App\Modules\Billing\Http\Controllers;
 
+use App\Modules\Billing\Application\InvoiceSnapshotBuilder;
 use App\Modules\Billing\Application\InvoiceVerification;
+use App\Shared\Support\Format;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -22,6 +24,9 @@ final class PublicVerificationController
         $found = $this->verification->find($invoice, $request->string('code')->toString());
         $html = view('billing.verification', [
             'result' => $found === null ? null : InvoiceVerification::publicView($found),
+            // En-tête et contact de l'hôtel (configuration), heure de la vérification (D-059).
+            'hotel' => InvoiceSnapshotBuilder::hotel(),
+            'checkedAt' => Format::dateTime(now()),
         ])->render();
 
         return response($html, $found === null ? 404 : 200)

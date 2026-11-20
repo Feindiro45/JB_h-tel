@@ -371,3 +371,18 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
   - une catégorie sans chambre ni tarif publié ;
   - un compte jamais utilisé : aucune connexion, aucune opération, ni le sien propre, ni le dernier administrateur actif.
 - **Filet de sécurité :** les clés étrangères en RESTRICT refusent toute suppression d’une saisie encore référencée ; la réponse est alors un 409 `record_in_use` en français, et rien n’est supprimé (copie au journal comprise).
+
+### D-059 — Pages d’accès, mot de passe oublié et vérification de facture (Validé par l’utilisateur le 20/11/2026)
+- **Pages d’accès harmonisées** (connexion, mot de passe oublié, choix du mot de passe) autour d’une mise en page commune (`features/auth/AuthLayout`). Elles respectent la demande précédente : carte centrée, sans image, fond uni.
+  - *Habillage :* bandeau vert et or, monogramme JB, note de sécurité en pied de carte.
+  - *Règles du mot de passe :* vérifiées en direct, avec un texte pour les lecteurs d’écran en plus de la couleur.
+- **Mot de passe oublié :** lien sur la connexion, puis page de demande. Le compte est **vérifié avant l’envoi**, à la demande de l’utilisateur ; la réponse distingue « Compte introuvable » (404), « Compte désactivé » (403) et une adresse qui ne peut rien recevoir (422).
+  - *Le lien :* à usage unique, valable 60 minutes, il mène au même écran que l’invitation (`motif=oubli`).
+  - *Limite :* 5 demandes par minute, pour freiner les essais d’adresses.
+  - *Audit :* `user.password_reset_requested`, `user.password_reset_sent` et `user.password_reset`, sans le jeton.
+- **Jetons séparés :** les invitations ont leur propre table (`invitation_tokens`, 72 h). Un lien « mot de passe oublié » ne peut donc jamais servir d’invitation, ni l’inverse (défaut trouvé par les tests).
+- **Vérification de facture** (page publique du QR code) :
+  - *Présentation :* en-tête de l’hôtel, verdict clair (authentique en vert, annulée en ambre, introuvable en rouge) et montant mis en avant.
+  - *Contenu :* seulement les données nécessaires (initiales du client), avec l’heure de la vérification.
+  - *Aide :* si le document est introuvable, une aide pas à pas et le contact de l’hôtel (configuration).
+  - *Format :* adaptée au mobile et à l’impression, sans ressource externe.

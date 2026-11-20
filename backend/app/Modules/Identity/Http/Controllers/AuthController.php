@@ -27,9 +27,21 @@ final class AuthController
             $request->string('email')->toString(),
             $request->string('token')->toString(),
             $request->string('password')->toString(),
+            $request->string('purpose')->toString() === 'reset' ? 'reset' : 'invitation',
         );
 
         return new JsonResponse(['message' => 'Mot de passe enregistré. Vous pouvez vous connecter.']);
+    }
+
+    /** « Mot de passe oublié » (D-059) : le compte est vérifié avant l'envoi du lien. */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['email' => ['required', 'string', 'email', 'max:255']], attributes: ['email' => 'adresse e-mail']);
+        $user = $this->auth->requestPasswordReset((string) $validated['email']);
+
+        return new JsonResponse([
+            'message' => "Un e-mail contenant un lien de réinitialisation vient d’être envoyé à {$user->email}. Ce lien est valable 60 minutes.",
+        ], 202);
     }
 
     public function login(LoginRequest $request): UserResource
