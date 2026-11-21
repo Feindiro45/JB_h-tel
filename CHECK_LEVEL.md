@@ -25,6 +25,8 @@
 | 7 | Reporting | ✅ Implémenté, tests API verts | 100 % |
 | 8 | Qualité et livraison | 🟡 Livraison locale vérifiée ; recette hôtel et CI distante restantes | 90 % |
 
+> **Nouvelles évolutions (dossier `new/`, 21/11/2026)** : ticket thermique 80 mm et mode hors ligne. Plan, décisions N-01 à N-07 et avancement dans **`SUIVI_NEW.md`**. Lot 1 (ticket 80 mm, D-061) terminé en local ; poste principal unique décidé (D-062) ; module admin « Mode hors ligne » planifié.
+
 ## Phase 0 — Audit et questions bloquantes ✅
 
 - [x] Lecture de tous les documents de conception

@@ -67,10 +67,20 @@ final class PaymentController
         $due = $this->reservations->find($payment->reservation_id) ?? throw self::reservationNotFound();
         $customer = $customers->find($due->customerId);
         $room = $rooms->find($due->roomId);
+        // Période du séjour, imprimée sur le ticket 80 mm (D-061) ; lue par le contrat public.
+        $stay = $this->reservations->invoiceData($payment->reservation_id);
 
         return new JsonResponse([
             'data' => PaymentPresenter::payment($payment) + [
                 'reservation' => ['id' => $due->uuid, 'status_label' => $due->statusLabel],
+                'stay' => $stay === null ? null : [
+                    'start_date' => $stay->startDate,
+                    'start_time' => $stay->startTime,
+                    'end_date' => $stay->endDate,
+                    'end_time' => $stay->endTime,
+                    'billing_unit_label' => $stay->billingUnitLabel,
+                    'quantity' => $stay->quantity,
+                ],
                 'customer' => $customer === null ? null : ['id' => $customer->uuid, 'full_name' => $customer->fullName],
                 'room' => $room === null ? null : ['id' => $room->uuid, 'number' => $room->number, 'room_type' => $room->roomTypeLabel],
                 'summary' => $this->cashier->summary($due)->toArray(),

@@ -22,6 +22,14 @@ function receipt(overrides: Partial<Receipt> = {}): Receipt {
     cancellation_reason: null,
     refunds: [],
     reservation: { id: 'res-1', status_label: 'Confirmée' },
+    stay: {
+      start_date: '2026-12-01',
+      start_time: '14:00',
+      end_date: '2026-12-02',
+      end_time: null,
+      billing_unit_label: 'Journée',
+      quantity: 1,
+    },
     customer: { id: 'c1', full_name: 'NGUEMA Paul' },
     room: { id: 'r1', number: '101', room_type: 'VIP' },
     summary: {

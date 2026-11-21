@@ -7,10 +7,10 @@ import {
   RequirePermission,
   SetPasswordPage,
 } from '../features/auth'
-import { CashierPage, ReceiptPage } from '../features/cashier'
+import { CashierPage, ReceiptPage, ReceiptTicketPage } from '../features/cashier'
 import { CustomerDetailPage, CustomersPage } from '../features/customers'
 import { DashboardPage } from '../features/dashboard'
-import { DocumentsPage } from '../features/invoices'
+import { DocumentsPage, InvoiceTicketPage } from '../features/invoices'
 import {
   AlertsPage,
   PlanningPage,
@@ -76,6 +76,14 @@ export const routes: RouteObject[] = [
       { path: 'caisse', element: guarded('payments.view', <CashierPage />) },
       { path: 'documents', element: guarded('invoices.view', <DocumentsPage />) },
       { path: 'documents/recus/:id', element: guarded('payments.view', <ReceiptPage />) },
+      {
+        path: 'documents/recus/:id/ticket',
+        element: guarded('payments.view', <ReceiptTicketPage />),
+      },
+      {
+        path: 'documents/factures/:id/ticket',
+        element: guarded('invoices.view', <InvoiceTicketPage />),
+      },
       { path: 'rapports', element: guarded('reports.view', <ReportsPage />) },
       { path: 'admin/chambres', element: guarded('rooms.manage', <RoomsPage />) },
       { path: 'admin/tarifs', element: guarded('rates.manage', <RatesPage />) },

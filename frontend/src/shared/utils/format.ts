@@ -62,6 +62,32 @@ export function formatWeekday(value: string, timeZone: string = config.timeZone)
   }).format(toDate(value))
 }
 
+/** « 01/12/2026 », pour les documents étroits (ticket 80 mm). */
+export function formatNumericDate(
+  value: Date | string,
+  timeZone: string = config.timeZone,
+): string {
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone,
+  }).format(toDate(value))
+}
+
+/** « 01/12/2026 14:30 », pour les documents étroits (ticket 80 mm). */
+export function formatNumericDateTime(
+  value: Date | string,
+  timeZone: string = config.timeZone,
+): string {
+  return `${formatNumericDate(value, timeZone)} ${formatTime(value, timeZone)}`
+}
+
+/** Début ou fin d'un séjour : « 01/12/2026 14:00 », ou la date seule si l'heure n'est pas fixée. */
+export function formatStayMoment(date: string, time: string | null): string {
+  return time ? `${formatNumericDate(date)} ${time.slice(0, 5)}` : formatNumericDate(date)
+}
+
 /** « 14:30 » */
 export function formatTime(value: Date | string, timeZone: string = config.timeZone): string {
   return new Intl.DateTimeFormat('fr-FR', {

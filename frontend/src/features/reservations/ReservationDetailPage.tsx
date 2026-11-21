@@ -496,6 +496,14 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
                               <Icon name="download" size={17} />
                               PDF A4 ↗
                             </a>
+                            <Link
+                              className="text-button"
+                              to={`/documents/factures/${invoice.id}/ticket`}
+                              aria-label={`Ticket 80 mm de ${invoice.type_label.toLowerCase()} ${invoice.number}`}
+                            >
+                              <Icon name="print" size={17} />
+                              Ticket
+                            </Link>
                             <a
                               className="text-button"
                               href={invoice.verification_url}

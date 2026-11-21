@@ -295,8 +295,18 @@ export interface CashJournal {
   movements: CashMovement[]
 }
 
+/** Période d'un séjour telle que réservée (heures facultatives). */
+export interface StayPeriod {
+  start_date: string
+  start_time: string | null
+  end_date: string
+  end_time: string | null
+}
+
 export interface Receipt extends Payment {
   reservation: { id: string; status_label: string }
+  /** Période du séjour, imprimée sur le ticket 80 mm (D-061). */
+  stay: (StayPeriod & { billing_unit_label: string; quantity: number }) | null
   customer: { id: string; full_name: string } | null
   room: { id: string; number: string; room_type: string } | null
   summary: AccountSummary
@@ -315,6 +325,58 @@ export interface RefundDue extends DashboardRow {
   phone: string | null
   paid_net_fcfa: number
   to_refund_fcfa: number
+}
+
+/**
+ * Instantané figé d'une facture ou d'un avoir (`snapshot_json`, InvoiceSnapshotBuilder) : seule
+ * source des montants réimprimés, jamais les tarifs actuels.
+ */
+export interface InvoiceSnapshot {
+  document: { type: 'INVOICE' | 'CREDIT_NOTE'; label: string; number: string; issued_at: string }
+  hotel: Record<string, string | null>
+  customer: {
+    full_name: string
+    phone: string | null
+    email: string | null
+    address: string | null
+  } | null
+  room: { number: string; type: string | null } | null
+  stay: StayPeriod & { reservation_uuid?: string; period_is_estimated?: boolean }
+  lines: {
+    kind: string
+    label: string
+    billing_unit: string
+    quantity: number
+    unit_price_fcfa: number
+    amount_fcfa: number
+  }[]
+  totals: {
+    gross_fcfa: number
+    discount_label: string | null
+    discount_reason: string | null
+    discount_fcfa: number
+    net_fcfa: number
+  }
+  payments: {
+    lines: {
+      receipt_number: string
+      received_at: string
+      method: string
+      amount_fcfa: number
+      refunded_fcfa: number
+    }[]
+    paid_fcfa: number
+    refunded_fcfa: number
+    net_paid_fcfa: number
+    balance_fcfa: number
+  }
+  issued_by: { name: string } | null
+  credit?: { credited_invoice_number: string; credited_invoice_issued_at: string; reason: string }
+  replaces?: { invoice_number: string; reason?: string | null }
+}
+
+export interface InvoiceDetail extends InvoiceSummary {
+  snapshot: InvoiceSnapshot
 }
 
 export interface InvoiceRow extends InvoiceSummary {

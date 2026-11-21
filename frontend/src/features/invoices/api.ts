@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { api, apiUrl } from '../../shared/api/client'
 import type {
   Envelope,
+  InvoiceDetail,
   InvoiceRow,
   InvoiceSummary,
   InvoiceTotals,
@@ -27,6 +28,14 @@ export async function issueInvoice(reservationId: string): Promise<InvoiceSummar
     await api.post<Envelope<InvoiceSummary>>(`/api/v1/reservations/${reservationId}/invoices`)
   ).data
 }
+
+/** Facture ou avoir avec son instantané figé (`snapshot_json`), base du ticket 80 mm (D-061). */
+export const invoiceQuery = (invoiceId: string) =>
+  queryOptions({
+    queryKey: ['invoices', 'detail', invoiceId],
+    queryFn: async ({ signal }) =>
+      (await api.get<Envelope<InvoiceDetail>>(`/api/v1/invoices/${invoiceId}`, { signal })).data,
+  })
 
 /** PDF A4 généré par le serveur (source de vérité), ouvert dans un nouvel onglet. */
 export function invoicePdfUrl(invoiceId: string): string {

@@ -70,6 +70,14 @@ export function PaymentActions({ payment }: { payment: PaymentActionTarget }) {
         <Icon name="document" size={17} />
         Reçu
       </Link>
+      <Link
+        className="text-button"
+        to={`/documents/recus/${payment.id}/ticket`}
+        aria-label={`Ticket 80 mm du reçu ${payment.receipt_number}`}
+      >
+        <Icon name="print" size={17} />
+        Ticket
+      </Link>
       {valid && payment.refundable_fcfa > 0 && can('refunds.create') && (
         <button
           type="button"

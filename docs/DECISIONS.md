@@ -400,3 +400,17 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
   - *Lecture :* chaque règle montre sa valeur en grand (pastilles pour une liste, Oui/Non, unité), son statut Validé ou Provisoire, sa référence (D-xx, Q-xx) et la date de dernière modification.
   - *Actions :* « Modifier » seulement pour les règles modifiables ; les autres affichent « Fixé par décision ». Une légende explique les trois états. Le panneau « Envoi des e-mails » reste en bas de page.
   - Aucune règle, valeur ou droit n’a changé : présentation uniquement.
+
+### D-061 — Ticket thermique 80 mm en complément de l’A4 (Validé par l’utilisateur le 21/11/2026, N-01)
+- Le ticket 80 mm **s’ajoute** aux impressions existantes : il ne les remplace pas. La facture PDF A4, générée par le serveur depuis l’instantané figé et munie du QR de vérification, reste le document de référence.
+- Deux tickets : le **reçu d’un versement** (données de `GET /payments/{id}`) et la **copie d’une facture ou d’un avoir**, construite uniquement depuis `snapshot_json` (`GET /invoices/{id}`), jamais depuis les tarifs actuels.
+- Jamais « PAYÉ » tant que le reste dû n’est pas nul ; un encaissement annulé porte la mention « ANNULÉ ». Aucune taxe n’est inventée : la ligne n’apparaît que si l’instantané en contient (règles fiscales en Centrafrique non validées).
+- Impression par le navigateur (`window.print()`) sur une page nommée 80 mm, sans effet sur les impressions A4. Réimprimer ne crée aucune opération. Impression silencieuse, découpe et tiroir-caisse : hors du navigateur, non traités.
+- Source : `new/JB_Hotel_Facture_Thermique_80mm.md`. Suivi : `SUIVI_NEW.md`, lot 1.
+
+### D-062 — Poste principal unique pour les écritures (Validé par l’utilisateur le 21/11/2026, N-04, option A)
+- Pour le futur mode hors ligne, l’administrateur désigne depuis l’application **un seul poste principal** (par exemple `CAISSE-01`). Lui seul enregistre les **réservations et encaissements**, en ligne comme hors ligne. Les autres appareils servent à la consultation et aux réglages (tarifs, chambres, utilisateurs) ; sans réseau, ils passent en consultation seule.
+- But : aucun conflit possible sur les chambres et l’argent, puisqu’il n’y a qu’un seul écrivain. Les conflits résiduels (chambre mise en maintenance pendant une coupure, fiche client modifiée des deux côtés) sont signalés au centre de synchronisation, jamais résolus en silence.
+- Transfert du rôle : autorisé seulement quand le poste actuel n’a plus d’opération en attente, sinon transfert forcé avec avertissement et journal d’audit. Chaque attribution porte un numéro : le serveur refuse les envois d’un ancien poste mais les conserve pour examen, sans les effacer.
+- Rejeté pour la V1 : le verrou automatique (option B), où les autres appareils écrivent tant que le poste principal répond. Il pourra être réétudié si l’hôtel ouvre un deuxième point d’encaissement.
+- Mise en œuvre au lot 4 de `SUIVI_NEW.md`.

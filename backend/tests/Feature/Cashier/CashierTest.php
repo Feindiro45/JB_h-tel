@@ -180,7 +180,12 @@ class CashierTest extends TestCase
             ->assertJsonPath('data.reservation.id', $this->reservation)
             ->assertJsonPath('data.customer.full_name', 'NGAÏKOSSET Awa')
             ->assertJsonPath('data.room.number', '101')
-            ->assertJsonPath('data.summary.balance_fcfa', 30000);
+            ->assertJsonPath('data.summary.balance_fcfa', 30000)
+            // Période du séjour pour le ticket 80 mm (D-061).
+            ->assertJsonPath('data.stay.start_date', '2026-12-01')
+            ->assertJsonPath('data.stay.end_date', '2026-12-01')
+            ->assertJsonPath('data.stay.quantity', 1)
+            ->assertJsonPath('data.stay.billing_unit_label', 'Journée');
 
         $payment = Payment::query()->where('uuid', $paymentId)->firstOrFail();
         $this->actingAs($this->cashier)->getJson("/api/v1/payments/{$payment->id}")->assertNotFound();

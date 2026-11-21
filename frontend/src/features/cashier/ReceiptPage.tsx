@@ -49,10 +49,16 @@ export function ReceiptPage() {
         title="Reçu de paiement"
         description={r.receipt_number}
         actions={
-          <button type="button" className="primary" onClick={() => window.print()}>
-            <Icon name="print" size={17} />
-            Imprimer / PDF
-          </button>
+          <>
+            <button type="button" className="primary" onClick={() => window.print()}>
+              <Icon name="print" size={17} />
+              Imprimer / PDF
+            </button>
+            <Link className="secondary" to={`/documents/recus/${r.id}/ticket`}>
+              <Icon name="print" size={17} />
+              Ticket 80 mm
+            </Link>
+          </>
         }
       />
       <PageOverview

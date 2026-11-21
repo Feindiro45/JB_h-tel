@@ -4,6 +4,17 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Ticket thermique 80 mm (D-061) — 21/11/2026
+- Tickets 80 mm (ou 58 mm) du **reçu d’un versement** (`/documents/recus/:id/ticket`) et d’une **facture ou d’un avoir** (`/documents/factures/:id/ticket`), construits depuis l’API existante ; la facture uniquement depuis l’instantané figé. Jamais « Payé » tant qu’un reste dû subsiste ; aucune taxe ajoutée.
+- Impression sur une seule bande : format de page = largeur du rouleau × hauteur mesurée du ticket, injecté seulement sur la page du ticket (les impressions A4 ne changent pas).
+- Boutons « Ticket » sur le reçu A4, les actions de paiement, la liste des factures et la fiche réservation. API : `GET /payments/{id}` renvoie aussi la période du séjour (`stay`).
+- Tests : 8 tests Vitest (118 au total), `CashierTest` étendu ; scénario navigateur `thermal-ticket` (PDF émulé à 80 et 58 mm).
+
+### Dossier new/ : lancement local et plan — 21/11/2026
+- Lecture des spécifications « ticket thermique 80 mm » et « architecture hors ligne ». Plan en lots et décisions N-01 à N-07 dans `SUIVI_NEW.md`.
+- Configuration remise entièrement en local à la demande de l’utilisateur (`backend/.env`, `frontend/.env.local`, API sur le port 8000) ; configuration de production sauvegardée dans `backend/.env.production.backup` et `frontend/.env.production.backup` (ignorés par git). Compte de démo administrateur local réactivé.
+- Décisions D-061 (ticket 80 mm en complément de l’A4) et D-062 (poste principal unique pour les écritures hors ligne).
+
 ### Pages d’erreur et page Paramètres — 20/11/2026 (D-060)
 - Pages d’erreur de l’application redessinées sur un composant commun : 404 « Page introuvable », 403 « Accès refusé », « Accès à configurer » et 500 « Erreur inattendue », avec code, message, aide et boutons (accueil, page précédente, recharger).
 - Pages d’erreur du serveur pour les liens ouverts hors de l’application (QR code, liens d’e-mail) : 403, 404, 419, 429, 500, 503 et pages génériques 4xx/5xx (par exemple 505), en français, aux couleurs de l’hôtel, sans détail technique ni lien vers l’espace du personnel. L’API garde ses erreurs JSON.

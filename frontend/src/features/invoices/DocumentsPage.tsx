@@ -310,6 +310,14 @@ function InvoicesPanel({
                             <Icon name="download" size={15} />
                             PDF
                           </a>
+                          <Link
+                            className="text-button"
+                            to={`/documents/factures/${invoice.id}/ticket`}
+                            aria-label={`Ticket 80 mm de ${invoice.type_label.toLowerCase()} ${invoice.number}`}
+                          >
+                            <Icon name="print" size={15} />
+                            Ticket
+                          </Link>
                           <a
                             className="text-button"
                             href={invoice.verification_url}
