@@ -4,6 +4,7 @@ import { paymentMethodsQuery } from '../../shared/api/lookups'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toUserError } from '../../shared/api/errors'
+import { newIdempotencyKey } from '../../shared/api/idempotency'
 import type { Customer } from '../../shared/api/types'
 import { useErrorModal } from '../../shared/ui/errorModalContext'
 import { SelectField, TextAreaField, TextField } from '../../shared/ui/fields'
@@ -131,22 +132,39 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
     meta: { silentError: true },
   })
 
+  // Une clé par écriture, gardée pour les nouveaux essais de ce dialogue (lot 3) : un double clic
+  // ou une réponse perdue ne crée ni deuxième client, ni deuxième séjour, ni deuxième encaissement.
+  const [keys] = useState(() => ({
+    customer: newIdempotencyKey(),
+    reservation: newIdempotencyKey(),
+    payment: newIdempotencyKey(),
+  }))
   const submit = useMutation({
     mutationFn: async () => {
       let customerId = customer?.id
       if (mode === 'new') {
-        const created = await createCustomer({ ...newCustomer, email: newCustomer.email || null })
+        const created = await createCustomer(
+          { ...newCustomer, email: newCustomer.email || null },
+          keys.customer,
+        )
         // Fiche conservée : une nouvelle tentative (chambre prise entre-temps…) ne crée pas de doublon.
         setCustomer(created)
         setMode('existing')
         customerId = created.id
       }
-      const reservation = await createReservation({ ...payload, customer_id: customerId })
+      const reservation = await createReservation(
+        { ...payload, customer_id: customerId },
+        keys.reservation,
+      )
       let paymentError: unknown = null
       if (payment.mode !== 'deferred') {
         const amount = payment.mode === 'full' ? reservation.price.net_fcfa : Number(payment.amount)
         try {
-          await recordPayment(reservation.id, { amount_fcfa: amount, method: paymentMethod })
+          await recordPayment(
+            reservation.id,
+            { amount_fcfa: amount, method: paymentMethod },
+            keys.payment,
+          )
         } catch (error) {
           paymentError = error
         }

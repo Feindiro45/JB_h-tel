@@ -34,9 +34,12 @@ export const reservationPaymentsQuery = (reservationId: string) =>
 export async function recordPayment(
   reservationId: string,
   input: { amount_fcfa: number; method: string; reference?: string | null },
+  idempotencyKey?: string,
 ): Promise<Payment> {
   return (
-    await api.post<Envelope<Payment>>(`/api/v1/reservations/${reservationId}/payments`, input)
+    await api.post<Envelope<Payment>>(`/api/v1/reservations/${reservationId}/payments`, input, {
+      idempotencyKey,
+    })
   ).data
 }
 
@@ -94,15 +97,25 @@ export const receiptQuery = (paymentId: string) =>
   })
 
 /** Annulation motivée d'un encaissement (jamais de suppression). */
-export async function cancelPayment(paymentId: string, reason: string): Promise<Payment> {
-  return (await api.post<Envelope<Payment>>(`/api/v1/payments/${paymentId}/cancel`, { reason }))
-    .data
+export async function cancelPayment(
+  paymentId: string,
+  reason: string,
+  idempotencyKey?: string,
+): Promise<Payment> {
+  return (
+    await api.post<Envelope<Payment>>(
+      `/api/v1/payments/${paymentId}/cancel`,
+      { reason },
+      { idempotencyKey },
+    )
+  ).data
 }
 
 /** Remboursement : ligne distincte, le versement d'origine reste intact. */
 export async function refundPayment(
   paymentId: string,
   input: { amount_fcfa: number; method?: string | null; reason: string },
+  idempotencyKey?: string,
 ): Promise<void> {
-  await api.post(`/api/v1/payments/${paymentId}/refunds`, input)
+  await api.post(`/api/v1/payments/${paymentId}/refunds`, input, { idempotencyKey })
 }

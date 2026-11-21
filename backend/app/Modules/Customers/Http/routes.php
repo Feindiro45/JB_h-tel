@@ -13,7 +13,7 @@ Route::middleware('authenticated')->group(function (): void {
     });
 
     Route::middleware('permission:'.PermissionName::CustomersManage->value)->group(function (): void {
-        Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
+        Route::post('customers', [CustomerController::class, 'store'])->middleware('idempotent')->name('customers.store');
         Route::patch('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
     });
 

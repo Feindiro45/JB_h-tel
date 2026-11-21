@@ -10,6 +10,8 @@ export interface RequestOptions {
   body?: unknown
   query?: Record<string, QueryValue>
   signal?: AbortSignal
+  /** Clé d’idempotence de l’écriture (lot 3), voir `shared/api/idempotency.ts`. */
+  idempotencyKey?: string
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -53,6 +55,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   // Poste de caisse (D-062) : le serveur réserve certaines écritures au poste principal.
   const workstation = readWorkstationToken()
   if (workstation) headers[WORKSTATION_HEADER] = workstation
+  if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey
   if (method !== 'GET') {
     const xsrf = readCookie('XSRF-TOKEN')
     if (xsrf) headers['X-XSRF-TOKEN'] = xsrf

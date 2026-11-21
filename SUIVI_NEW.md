@@ -3,7 +3,7 @@
 > Suivi des évolutions demandées dans le dossier `new/` (21/11/2026). Mis à jour à chaque étape.
 > Le suivi général du projet reste dans `CHECK_LEVEL.md`.
 
-**Dernière mise à jour :** 21/11/2026 — lot 1 commité (`717291a`) ; **4A.3 Postes de caisse terminé** : enregistrement automatique des navigateurs, page Administration → Postes de caisse, désignation numérotée (première, planifiée, forcée), révocation, règle D-062 activable (désactivée par défaut).
+**Dernière mise à jour :** 21/11/2026 — **lot 3 (D-063) terminé** : 250 tests backend, 130 tests frontend, suite navigateur 10/10 (vraies réservations et encaissements avec clé). Lot 2 et lot 4 en attente des décisions N-02, N-03, N-05, N-06.
 
 **Légende :** `[x]` fait et vérifié · `[~]` écrit, pas encore testé · `[ ]` à faire · `[!]` attend une décision ou l'hôtel.
 
@@ -23,9 +23,9 @@ Les deux documents se disent eux-mêmes « à valider avant implémentation ».
 |---|---|---|---|---|
 | 0 | Relancer le projet en local | non | ✅ Fait | 100 % |
 | 1 | Ticket thermique 80 mm (en ligne) | N-01 décidé : ajout (D-061) | ✅ Fait en local (reste l’essai sur l’imprimante de l’hôtel) | 95 % |
-| 2 | PWA en lecture hors ligne (consultation et réimpression) | non | ⬜ À faire | 0 % |
-| 3 | Fiabilité réseau : clés d'idempotence côté serveur | non | ⬜ À faire | 0 % |
-| 4 | Écritures hors ligne et synchronisation | **oui** : N-02, N-03, N-05, N-06 (N-04 décidé : D-062) | ⬜ Bloqué | 0 % |
+| 2 | PWA en lecture hors ligne (consultation et réimpression) | N-05 décidé (D-064) | ⬜ Prêt à démarrer | 0 % |
+| 3 | Fiabilité réseau : clés d'idempotence (D-063) | non | ✅ Fait | 100 % |
+| 4 | Écritures hors ligne et synchronisation | décidé : D-062, D-064 | ⬜ À faire (après le lot 2) | 0 % |
 | 4A | Module admin « Mode hors ligne » (postes, synchronisation, règles, sauvegardes, guide) + encart du tableau de bord | en partie : postes et état possibles dès maintenant (D-062) ; le reste suit le lot 4 | 🟡 Postes de caisse faits (4A.3) ; reste encart, synchronisation, règles, sauvegardes, guide | 25 % |
 | 5 | Recette (coupures, imprimante réelle) | matériel de l'hôtel | ⬜ À faire | 0 % |
 
@@ -72,11 +72,11 @@ npm run dev
 | ID | Question | Proposition de l'agent | Conséquence si acceptée |
 |---|---|---|---|
 | N-01 | ✅ **Décidé (21/11) : ajout** → D-061 | Le ticket 80 mm s'ajoute ; le PDF A4 avec QR reste le document de référence | Rien de supprimé ; deux boutons d'impression |
-| N-02 | Quelles opérations sont permises hors ligne ? | Encaissement **en espèces** sur un séjour connu, création de client, demande de réservation **provisoire**. Interdits : confirmation définitive, remise au-delà du plafond, remboursement, annulation, suppression | Pas de double réservation définitive ; conflits possibles sur les réservations provisoires |
-| N-03 | Numérotation des tickets émis hors ligne | Numéro provisoire `LOC-<poste>-<séquence>` imprimé, puis numéro REC ou FAC définitif attribué par le serveur et visible à la réimpression | À faire valider par l'hôtel sur le plan fiscal |
+| N-02 | ✅ **Décidé (21/11) : tout comme en ligne** → D-064 (revalidation serveur, refus possibles après coup, jamais effacés). Question initiale : quelles opérations sont permises hors ligne ? | Encaissement **en espèces** sur un séjour connu, création de client, demande de réservation **provisoire**. Interdits : confirmation définitive, remise au-delà du plafond, remboursement, annulation, suppression | Pas de double réservation définitive ; conflits possibles sur les réservations provisoires |
+| N-03 | ✅ **Décidé (21/11) : provisoire `LOC-…` puis définitif** → D-064 (validation fiscale de l’hôtel attendue). Question initiale : numérotation des tickets émis hors ligne | Numéro provisoire `LOC-<poste>-<séquence>` imprimé, puis numéro REC ou FAC définitif attribué par le serveur et visible à la réimpression | À faire valider par l'hôtel sur le plan fiscal |
 | N-04 | ✅ **Décidé (21/11) : option A** → D-062 | Un **poste principal** désigné par l'admin est le seul à enregistrer réservations et encaissements (en ligne et hors ligne) ; les autres appareils consultent et règlent | Aucun conflit possible sur les chambres et l'argent ; transfert du rôle sécurisé et numéroté |
-| N-05 | Durée de session hors ligne et verrouillage | 12 h maximum, verrouillage après 15 min d'inactivité, droits du dernier `/auth/me` | Un droit retiré à distance n'est connu qu'au retour du réseau |
-| N-06 | Sauvegarde des opérations non synchronisées | Export chiffré manuel depuis le centre de synchronisation | Procédure à former côté hôtel |
+| N-05 | ✅ **Décidé (21/11) : 12 h, verrou après 15 min** → D-064. Question initiale : durée de session hors ligne et verrouillage | 12 h maximum, verrouillage après 15 min d'inactivité, droits du dernier `/auth/me` | Un droit retiré à distance n'est connu qu'au retour du réseau |
+| N-06 | ✅ **Décidé (21/11) : export manuel chiffré + rappel après 1 h** → D-064. Question initiale : sauvegarde des opérations non synchronisées | Export chiffré manuel depuis le centre de synchronisation | Procédure à former côté hôtel |
 | N-07 | Imprimante : modèle, largeur (80 ou 58 mm), découpe automatique | Largeur 80 mm par défaut, avec une option 58 mm | Impression silencieuse et découpe : hors navigateur, non traitées |
 
 ## Plan de travail
@@ -108,9 +108,10 @@ L'API fournit déjà le reçu (`GET /payments/{id}`) et la facture avec son inst
 
 ### Lot 3 — Clés d'idempotence côté serveur (utile même en ligne)
 
-- [ ] 3.1 En-tête `Idempotency-Key` accepté sur l'encaissement, la création de client et la création de réservation ; table dédiée et contrainte unique
-- [ ] 3.2 Requête répétée = même réponse, jamais de double encaissement (double clic, réseau instable)
-- [ ] 3.3 Tests backend, y compris en concurrence
+- [x] 3.1 En-tête `Idempotency-Key` (UUID) accepté sur toutes les écritures de réservation, de caisse, de facturation et la création de client ; table `idempotency_keys`, unique par utilisateur ; clé enregistrée **dans la même transaction** que l’opération ; erreurs jamais mémorisées (nouvel essai possible)
+- [x] 3.2 Requête répétée = même réponse (en-tête `Idempotent-Replayed`), jamais de double encaissement ; même clé avec d’autres valeurs = refus en français
+- [x] 3.2b Frontend : une clé par dialogue ouvert (encaissement, remboursement, annulation, réservation et ses trois écritures, fiche client), gardée pour les nouvelles tentatives ; repli sans HTTPS ; 4 tests (130/130), dont un nouvel essai après erreur 503 qui réutilise la même clé
+- [x] 3.3 Tests backend : 6 tests fonctionnels (rejeu identique, autres valeurs refusées, erreur jamais mémorisée, clé propre à chaque utilisateur, réservation rejouée sans conflit, purge après 30 jours) + **test de concurrence à vrais processus PHP** (deux envois simultanés du même encaissement → un seul enregistré, le second attend le premier puis rejoue sa réponse). 14 routes d’écriture protégées ; purge quotidienne planifiée (`model:prune`, nécessite le cron `schedule:run`)
 
 ### Lot 4 — Écritures hors ligne et synchronisation (après N-02 à N-06)
 
@@ -163,3 +164,6 @@ Un menu **Administration → Mode hors ligne**, réservé à l’administrateur 
 - **21/11/2026** — Lot 1 : scénario navigateur du ticket vert (PDF une page, 80 et 58 mm) ; libellé coupé et graisse corrigés après inspection visuelle.
 - **21/11/2026** — 4A.3 Postes de caisse : module `Workstations` (2 tables, droit admin, 2 paramètres provisoires), blocage des écritures hors poste principal quand la règle est active, page d’administration et pastille du poste dans la barre du haut.
 - **21/11/2026** — 4A.3 : relecture des captures : navigateur résumé (« Edge · Windows »), auteur sous la date, badge « Actif » quand la règle est inactive. Page « Postes de caisse » ajoutée au contrôle visuel de la charte.
+- **21/11/2026** — Lot 3 (D-063) : middleware `idempotent`, table `idempotency_keys`, test de concurrence à vrais processus, clés côté frontend. Base de dev migrée.
+- **21/11/2026** — Lot 3 : suite navigateur complète verte (10/10).
+- **21/11/2026** — Décisions de l’utilisateur : N-05 = 12 h + verrou 15 min ; N-02 = tout comme en ligne ; N-03 = provisoire puis définitif ; N-06 = export chiffré + rappel (D-064). Lots 2 et 4 débloqués.

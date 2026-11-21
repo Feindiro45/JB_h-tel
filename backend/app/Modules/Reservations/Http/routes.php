@@ -26,17 +26,17 @@ Route::middleware('authenticated')->group(function (): void {
 
     Route::middleware('permission:'.PermissionName::ReservationsCreate->value)->group(function (): void {
         Route::post('reservations/quote', [ReservationController::class, 'quote'])->name('reservations.quote');
-        Route::post('reservations', [ReservationController::class, 'store'])->middleware('main.workstation')->name('reservations.store');
+        Route::post('reservations', [ReservationController::class, 'store'])->middleware(['main.workstation', 'idempotent'])->name('reservations.store');
     });
 
     Route::middleware('permission:'.PermissionName::ReservationsUpdate->value)->group(function (): void {
-        Route::post('reservations/{reservation}/confirm', [ReservationController::class, 'confirm'])->middleware('main.workstation')->name('reservations.confirm');
-        Route::put('reservations/{reservation}/occupants', [ReservationController::class, 'occupants'])->middleware('main.workstation')->name('reservations.occupants');
+        Route::post('reservations/{reservation}/confirm', [ReservationController::class, 'confirm'])->middleware(['main.workstation', 'idempotent'])->name('reservations.confirm');
+        Route::put('reservations/{reservation}/occupants', [ReservationController::class, 'occupants'])->middleware(['main.workstation', 'idempotent'])->name('reservations.occupants');
         Route::post('reservations/{reservation}/extension/preview', [ReservationExtensionController::class, 'preview'])->name('reservations.extension.preview');
-        Route::post('reservations/{reservation}/extension', [ReservationExtensionController::class, 'store'])->middleware('main.workstation')->name('reservations.extension.store');
+        Route::post('reservations/{reservation}/extension', [ReservationExtensionController::class, 'store'])->middleware(['main.workstation', 'idempotent'])->name('reservations.extension.store');
         // Correction avant le séjour (D-058).
         Route::post('reservations/{reservation}/modification/preview', [ReservationCorrectionController::class, 'preview'])->name('reservations.modification.preview');
-        Route::post('reservations/{reservation}/modification', [ReservationCorrectionController::class, 'modify'])->middleware('main.workstation')->name('reservations.modification');
+        Route::post('reservations/{reservation}/modification', [ReservationCorrectionController::class, 'modify'])->middleware(['main.workstation', 'idempotent'])->name('reservations.modification');
     });
 
     // Suppression définitive d'une réservation saisie par erreur (D-058) : administrateur seulement.
@@ -44,11 +44,11 @@ Route::middleware('authenticated')->group(function (): void {
         ->delete('reservations/{reservation}', [ReservationCorrectionController::class, 'destroy'])->name('reservations.destroy');
 
     Route::middleware('permission:'.PermissionName::ReservationsCancel->value)->group(function (): void {
-        Route::post('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->middleware('main.workstation')->name('reservations.cancel');
+        Route::post('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->middleware(['main.workstation', 'idempotent'])->name('reservations.cancel');
     });
 
     Route::middleware('permission:'.PermissionName::ReservationsCheckInOut->value)->group(function (): void {
-        Route::post('reservations/{reservation}/check-in', [ReservationController::class, 'checkIn'])->middleware('main.workstation')->name('reservations.check-in');
-        Route::post('reservations/{reservation}/check-out', [ReservationController::class, 'checkOut'])->middleware('main.workstation')->name('reservations.check-out');
+        Route::post('reservations/{reservation}/check-in', [ReservationController::class, 'checkIn'])->middleware(['main.workstation', 'idempotent'])->name('reservations.check-in');
+        Route::post('reservations/{reservation}/check-out', [ReservationController::class, 'checkOut'])->middleware(['main.workstation', 'idempotent'])->name('reservations.check-out');
     });
 });

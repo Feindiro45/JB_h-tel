@@ -20,9 +20,9 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-XSRF-TOKEN', 'X-Workstation-Token'],
+    'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-XSRF-TOKEN', 'X-Workstation-Token', 'Idempotency-Key'],
 
-    'exposed_headers' => ['Retry-After'],
+    'exposed_headers' => ['Retry-After', 'Idempotent-Replayed'],
 
     'max_age' => 600,
 

@@ -181,6 +181,37 @@ describe('Fiche réservation', () => {
     })
   })
 
+  it('renvoie le même encaissement avec la même clé après une erreur passagère (lot 3)', async () => {
+    let attempts = 0
+    serve(reservation(), undefined, {
+      [`POST /api/v1/reservations/${ID}/payments`]: () =>
+        ++attempts === 1
+          ? { status: 503, body: { title: 'Service indisponible', message: 'Réessayez.' } }
+          : { status: 201, body: { data: { id: 'pay-1', receipt_number: 'REC-2026-000042' } } },
+    })
+    const fetchSpy = globalThis.fetch as unknown as { mock: { calls: [string, RequestInit][] } }
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Encaisser' }))
+    const dialog = screen.getByRole('dialog', { name: 'Encaisser' })
+    const submit = within(dialog).getByRole('button', { name: 'Enregistrer l’encaissement' })
+    await user.click(submit)
+    const error = await screen.findByRole('alertdialog')
+    await user.click(within(error).getAllByRole('button', { name: /Fermer/ })[0]!)
+    await user.click(submit)
+    expect(
+      await screen.findByText('Encaissement enregistré — reçu REC-2026-000042'),
+    ).toBeInTheDocument()
+
+    const keys = fetchSpy.mock.calls
+      .filter(([url, init]) => String(url).endsWith(`/${ID}/payments`) && init.method === 'POST')
+      .map(([, init]) => (init.headers as Record<string, string>)['Idempotency-Key'])
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    expect(keys[1]).toBe(keys[0])
+  })
+
   it('calcule les jours ajoutés depuis le départ actuel et transmet ce calcul à l’aperçu', async () => {
     const stay = reservation()
     const calls = serve(stay)

@@ -123,8 +123,8 @@ export async function freeRooms(params: {
 export const quoteReservation = async (input: ReservationInput) =>
   (await api.post<Envelope<Quote>>('/api/v1/reservations/quote', input)).data
 
-export const createReservation = async (input: ReservationInput) =>
-  (await api.post<Envelope<Reservation>>('/api/v1/reservations', input)).data
+export const createReservation = async (input: ReservationInput, idempotencyKey?: string) =>
+  (await api.post<Envelope<Reservation>>('/api/v1/reservations', input, { idempotencyKey })).data
 
 const action = (path: string) => async (id: string, body?: unknown) =>
   (await api.post<Envelope<Reservation>>(`/api/v1/reservations/${id}/${path}`, body)).data

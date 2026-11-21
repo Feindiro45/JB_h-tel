@@ -1,5 +1,6 @@
 import { Icon } from '../../shared/ui/Icon'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIdempotencyKey } from '../../shared/api/idempotency'
 import { paymentMethodsQuery } from '../../shared/api/lookups'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -122,14 +123,15 @@ export function RefundDialog({
   const [method, setMethod] = useState('')
   const [reason, setReason] = useState('')
   const [errors, setErrors] = useState<{ amount?: string; reason?: string }>({})
+  const idempotencyKey = useIdempotencyKey()
 
   const mutation = useMutation({
     mutationFn: () =>
-      refundPayment(payment.id, {
-        amount_fcfa: Number(amount),
-        method: method || null,
-        reason: reason.trim(),
-      }),
+      refundPayment(
+        payment.id,
+        { amount_fcfa: Number(amount), method: method || null, reason: reason.trim() },
+        idempotencyKey,
+      ),
     onSuccess: () => {
       refresh()
       notify(`Remboursement de ${formatFcfa(Number(amount))} enregistré`)
@@ -209,8 +211,9 @@ export function CancelPaymentDialog({
   const { notify } = useToast()
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string>()
+  const idempotencyKey = useIdempotencyKey()
   const mutation = useMutation({
-    mutationFn: () => cancelPayment(payment.id, reason.trim()),
+    mutationFn: () => cancelPayment(payment.id, reason.trim(), idempotencyKey),
     onSuccess: () => {
       refresh()
       notify(`Encaissement ${payment.receipt_number} annulé`)

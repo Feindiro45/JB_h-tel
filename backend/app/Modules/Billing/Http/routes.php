@@ -21,8 +21,8 @@ Route::middleware('authenticated')->group(function (): void {
     });
 
     Route::middleware('permission:'.PermissionName::InvoicesIssue->value)
-        ->post('reservations/{reservation}/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+        ->post('reservations/{reservation}/invoices', [InvoiceController::class, 'store'])->middleware('idempotent')->name('invoices.store');
 
     Route::middleware('permission:'.PermissionName::InvoicesCredit->value)
-        ->post('invoices/{invoice}/credit-notes', [InvoiceController::class, 'credit'])->name('invoices.credit');
+        ->post('invoices/{invoice}/credit-notes', [InvoiceController::class, 'credit'])->middleware('idempotent')->name('invoices.credit');
 });

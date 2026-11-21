@@ -64,6 +64,7 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 ### Transverse
 | Table | Rôle |
 |---|---|
+| `idempotency_keys` | `user_id`, `idempotency_key` (UUID), `method`, `path`, `request_hash` (SHA-256), `response_status`, `response_body` : réponse réussie d’une écriture, rejouée à l’identique (D-063). Unique (`user_id`, `idempotency_key`) ; purge après 30 jours. Migration `2026_11_21_110000`. |
 | `audit_logs` | `actor_id`, `action`, `entity_type`, `entity_id`, `before_json`, `after_json`, `ip_address`, `occurred_at`. Append-only. **Sert aussi de journal des modifications des réservations** (D-022). |
 | `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (11 valeurs par défaut, dont plusieurs provisoires ; `workstations.*` ajoutés par la migration `2026_11_21_100100`, D-062). |
 | `cache`, `jobs`, `password_reset_tokens` | Tables techniques de Laravel (`password_reset_tokens` : liens « mot de passe oublié », 60 min) |
@@ -82,7 +83,7 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | Factures | — | `type`, `credited_invoice_id`, `issued_by` | Avoirs, sous réserve de Q-09 |
 | Auteurs | Clés étrangères nullables | `NOT NULL` pour `reservations.created_by`, `payments.cashier_id`, `refunds.processed_by` et `invoices.issued_by` | Chaque opération financière a un auteur |
 | Horodatages | Absents | `created_at`, `updated_at` (`DATETIME`) | Traçabilité |
-| Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions`, `workstations`, `workstation_assignments` | Paramètres, numérotation, droits, sessions, poste principal unique (D-062) |
+| Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions`, `workstations`, `workstation_assignments`, `idempotency_keys` | Paramètres, numérotation, droits, sessions, poste principal unique (D-062), écritures idempotentes (D-063) |
 | Maintenance | `maintenance_status` | Statut courant seulement | Périodes planifiées en attente de Q-12 (D-019) |
 | Identifiants publics | Absents | Colonne `uuid` sur 11 tables | Les routes et les liens n’exposent jamais la clé entière (D-026) |
 | Prolongations | Absentes (historique dans l’audit seulement) | Table `reservation_extensions` (migration `190000`) | Facture détaillée séjour initial + prolongation (D-053, demande du 19/11/2026) |

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIdempotencyKey } from '../../shared/api/idempotency'
 import { paymentMethodsQuery } from '../../shared/api/lookups'
 import { useState } from 'react'
 import { SelectField, TextField } from '../../shared/ui/fields'
@@ -25,15 +26,21 @@ export function PaymentDialog({
   const [reference, setReference] = useState('')
   const [error, setError] = useState<string>()
 
+  // Même clé pour tous les essais de ce dialogue : un double clic n’encaisse qu’une fois (lot 3).
+  const idempotencyKey = useIdempotencyKey()
   const mutation = useMutation({
     mutationFn: () =>
-      recordPayment(reservationId, {
-        amount_fcfa: Number(amount),
-        method: methods.data?.some((m) => m.value === method)
-          ? method
-          : (methods.data?.[0]?.value ?? ''),
-        reference: reference.trim() || null,
-      }),
+      recordPayment(
+        reservationId,
+        {
+          amount_fcfa: Number(amount),
+          method: methods.data?.some((m) => m.value === method)
+            ? method
+            : (methods.data?.[0]?.value ?? ''),
+          reference: reference.trim() || null,
+        },
+        idempotencyKey,
+      ),
     onSuccess: (payment) => {
       // Fiche du séjour, caisse, liste des reçus, soldes et tableau de bord.
       for (const key of [...CASH_KEYS, ['reservations', reservationId]]) {

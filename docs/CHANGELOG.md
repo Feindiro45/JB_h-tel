@@ -4,6 +4,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Écritures idempotentes, sans doublon (D-063) — 21/11/2026
+- En-tête `Idempotency-Key` sur 14 routes d’écriture (réservations, caisse, factures, fiche client) : un envoi répété rend la réponse déjà enregistrée, sans deuxième encaissement ni deuxième séjour ; erreurs jamais mémorisées ; même clé avec d’autres valeurs refusée en français.
+- Clé écrite dans la même transaction que l’opération ; deux envois simultanés : un seul enregistrement (test à vrais processus PHP). Table `idempotency_keys`, purge après 30 jours.
+- Frontend : une clé par dialogue (encaissement, remboursement, annulation, nouvelle réservation, fiche client), gardée pour les nouveaux essais.
+- Tests : 7 tests backend (suite 250/250), 4 tests frontend (130/130).
+
 ### Postes de caisse et poste principal unique (D-062) — 21/11/2026
 - Chaque navigateur connecté s’enregistre comme poste (jeton secret, empreinte SHA-256 en base) et signale sa présence toutes les 30 s ; pastille « Poste … · principal / consultation » dans la barre du haut.
 - Nouvelle page **Administration → Postes de caisse** (droit `workstations.manage`, admin seul) : renommer, désigner le poste principal (première désignation, transfert planifié, transfert forcé avec motif et confirmation), révoquer, réactiver, historique numéroté, procédure « Comment changer de poste principal ».

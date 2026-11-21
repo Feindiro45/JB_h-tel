@@ -54,8 +54,11 @@ export const customerReservationsQuery = (id: string) =>
         .data,
   })
 
-export async function createCustomer(input: CustomerInput): Promise<Customer> {
-  return (await api.post<Envelope<Customer>>('/api/v1/customers', input)).data
+export async function createCustomer(
+  input: CustomerInput,
+  idempotencyKey?: string,
+): Promise<Customer> {
+  return (await api.post<Envelope<Customer>>('/api/v1/customers', input, { idempotencyKey })).data
 }
 
 export async function updateCustomer(id: string, input: Partial<CustomerInput>): Promise<Customer> {
