@@ -4,6 +4,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Tout fonctionne hors ligne, première étape (lot 4, D-064) — 22/11/2026
+- Hors ligne, **encaissement**, **arrivée** et **départ** sont gardés sur le poste et visibles aussitôt (reçu et ticket `LOC-…` provisoires, solde recalculé, fiche « en attente d’envoi ») ; au retour du réseau, ils partent automatiquement, avec leur clé anti-doublon, et le serveur donne le numéro `REC-…` définitif.
+- Menu Synchronisation : panneau « Mettre à jour en ligne » (en attente, envoyées, refusées avec leur cause, « Réessayer », « Abandonner » motivé) ; bandeau des opérations en attente.
+- En ligne, les données restaurées de la copie du poste sont toujours rechargées à l’affichage.
+- Tests : 153 tests frontend ; recette de production : coupure, encaissement hors ligne, retour du réseau, `REC-…` attribué, un seul enregistrement en base.
+
 ### Tutoriels intégrés (lot T) — 21/11/2026
 - Bouton « Tutoriel » dans l’en-tête de chaque section du menu (16 sections) : fenêtre pas à pas au contenu propre à chaque section, fidèle aux règles réelles (forfaits, remises, poste principal, mode hors ligne…).
 - Design animé : bandeau de la section, barre de progression, illustration par étape, glissement selon le sens de lecture, points clés cochés, conseil, pastilles ; clavier (flèches, Échap) et lecteurs d’écran ; animations coupées si le système demande de réduire les mouvements.

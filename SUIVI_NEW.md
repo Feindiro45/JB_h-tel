@@ -3,7 +3,7 @@
 > Suivi des évolutions demandées dans le dossier `new/` (21/11/2026). Mis à jour à chaque étape.
 > Le suivi général du projet reste dans `CHECK_LEVEL.md`.
 
-**Dernière mise à jour :** 21/11/2026 — **lot 2 complété** (listes principales hors ligne, message clair à la place du chargement sans fin) et **lot T terminé** (tutoriel animé sur les 16 sections) ; 146 tests frontend et recette hors ligne de production verts. Prochain : **lot 4** (enregistrements hors ligne, envoi au serveur).
+**Dernière mise à jour :** 22/11/2026 — lots 2 et T commités (`6090593`) ; **lot 4, première étape terminée** : hors ligne, encaissement (reçu `LOC-…`), arrivée et départ gardés sur le poste et envoyés automatiquement au retour du réseau ; 153 tests frontend et recette de production verts. Reste : réservation hors ligne (4.5), export chiffré et rappel (4.7), tableau de bord (4.8).
 
 **Légende :** `[x]` fait et vérifié · `[~]` écrit, pas encore testé · `[ ]` à faire · `[!]` attend une décision ou l'hôtel.
 
@@ -25,7 +25,7 @@ Les deux documents se disent eux-mêmes « à valider avant implémentation ».
 | 1 | Ticket thermique 80 mm (en ligne) | N-01 décidé : ajout (D-061) | ✅ Fait en local (reste l’essai sur l’imprimante de l’hôtel) | 95 % |
 | 2 | Consultation hors ligne + menu « Synchronisation et sauvegardes » (sens local) + application installable | N-05 décidé (D-064) | ✅ Fait (suite navigateur en cours) | 95 % |
 | 3 | Fiabilité réseau : clés d'idempotence (D-063) | non | ✅ Fait | 100 % |
-| 4 | Tout fonctionne hors ligne : file d’attente rejouée, « Mettre à jour en ligne » | décidé : D-062, D-063, D-064 | 🟡 Démarré | 5 % |
+| 4 | Tout fonctionne hors ligne : file d’attente rejouée, « Mettre à jour en ligne » | décidé : D-062, D-063, D-064 | 🟡 Encaissement, arrivée, départ faits ; reste réservation, export, tableau de bord | 60 % |
 | 4A | Module admin « Mode hors ligne » (postes, synchronisation, règles, sauvegardes, guide) + encart du tableau de bord | en partie : postes et état possibles dès maintenant (D-062) ; le reste suit le lot 4 | 🟡 Postes de caisse faits (4A.3) ; reste encart, synchronisation, règles, sauvegardes, guide | 25 % |
 | T | Tutoriels : un bouton « Tutoriel » par section du menu, fenêtre pas à pas animée, contenu propre à chaque section | non | ✅ Fait | 100 % |
 | 5 | Recette (coupures, imprimante réelle) | matériel de l'hôtel | ⬜ À faire | 0 % |
@@ -122,15 +122,15 @@ L'API fournit déjà le reçu (`GET /payments/{id}`) et la facture avec son inst
 
 Conception retenue (21/11) : pas de protocole à part. Hors ligne, chaque écriture est gardée sur le poste avec sa **clé d’idempotence** (D-063) et le jeton du poste principal (D-062), l’écran montre aussitôt le résultat « en attente d’envoi » ; au retour du réseau, la file est **rejouée dans l’ordre** vers les routes habituelles, que le serveur revalide entièrement. Un envoi répété ne crée jamais de doublon ; un refus est gardé avec sa cause, jamais effacé.
 
-- [ ] 4.1 File d’attente (IndexedDB) : opération, clé, jeton du poste, auteur, date, état (en attente, envoi, acceptée, refusée), tentatives, cause du dernier échec, réponse du serveur ; dépendances (client créé hors ligne → réservation qui l’utilise)
-- [ ] 4.2 Moteur d’envoi : au retour du réseau et sur le bouton **« Mettre à jour en ligne »** ; ordre de création ; délai croissant après une erreur passagère ; arrêt propre si la session a expiré (401) ; chaque passage journalisé dans l’historique (sens « Vers le serveur »)
-- [ ] 4.3 Numéros provisoires `LOC-<poste>-<séquence>` (N-03), imprimés sur le ticket, remplacés par le numéro définitif à l’accusé du serveur
-- [ ] 4.4 Hors ligne, premières opérations : **encaissement** (reçu et ticket provisoires, solde du séjour mis à jour sur le poste), **arrivée et départ**, **création de client**
+- [x] 4.1 File d’attente (IndexedDB) : opération, clé, auteur, date, état (en attente, envoyée, refusée, abandonnée), tentatives, cause du dernier échec, numéros provisoire et définitif
+- [x] 4.2 Moteur d’envoi : au démarrage en ligne, au retour du réseau (avant la mise à jour locale, pour ne rien écraser) et sur le bouton **« Mettre à jour en ligne »** ; ordre de création ; seulement les opérations de l’utilisateur connecté (auteur fidèle) ; refus gardé avec sa cause ; arrêt propre sur coupure, session expirée ou erreur passagère ; passage journalisé (sens « Vers le serveur »)
+- [x] 4.3 Numéros provisoires `LOC-<poste>-<séquence>` (N-03) sur le reçu et le ticket (mention « Provisoire »), remplacés par le numéro REC définitif à l’accusé du serveur
+- [x] 4.4 Hors ligne : **encaissement** (ligne provisoire, solde recalculé sur le poste, reçu et ticket imprimables, message « gardé sur ce poste »), **arrivée et départ** (fiche marquée « en attente d’envoi ») ; moyens de paiement gardés sur le poste
 - [ ] 4.5 Hors ligne, suite : **création de réservation** (prix et disponibilité calculés sur le poste à partir des tarifs et du planning gardés, confirmés par le serveur au retour), annulation, prolongation
-- [ ] 4.6 Menu « Synchronisation » : opérations en attente, refusées (avec cause, « Réessayer », « Abandonner » motivé), acceptées ; sens « Mettre à jour en ligne »
+- [x] 4.6 Menu « Synchronisation » : panneau **« Mettre à jour en ligne »** (compteurs, liste avec numéros et causes, « Réessayer », « Abandonner » avec motif obligatoire) ; bandeau « N opération(s) en attente d’envoi » ; compteur de la vue d’ensemble
 - [ ] 4.7 Sauvegarde (N-06) : export chiffré des opérations en attente (mot de passe), rappel quand des opérations attendent depuis plus d’une heure
 - [ ] 4.8 Tableau de bord : opérations locales signalées (« en attente d’envoi ») tant qu’elles ne sont pas confirmées
-- [ ] 4.9 Tests : file d’attente, rejeu sans doublon (clé), refus gardé, dépendance client → réservation, recette de production coupure → encaissement → retour du réseau
+- [~] 4.9 Tests : 6 tests de la file et du moteur (rejeu avec la clé, numéro définitif, opérations d’un autre utilisateur non envoyées, refus gardé, arrêt sur coupure), test d’écran d’un encaissement hors ligne, **recette de production** : réservation créée en ligne, coupure, encaissement hors ligne `LOC-…`, retour du réseau, envoi automatique, `REC-…` affiché, un seul enregistrement en base. Restent les tests de 4.5, 4.7 et 4.8
 
 ### Lot 4A — Module admin « Mode hors ligne » (demande de l’utilisateur, 21/11)
 
@@ -183,3 +183,4 @@ Un menu **Administration → Mode hors ligne**, réservé à l’administrateur 
 - **21/11/2026** — Demande de l’utilisateur : tutoriel pas à pas sur chaque section du menu (lot T, après le lot 2).
 - **21/11/2026** — Lot 2 vérifié : recette hors ligne de production verte. Corrigés en route : copie perdue lors d’un changement de page rapide (enregistrement à la sortie de page + écrans essentiels), état hors ligne non détecté au rechargement, caractère invisible dans un commentaire CSS du ticket.
 - **21/11/2026** — Retours de l’utilisateur : données hors ligne (listes principales ajoutées, message clair), demande d’un usage hors ligne complet (lot 4, suivant). Lot T : tutoriels animés sur les 16 sections du menu.
+- **22/11/2026** — Lot 4, première étape : file d’attente, « Mettre à jour en ligne », encaissement, arrivée et départ hors ligne. Corrigé en route : en ligne, une donnée restaurée de la copie est toujours rechargée à l’affichage ; une opération hors ligne enregistre la copie aussitôt.

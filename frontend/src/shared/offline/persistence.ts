@@ -46,6 +46,9 @@ export async function restoreQueryCache(
     return null
   }
   hydrate(client, stored.state)
+  // La copie sert hors ligne : en ligne, chaque donnée restaurée est rechargée dès son affichage
+  // (hors ligne, rien ne part et la copie reste affichée).
+  void client.invalidateQueries({ refetchType: 'none' })
   return stored.savedAt
 }
 

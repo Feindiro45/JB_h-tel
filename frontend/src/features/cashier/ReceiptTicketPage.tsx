@@ -45,6 +45,8 @@ export function ReceiptTicketPage() {
   }
 
   const cancelled = r.status !== 'VALID'
+  // Encaissement fait hors ligne (lot 4, N-03) : numéro provisoire jusqu'à l'accusé du serveur.
+  const provisional = r.receipt_number.startsWith('LOC-')
   const summary = r.summary
   const balance = summary.balance_fcfa
 
@@ -63,10 +65,16 @@ export function ReceiptTicketPage() {
           label={`Ticket du reçu ${r.receipt_number}`}
           hotel={r.hotel}
           title="Reçu de paiement"
-          stamp={cancelled ? 'Annulé' : null}
+          stamp={cancelled ? 'Annulé' : provisional ? 'Provisoire' : null}
           width={width}
           footer={
             <>
+              {provisional && (
+                <p className="ticket-note" role="note">
+                  Reçu émis hors ligne : numéro provisoire. Le numéro définitif est attribué par le
+                  serveur au retour du réseau (D-064).
+                </p>
+              )}
               <p className="ticket-note">
                 Ce reçu atteste du versement ci-dessus. La facture du séjour est remise séparément.
               </p>

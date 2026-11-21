@@ -14,6 +14,8 @@ import {
   persistQueryCache,
   restoreQueryCache,
 } from '../shared/offline/persistence'
+import { sendPendingOperations } from '../shared/offline/outboxSync'
+import { setQueryClientRef } from '../shared/offline/queryClientRef'
 import { confirmSessionOnline, forgetSession } from '../shared/offline/session'
 import { SYNC_LOG_KEY } from '../shared/offline/syncQueries'
 import { ErrorModalProvider } from '../shared/ui/ErrorModalProvider'
@@ -21,6 +23,21 @@ import { useErrorModal } from '../shared/ui/errorModalContext'
 import { LoadingBlock } from '../shared/ui/layout'
 import { ToastProvider } from '../shared/ui/ToastProvider'
 import { createQueryClient } from './queryClient'
+
+/**
+ * Synchronisation dans les deux sens : d’abord l’envoi des opérations faites hors ligne (lot 4),
+ * puis la mise à jour de la copie du poste, pour que le serveur n’écrase pas une opération qui
+ * n’est pas encore partie.
+ */
+async function synchronize(
+  client: QueryClient,
+  trigger: 'reconnect' | 'auto',
+  user: CurrentUser,
+): Promise<void> {
+  await sendPendingOperations(client, trigger, user)
+  if (trigger === 'reconnect') await updateLocalCopy(client, trigger, user.name)
+  await client.invalidateQueries({ queryKey: SYNC_LOG_KEY })
+}
 
 /**
  * Mode hors ligne (lot 2, D-064) : copie locale restaurée avant le premier affichage,
@@ -34,8 +51,12 @@ function useOfflineCopy(client: QueryClient): boolean {
     let active = true
     void restoreQueryCache(client).finally(() => {
       if (active) setReady(true)
-      // Les données restaurées peuvent être fraîches : l’accès au serveur est vérifié une fois.
-      void checkConnectivity()
+      // Les données restaurées peuvent être fraîches : l’accès au serveur est vérifié une fois ;
+      // en ligne, les opérations restées en attente d’une session précédente partent aussitôt.
+      void checkConnectivity().then((reachable) => {
+        const user = client.getQueryData<CurrentUser | null>(ME_KEY)
+        if (active && reachable && user) void synchronize(client, 'auto', user)
+      })
     })
     return () => {
       active = false
@@ -69,11 +90,7 @@ function useOfflineCopy(client: QueryClient): boolean {
     return subscribeConnectivity(() => {
       const online = getConnectivity().online
       const user = client.getQueryData<CurrentUser | null>(ME_KEY)
-      if (online && !wasOnline && user) {
-        void updateLocalCopy(client, 'reconnect', user.name).then(() =>
-          client.invalidateQueries({ queryKey: SYNC_LOG_KEY }),
-        )
-      }
+      if (online && !wasOnline && user) void synchronize(client, 'reconnect', user)
       wasOnline = online
     })
   }, [client])
@@ -94,6 +111,8 @@ function QueryProvider({ children }: { children: ReactNode }) {
         void forgetSession()
       }
     })
+    // Écritures hors ligne (lot 4) : accès au cache en dehors des composants.
+    setQueryClientRef(queryClient)
     return queryClient
   })
   const ready = useOfflineCopy(client)

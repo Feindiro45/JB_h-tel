@@ -1,7 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Reservation } from '../../shared/api/types'
+import { reportUnreachable } from '../../shared/offline/connectivity'
+import { readOutbox } from '../../shared/offline/outbox'
 import { addDays, todayIso } from '../../shared/utils/format'
 import { admin, cashier, mockApi, renderApp } from '../../test/renderApp'
 
@@ -210,6 +212,42 @@ describe('Fiche réservation', () => {
     expect(keys).toHaveLength(2)
     expect(keys[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
     expect(keys[1]).toBe(keys[0])
+  })
+
+  it('encaisse hors ligne : reçu provisoire, solde recalculé, opération gardée (lot 4)', async () => {
+    serve(reservation())
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Encaisser' }))
+    let dialog = screen.getByRole('dialog', { name: 'Encaisser' })
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+
+    // Coupure réelle : le serveur ne répond plus.
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
+    reportUnreachable()
+    await user.click(screen.getByRole('button', { name: 'Encaisser' }))
+    dialog = screen.getByRole('dialog', { name: 'Encaisser' })
+    const amount = within(dialog).getByLabelText('Montant (FCFA)')
+    await user.clear(amount)
+    await user.type(amount, '10000')
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer l’encaissement' }))
+
+    expect(
+      await screen.findByText(
+        /Encaissement gardé sur ce poste — reçu provisoire LOC-POSTE1-000001/,
+      ),
+    ).toBeVisible()
+    expect(screen.getAllByText('LOC-POSTE1-000001').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('En attente d’envoi').length).toBeGreaterThan(0)
+    // Avance de 20 000 + 10 000 hors ligne sur 50 000 : il reste 20 000.
+    expect(normalize(document.body.textContent)).toContain('Solde20 000 FCFA')
+    const [operation] = await readOutbox()
+    expect(operation).toMatchObject({
+      status: 'pending',
+      kind: 'payment.record',
+      path: `/api/v1/reservations/${ID}/payments`,
+      body: { amount_fcfa: 10000, method: 'CASH', reference: null },
+    })
   })
 
   it('calcule les jours ajoutés depuis le départ actuel et transmet ce calcul à l’aperçu', async () => {

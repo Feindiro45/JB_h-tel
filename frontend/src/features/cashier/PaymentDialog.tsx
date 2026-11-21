@@ -46,7 +46,11 @@ export function PaymentDialog({
       for (const key of [...CASH_KEYS, ['reservations', reservationId]]) {
         void queryClient.invalidateQueries({ queryKey: key })
       }
-      notify(`Encaissement enregistré — reçu ${payment.receipt_number}`)
+      notify(
+        payment.receipt_number.startsWith('LOC-')
+          ? `Encaissement gardé sur ce poste — reçu provisoire ${payment.receipt_number}, envoyé au retour du réseau`
+          : `Encaissement enregistré — reçu ${payment.receipt_number}`,
+      )
       onClose()
     },
   })

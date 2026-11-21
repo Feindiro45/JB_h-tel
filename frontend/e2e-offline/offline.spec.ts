@@ -1,4 +1,4 @@
-import { expect as baseExpect, test } from '@playwright/test'
+import { expect as baseExpect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
 const { password } = JSON.parse(
@@ -10,6 +10,26 @@ const { password } = JSON.parse(
 
 // Serveur PHP à un seul processus, lent au premier passage.
 const expect = baseExpect.configure({ timeout: 25_000 })
+
+/** Clés des données gardées dans la copie IndexedDB du poste (JSON). */
+function copiedKeys(page: Page): Promise<string> {
+  return page.evaluate(
+    () =>
+      new Promise<string>((resolve) => {
+        const open = indexedDB.open('jb-hotel-offline', 1)
+        open.onsuccess = () => {
+          const get = open.result.transaction('kv').objectStore('kv').get('query-cache')
+          get.onsuccess = () =>
+            resolve(
+              JSON.stringify(
+                get.result?.state?.queries?.map((q: { queryKey: unknown }) => q.queryKey) ?? [],
+              ),
+            )
+        }
+        open.onerror = () => resolve('')
+      }),
+  )
+}
 
 test('poste coupé du réseau : ouverture, consultation, historique, verrou et retour du réseau', async ({
   page,
@@ -30,32 +50,34 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await expect(page.locator('main')).toContainText('101')
   expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
 
+  // Une réservation créée en ligne (paiement différé) : sa fiche est gardée sur le poste.
+  await page.goto('/reservations')
+  await page.getByRole('button', { name: '+ Nouvelle réservation' }).click()
+  const booking = page.getByRole('dialog')
+  await booking.getByRole('radio', { name: 'Nouveau client', exact: true }).check()
+  await booking.getByLabel('Nom', { exact: true }).fill('Hors Ligne')
+  await booking.getByLabel('Téléphone', { exact: true }).fill('+23672006666')
+  await booking.getByLabel('Titulaire du séjour').fill('Hors Ligne')
+  const room = booking.getByLabel('Chambre', { exact: true })
+  await expect(room.locator('option')).not.toHaveCount(1)
+  await room.selectOption({ index: 1 })
+  await booking.getByRole('radio', { name: 'Paiement différé', exact: true }).check()
+  await booking.getByRole('button', { name: 'Créer la réservation' }).click()
+  await expect(page).toHaveURL(/\/reservations\/[a-f0-9-]{36}$/)
+  const reservationUrl = page.url()
+  await expect(page.getByRole('button', { name: 'Encaisser' })).toBeVisible()
+  // La fiche et ses encaissements sont gardés sur le poste avant de quitter la page.
+  const reservationId = reservationUrl.split('/').at(-1)!
+  await expect.poll(() => copiedKeys(page)).toContain(`["payments","${reservationId}"]`)
+
   await page.goto('/synchronisation')
   await page.getByRole('button', { name: 'Mettre à jour en local' }).click()
   const history = page.getByRole('region', { name: 'Historique des synchronisations' })
   await expect(history.getByRole('row').nth(1)).toContainText('Réussie')
   await expect(history.getByRole('row').nth(1)).toContainText('Manuelle')
   // La copie du poste contient bien le planning (écran essentiel) avant la coupure.
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          new Promise<string>((resolve) => {
-            const open = indexedDB.open('jb-hotel-offline', 1)
-            open.onsuccess = () => {
-              const get = open.result.transaction('kv').objectStore('kv').get('query-cache')
-              get.onsuccess = () =>
-                resolve(
-                  JSON.stringify(
-                    get.result?.state?.queries?.map((q: { queryKey: unknown }) => q.queryKey) ?? [],
-                  ),
-                )
-            }
-            open.onerror = () => resolve('')
-          }),
-      ),
-    )
-    .toContain('"planning"')
+  await expect.poll(() => copiedKeys(page)).toContain('"planning"')
+  await expect.poll(() => copiedKeys(page)).toContain(`["reservations","${reservationId}"]`)
 
   // Application installable (PWA) : contrôle officiel du navigateur, sans erreur.
   const cdp = await context.newCDPSession(page)
@@ -72,7 +94,7 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await expect(page.getByRole('heading', { name: 'Disponibilités', level: 1 })).toBeVisible()
   await expect(page.locator('main')).toContainText('101')
   await expect(page.locator('.connectivity-chip')).toHaveText('Hors ligne')
-  await expect(page.getByText(/Vous consultez les données gardées sur ce poste/)).toBeVisible()
+  await expect(page.getByText(/sont celles gardées sur ce poste/)).toBeVisible()
 
   // Listes principales téléchargées par « Mettre à jour en local », même jamais ouvertes en ligne.
   await page.goto('/reservations')
@@ -82,6 +104,18 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await page.goto('/clients')
   await expect(page.getByRole('heading', { name: 'Clients', level: 1 })).toBeVisible()
   await expect(page.getByText('Pas encore disponible hors ligne.')).toHaveCount(0)
+
+  // Encaissement hors ligne (lot 4) : reçu provisoire, opération gardée sur le poste.
+  await page.goto(reservationUrl)
+  await page.getByRole('button', { name: 'Encaisser' }).click()
+  const payment = page.getByRole('dialog', { name: 'Encaisser' })
+  await payment.getByLabel('Montant (FCFA)').fill('5000')
+  await payment.getByRole('button', { name: 'Enregistrer l’encaissement' }).click()
+  await expect(
+    page.getByText(/Encaissement gardé sur ce poste — reçu provisoire LOC-/),
+  ).toBeVisible()
+  await expect(page.getByText(/^LOC-.*-000001$/).first()).toBeVisible()
+  await expect(page.getByText('En attente d’envoi').first()).toBeVisible()
 
   // Écran d’administration jamais gardé : message clair, jamais un chargement sans fin.
   await page.goto('/admin/audit')
@@ -113,5 +147,14 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await expect(history.getByRole('row').nth(1)).toContainText('Retour du réseau', {
     timeout: 40_000,
   })
+
+  // L’encaissement fait hors ligne est parti tout seul : accepté, numéro définitif attribué.
+  const outbox = page.getByRole('region', { name: 'Mettre à jour en ligne' })
+  await expect(outbox.getByRole('row').nth(1)).toContainText('Envoyée', { timeout: 40_000 })
+  await expect(outbox.getByRole('row').nth(1)).toContainText(/LOC-.*-000001 → REC-\d{4}-\d+/)
+  await expect(history).toContainText('Vers le serveur')
+  await page.goto(reservationUrl)
+  await expect(page.getByText(/^REC-\d{4}-\d+$/).first()).toBeVisible()
+  await expect(page.getByText('En attente d’envoi')).toHaveCount(0)
   expect(errors).toEqual([])
 })

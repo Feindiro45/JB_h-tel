@@ -1,7 +1,10 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import { registerOfflineEssential } from '../../shared/offline/essentials'
-import { todayIso } from '../../shared/utils/format'
+import { runOrQueue } from '../../shared/offline/offlineWrite'
+import { getQueryClientRef } from '../../shared/offline/queryClientRef'
+import { formatFcfa, todayIso } from '../../shared/utils/format'
+import { provisionalPayment } from './offlinePayment'
 import type {
   AccountSummary,
   CashJournal,
@@ -11,6 +14,7 @@ import type {
   PaymentRow,
   Receipt,
   Receivable,
+  Reservation,
   RefundDue,
 } from '../../shared/api/types'
 
@@ -33,16 +37,36 @@ export const reservationPaymentsQuery = (reservationId: string) =>
       ),
   })
 
+/** « chambre 101 · NGUEMA Paul », d'après la fiche gardée sur le poste. */
+function describeReservation(reservationId: string): string {
+  const stay = getQueryClientRef()?.getQueryData<Reservation>(['reservations', reservationId])
+  if (!stay) return 'réservation'
+  return [stay.room && `chambre ${stay.room.number}`, stay.customer?.full_name]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/**
+ * Encaissement « comme en ligne » (D-064) : envoyé au serveur s'il répond, sinon gardé sur le
+ * poste avec un reçu provisoire `LOC-…` et envoyé au retour du réseau (lot 4).
+ */
 export async function recordPayment(
   reservationId: string,
   input: { amount_fcfa: number; method: string; reference?: string | null },
   idempotencyKey?: string,
 ): Promise<Payment> {
-  return (
-    await api.post<Envelope<Payment>>(`/api/v1/reservations/${reservationId}/payments`, input, {
-      idempotencyKey,
-    })
-  ).data
+  const path = `/api/v1/reservations/${reservationId}/payments`
+  return runOrQueue({
+    kind: 'payment.record',
+    label: `Encaissement de ${formatFcfa(input.amount_fcfa)} — ${describeReservation(reservationId)}`,
+    path,
+    body: input,
+    idempotencyKey,
+    numbered: true,
+    send: async (key) =>
+      (await api.post<Envelope<Payment>>(path, input, { idempotencyKey: key })).data,
+    provisional: (operation, client) => provisionalPayment(client, reservationId, input, operation),
+  })
 }
 
 export interface PaymentFilters {

@@ -1,5 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { useConnectivity } from '../../shared/offline/connectivity'
+import { outboxQuery } from '../../shared/offline/outbox'
 import { Icon } from '../../shared/ui/Icon'
 import { formatTime } from '../../shared/utils/format'
 import './offline.css'
@@ -22,17 +24,31 @@ export function ConnectivityChip() {
   )
 }
 
-/** Bandeau affiché en haut des pages tant que le serveur est injoignable (lot 2). */
+/**
+ * Bandeau des pages : hors ligne (lot 2), ou opérations faites hors ligne encore en attente
+ * d'envoi (lot 4).
+ */
 export function OfflineBanner() {
   const { online, since } = useConnectivity()
-  if (online) return null
+  const outbox = useQuery(outboxQuery)
+  const pending = (outbox.data ?? []).filter((o) => o.status === 'pending').length
+  if (online && pending === 0) return null
   return (
     <div className="offline-banner" role="status">
       <Icon name="clock" size={18} />
-      <p>
-        <strong>Hors ligne depuis {formatTime(new Date(since))}.</strong> Vous consultez les données
-        gardées sur ce poste ; les enregistrements reprendront au retour du réseau.
-      </p>
+      {online ? (
+        <p>
+          <strong>{pending} opération(s) faite(s) hors ligne en attente d’envoi.</strong> Elles
+          partent automatiquement ; suivez leur envoi dans Synchronisation.
+        </p>
+      ) : (
+        <p>
+          <strong>Hors ligne depuis {formatTime(new Date(since))}.</strong> Les données affichées
+          sont celles gardées sur ce poste ; vos enregistrements sont gardés ici et envoyés au
+          retour du réseau
+          {pending > 0 ? ` (${pending} en attente)` : ''}.
+        </p>
+      )}
       <Link className="text-button" to="/synchronisation">
         <Icon name="refresh" size={16} />
         Synchronisation

@@ -25,7 +25,7 @@
 | 7 | Reporting | ✅ Implémenté, tests API verts | 100 % |
 | 8 | Qualité et livraison | 🟡 Livraison locale vérifiée ; recette hôtel et CI distante restantes | 90 % |
 
-> **Nouvelles évolutions (dossier `new/`, 21/11/2026)** : ticket thermique 80 mm et mode hors ligne. Plan, décisions N-01 à N-07 et avancement dans **`SUIVI_NEW.md`**. Lot 1 (ticket 80 mm, D-061) terminé en local ; poste principal unique (D-062) : page **Postes de caisse** livrée (désignation, règle activable) ; écritures sans doublon par clé d’idempotence (D-063) ; consultation hors ligne, menu Synchronisation et application installable (lot 2, D-064) ; tutoriels animés sur chaque section (lot T) ; suite du module admin « Mode hors ligne » planifiée.
+> **Nouvelles évolutions (dossier `new/`, 21/11/2026)** : ticket thermique 80 mm et mode hors ligne. Plan, décisions N-01 à N-07 et avancement dans **`SUIVI_NEW.md`**. Lot 1 (ticket 80 mm, D-061) terminé en local ; poste principal unique (D-062) : page **Postes de caisse** livrée (désignation, règle activable) ; écritures sans doublon par clé d’idempotence (D-063) ; consultation hors ligne, menu Synchronisation et application installable (lot 2, D-064) ; tutoriels animés sur chaque section (lot T) ; hors ligne, encaissement, arrivée et départ envoyés au retour du réseau (lot 4, première étape) ; suite du module admin « Mode hors ligne » planifiée.
 
 ## Phase 0 — Audit et questions bloquantes ✅
 

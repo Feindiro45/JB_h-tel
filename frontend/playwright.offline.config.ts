@@ -28,6 +28,8 @@ export default defineConfig({
       command: 'php artisan serve --host=127.0.0.1 --port=8012',
       cwd: '../backend',
       url: `${API}/api/v1/health`,
+      // PHP démarre parfois lentement sur ce poste.
+      timeout: 120_000,
       env: {
         APP_ENV: 'local',
         API_RATE_LIMIT_PER_MINUTE: '1000',

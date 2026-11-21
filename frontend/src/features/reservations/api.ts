@@ -1,6 +1,8 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import { registerOfflineEssential } from '../../shared/offline/essentials'
+import { runOrQueue } from '../../shared/offline/offlineWrite'
+import { getQueryClientRef } from '../../shared/offline/queryClientRef'
 import { todayIso } from '../../shared/utils/format'
 import type {
   Envelope,
@@ -132,8 +134,53 @@ const action = (path: string) => async (id: string, body?: unknown) =>
   (await api.post<Envelope<Reservation>>(`/api/v1/reservations/${id}/${path}`, body)).data
 
 export const confirmReservation = action('confirm')
-export const checkIn = action('check-in')
-export const checkOut = action('check-out')
+
+/** « chambre 101 · NGUEMA Paul », d'après la fiche gardée sur le poste (libellé de la file d'attente). */
+export function describeStay(id: string): string {
+  const stay = getQueryClientRef()?.getQueryData<Reservation>(reservationKeys.detail(id))
+  if (!stay) return 'réservation'
+  return [stay.room && `chambre ${stay.room.number}`, stay.customer?.full_name]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/**
+ * Arrivée et départ « comme en ligne » (D-064) : envoyés au serveur s'il répond, sinon gardés sur
+ * le poste ; la fiche change aussitôt d'état, marquée « en attente d'envoi » (lot 4).
+ */
+const transition =
+  (path: 'check-in' | 'check-out', status: 'IN_PROGRESS' | 'COMPLETED', label: string) =>
+  async (id: string): Promise<Reservation> => {
+    const url = `/api/v1/reservations/${id}/${path}`
+    return runOrQueue({
+      kind: path === 'check-in' ? 'reservation.check-in' : 'reservation.check-out',
+      label: `${path === 'check-in' ? 'Arrivée' : 'Départ'} — ${describeStay(id)}`,
+      path: url,
+      body: undefined,
+      send: async (key) =>
+        (await api.post<Envelope<Reservation>>(url, undefined, { idempotencyKey: key })).data,
+      provisional: (operation, client) => {
+        const now = new Date(operation.createdAt).toISOString()
+        let updated: Reservation | undefined
+        client.setQueryData<Reservation>(reservationKeys.detail(id), (old) => {
+          if (!old) return old
+          updated = {
+            ...old,
+            status,
+            status_label: `${label} — en attente d’envoi`,
+            checked_in_at: path === 'check-in' ? now : old.checked_in_at,
+            checked_out_at: path === 'check-out' ? now : old.checked_out_at,
+          }
+          return updated
+        })
+        if (!updated) throw new Error('Réservation absente de la copie locale.')
+        return updated
+      },
+    })
+  }
+
+export const checkIn = transition('check-in', 'IN_PROGRESS', 'En cours')
+export const checkOut = transition('check-out', 'COMPLETED', 'Terminée')
 /** D-053 : `refund_fcfa` confirme le remboursement de l'encaissé net (0 si rien n'a été encaissé). */
 export interface CancellationInput {
   reason: string

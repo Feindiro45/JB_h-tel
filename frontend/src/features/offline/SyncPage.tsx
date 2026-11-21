@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useConnectivity } from '../../shared/offline/connectivity'
+import { outboxQuery } from '../../shared/offline/outbox'
 import { promptInstall, useInstallState } from '../../shared/offline/install'
 import { describeLocalCopy, sizeOf, updateLocalCopy } from '../../shared/offline/localSync'
 import { clearQueryCache, readStoredCache } from '../../shared/offline/persistence'
@@ -15,6 +16,7 @@ import { PageOverview } from '../../shared/ui/PageOverview'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatDateTime, formatNumber, formatTime } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
+import { OutboxPanel } from './OutboxPanel'
 import './offline.css'
 
 const STORED_KEY = ['offline', 'stored-copy'] as const
@@ -77,6 +79,8 @@ export function SyncPage() {
   const { online, since } = useConnectivity()
   const { notify } = useToast()
   const log = useQuery(syncLogQuery)
+  const outbox = useQuery(outboxQuery)
+  const pendingCount = (outbox.data ?? []).filter((o) => o.status === 'pending').length
   const stored = useQuery({
     queryKey: STORED_KEY,
     queryFn: async () => {
@@ -167,9 +171,10 @@ export function SyncPage() {
           },
           {
             label: 'Opérations à envoyer',
-            value: 0,
-            hint: 'Enregistrement hors ligne : lot 4',
+            value: pendingCount,
+            hint: pendingCount ? 'Faites hors ligne, en attente du serveur' : 'Tout est envoyé',
             icon: 'wallet',
+            tone: pendingCount ? 'amber' : undefined,
           },
         ]}
       />
@@ -317,20 +322,7 @@ export function SyncPage() {
         )}
       </Panel>
 
-      <Panel
-        title="Mettre à jour en ligne et exporter"
-        subtitle="Sens poste → serveur : envoi des opérations faites hors ligne (lot 4, D-064)."
-      >
-        <div className="panel-body">
-          <p>
-            <Badge tone="neutral" label="0 opération en attente" /> L’enregistrement hors ligne
-            n’est pas encore livré : hors ligne, les écritures sont refusées avec un message. Au lot
-            4, les opérations faites sans réseau apparaîtront ici, avec leur envoi au serveur, les
-            refus éventuels et leur cause, l’export chiffré de sauvegarde et un rappel après une
-            heure d’attente.
-          </p>
-        </div>
-      </Panel>
+      <OutboxPanel />
 
       {confirmClear && (
         <Modal

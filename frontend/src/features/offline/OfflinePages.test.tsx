@@ -77,9 +77,9 @@ describe('Synchronisation et sauvegardes', () => {
     expect(row).toHaveTextContent('Échec')
     expect(row).toHaveTextContent('Retour du réseau')
     expect(row).toHaveTextContent('Réservations : Connexion impossible')
-    expect(
-      screen.getByRole('region', { name: 'Mettre à jour en ligne et exporter' }),
-    ).toHaveTextContent('0 opération en attente')
+    expect(screen.getByRole('region', { name: 'Mettre à jour en ligne' })).toHaveTextContent(
+      '0 en attente',
+    )
     expect(screen.getByRole('link', { name: /Synchronisation/ })).toHaveAttribute(
       'href',
       '/synchronisation',
@@ -151,7 +151,7 @@ describe('Consultation hors ligne', () => {
     goOffline()
     expect(await screen.findByText('Hors ligne')).toBeVisible()
     expect(
-      screen.getByText(/Vous consultez les données gardées/).closest('.offline-banner'),
+      screen.getByText(/sont celles gardées sur ce poste/).closest('.offline-banner'),
     ).toHaveAttribute('role', 'status')
   })
 

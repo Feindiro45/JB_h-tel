@@ -97,3 +97,16 @@
     display: none;
   }
 }
+
+/* Mettre à jour en ligne (lot 4) */
+.outbox-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.outbox-table td small {
+  display: block;
+  margin-top: 2px;
+}
