@@ -36,6 +36,7 @@ enum PermissionName: string
     case SettingsManage = 'settings.manage';
     case AuditView = 'audit.view';
     case RecordsDelete = 'records.delete';
+    case WorkstationsManage = 'workstations.manage';
 
     public function label(): string
     {
@@ -68,6 +69,7 @@ enum PermissionName: string
             self::SettingsManage => 'Modifier les paramètres',
             self::AuditView => "Consulter le journal d'audit",
             self::RecordsDelete => 'Supprimer définitivement des saisies',
+            self::WorkstationsManage => 'Gérer les postes de caisse et désigner le poste principal',
         };
     }
 
@@ -78,7 +80,7 @@ enum PermissionName: string
      */
     public static function adminOnly(): array
     {
-        return [self::RecordsDelete];
+        return [self::RecordsDelete, self::WorkstationsManage];
     }
 
     /** @return list<string> */

@@ -50,6 +50,14 @@ class SettingsSeeder extends Seeder
             'value' => ['CASH', 'MOBILE_MONEY', 'CARD', 'BANK_TRANSFER'],
             'description' => 'PROVISOIRE (Q-11) : moyens de paiement acceptés.',
         ],
+        'workstations.enforce_main_post' => [
+            'value' => false,
+            'description' => 'PROVISOIRE (D-062) : réservations et encaissements réservés au poste principal (désactivé tant que l’administrateur ne l’active pas).',
+        ],
+        'workstations.silent_after_minutes' => [
+            'value' => 5,
+            'description' => 'PROVISOIRE (D-062) : délai sans signal après lequel le poste principal est considéré hors ligne ; un transfert devient alors forcé.',
+        ],
     ];
 
     public function run(): void

@@ -20,12 +20,12 @@ Route::middleware('authenticated')->group(function (): void {
     });
 
     Route::middleware('permission:'.PermissionName::PaymentsRecord->value)
-        ->post('reservations/{reservation}/payments', [PaymentController::class, 'store'])->name('payments.store');
+        ->post('reservations/{reservation}/payments', [PaymentController::class, 'store'])->middleware('main.workstation')->name('payments.store');
 
     // Annulation : l'administrateur, ou la caissière pour ses propres saisies du jour (D-058, contrôlé par le service).
     Route::middleware('permission:'.PermissionName::PaymentsCancel->value.'|'.PermissionName::PaymentsRecord->value)
-        ->post('payments/{payment}/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');
+        ->post('payments/{payment}/cancel', [PaymentController::class, 'cancel'])->middleware('main.workstation')->name('payments.cancel');
 
     Route::middleware('permission:'.PermissionName::RefundsCreate->value)
-        ->post('payments/{payment}/refunds', [PaymentController::class, 'refund'])->name('payments.refunds.store');
+        ->post('payments/{payment}/refunds', [PaymentController::class, 'refund'])->middleware('main.workstation')->name('payments.refunds.store');
 });

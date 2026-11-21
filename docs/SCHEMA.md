@@ -55,11 +55,17 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | `invoices` | `invoice_number` unique, `type` ∈ {`INVOICE`, `CREDIT_NOTE`}, `credited_invoice_id` (avoir), `issued_at`, `issued_by`, montants (net + remise = brut), `snapshot_json`, `status` ∈ {`ISSUED`, `CREDITED`} |
 | `document_sequences` | `name` (par exemple `invoice:2026`), `last_number` : numérotation continue attribuée sous verrou |
 
+### Workstations (postes de caisse, D-062)
+| Table | Colonnes notables |
+|---|---|
+| `workstations` | `uuid`, `name` unique (≤ 40), `token_hash` unique (SHA-256 du jeton du navigateur, jamais le jeton), `user_agent`, `registered_by`, `last_seen_at/by` (signal de présence), `revoked_at/by`, `revocation_reason`. Jamais supprimé : révoqué. |
+| `workstation_assignments` | `uuid`, `number` unique (≥ 1, croissant), `workstation_id`, `previous_workstation_id`, `mode` ∈ {`FIRST`, `PLANNED`, `FORCED`}, `reason`, `previous_last_seen_at`, `assigned_by`, `assigned_at`. Le poste principal courant est la dernière attribution ; lignes figées (ni modifiées ni supprimées). Migration `2026_11_21_100000`. |
+
 ### Transverse
 | Table | Rôle |
 |---|---|
 | `audit_logs` | `actor_id`, `action`, `entity_type`, `entity_id`, `before_json`, `after_json`, `ip_address`, `occurred_at`. Append-only. **Sert aussi de journal des modifications des réservations** (D-022). |
-| `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (8 valeurs par défaut, dont plusieurs provisoires). |
+| `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (11 valeurs par défaut, dont plusieurs provisoires ; `workstations.*` ajoutés par la migration `2026_11_21_100100`, D-062). |
 | `cache`, `jobs`, `password_reset_tokens` | Tables techniques de Laravel (`password_reset_tokens` : liens « mot de passe oublié », 60 min) |
 | `invitation_tokens` | Liens d’invitation d’un nouveau compte (72 h), séparés des liens « mot de passe oublié » pour qu’aucun ne puisse servir à la place de l’autre (D-059, migration `2026_11_20_110000`) |
 
@@ -76,7 +82,7 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | Factures | — | `type`, `credited_invoice_id`, `issued_by` | Avoirs, sous réserve de Q-09 |
 | Auteurs | Clés étrangères nullables | `NOT NULL` pour `reservations.created_by`, `payments.cashier_id`, `refunds.processed_by` et `invoices.issued_by` | Chaque opération financière a un auteur |
 | Horodatages | Absents | `created_at`, `updated_at` (`DATETIME`) | Traçabilité |
-| Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions` | Paramètres, numérotation, droits, sessions |
+| Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions`, `workstations`, `workstation_assignments` | Paramètres, numérotation, droits, sessions, poste principal unique (D-062) |
 | Maintenance | `maintenance_status` | Statut courant seulement | Périodes planifiées en attente de Q-12 (D-019) |
 | Identifiants publics | Absents | Colonne `uuid` sur 11 tables | Les routes et les liens n’exposent jamais la clé entière (D-026) |
 | Prolongations | Absentes (historique dans l’audit seulement) | Table `reservation_extensions` (migration `190000`) | Facture détaillée séjour initial + prolongation (D-053, demande du 19/11/2026) |

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { logout, ME_KEY, useCurrentUser } from '../features/auth'
 import { AlertLink } from '../features/reservations'
+import { WorkstationChip } from '../features/workstations'
 import { config } from '../shared/config'
 import { Icon } from '../shared/ui/Icon'
 import { formatDate, initials, todayIso } from '../shared/utils/format'
@@ -166,6 +167,7 @@ export function AppShell() {
               <time dateTime={todayIso()}>{formatDate(todayIso())}</time>
             </span>
             <span className="role-chip">{user.role_label ?? 'Sans rôle'}</span>
+            <WorkstationChip />
             <AlertLink />
           </div>
         </header>

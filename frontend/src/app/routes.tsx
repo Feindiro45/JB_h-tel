@@ -20,6 +20,7 @@ import {
 import { StatusPage } from '../features/system'
 import { RoomsPage, RatesPage, UsersPage, SettingsPage, AuditPage } from '../features/admin'
 import { ReportsPage } from '../features/reports'
+import { WorkstationsPage } from '../features/workstations'
 import { AppShell } from './AppShell'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
@@ -91,6 +92,7 @@ export const routes: RouteObject[] = [
       { path: 'admin/parametres', element: guarded('settings.manage', <SettingsPage />) },
       { path: 'admin/audit', element: guarded('audit.view', <AuditPage />) },
       { path: 'admin/etat', element: guarded('settings.manage', <StatusPage />) },
+      { path: 'admin/postes', element: guarded('workstations.manage', <WorkstationsPage />) },
       { path: 'sans-acces', element: <NoAccessPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],

@@ -1,5 +1,6 @@
 import { config } from '../config'
 import { errorFromResponse, networkError } from './errors'
+import { readWorkstationToken, WORKSTATION_HEADER } from './workstationToken'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 type QueryValue = string | number | boolean | null | undefined
@@ -49,6 +50,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     'X-Requested-With': 'XMLHttpRequest',
   }
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  // Poste de caisse (D-062) : le serveur réserve certaines écritures au poste principal.
+  const workstation = readWorkstationToken()
+  if (workstation) headers[WORKSTATION_HEADER] = workstation
   if (method !== 'GET') {
     const xsrf = readCookie('XSRF-TOKEN')
     if (xsrf) headers['X-XSRF-TOKEN'] = xsrf

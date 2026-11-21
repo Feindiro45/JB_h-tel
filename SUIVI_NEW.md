@@ -3,7 +3,7 @@
 > Suivi des évolutions demandées dans le dossier `new/` (21/11/2026). Mis à jour à chaque étape.
 > Le suivi général du projet reste dans `CHECK_LEVEL.md`.
 
-**Dernière mise à jour :** 21/11/2026 — **lot 1 terminé en local** : tickets du reçu et de la facture/avoir, 118 tests frontend et scénario navigateur verts ; reste l’essai sur l’imprimante réelle. Configuration remise en local (API 8000). Module admin « Mode hors ligne » ajouté au plan (lot 4A).
+**Dernière mise à jour :** 21/11/2026 — lot 1 commité (`717291a`) ; **4A.3 Postes de caisse terminé** : enregistrement automatique des navigateurs, page Administration → Postes de caisse, désignation numérotée (première, planifiée, forcée), révocation, règle D-062 activable (désactivée par défaut).
 
 **Légende :** `[x]` fait et vérifié · `[~]` écrit, pas encore testé · `[ ]` à faire · `[!]` attend une décision ou l'hôtel.
 
@@ -26,7 +26,7 @@ Les deux documents se disent eux-mêmes « à valider avant implémentation ».
 | 2 | PWA en lecture hors ligne (consultation et réimpression) | non | ⬜ À faire | 0 % |
 | 3 | Fiabilité réseau : clés d'idempotence côté serveur | non | ⬜ À faire | 0 % |
 | 4 | Écritures hors ligne et synchronisation | **oui** : N-02, N-03, N-05, N-06 (N-04 décidé : D-062) | ⬜ Bloqué | 0 % |
-| 4A | Module admin « Mode hors ligne » (postes, synchronisation, règles, sauvegardes, guide) + encart du tableau de bord | en partie : postes et état possibles dès maintenant (D-062) ; le reste suit le lot 4 | ⬜ À faire | 0 % |
+| 4A | Module admin « Mode hors ligne » (postes, synchronisation, règles, sauvegardes, guide) + encart du tableau de bord | en partie : postes et état possibles dès maintenant (D-062) ; le reste suit le lot 4 | 🟡 Postes de caisse faits (4A.3) ; reste encart, synchronisation, règles, sauvegardes, guide | 25 % |
 | 5 | Recette (coupures, imprimante réelle) | matériel de l'hôtel | ⬜ À faire | 0 % |
 
 ## Lot 0 — Relancer le projet en local ✅
@@ -133,7 +133,12 @@ Un menu **Administration → Mode hors ligne**, réservé à l’administrateur 
 
 - [ ] 4A.1 **Encart du tableau de bord** : état du poste principal (en ligne, ou hors ligne depuis…), dernière synchronisation, opérations en attente déclarées, conflits à traiter ; lien vers le module
 - [ ] 4A.2 **Vue d’ensemble** : signal du poste principal toutes les 30 s, alerte si le poste se tait plus de X minutes, chiffres du jour (opérations reçues, rejetées, en conflit)
-- [ ] 4A.3 **Postes de caisse** (D-062) : appareils enregistrés (nom, navigateur, dernière connexion, dernier utilisateur), renommer, révoquer, désigner le poste principal ; transfert planifié ou forcé, avec avertissement ; historique des attributions numérotées
+- [x] 4A.3 **Postes de caisse** (D-062) : appareils enregistrés (nom, navigateur, dernière connexion, dernier utilisateur), renommer, révoquer, désigner le poste principal ; transfert planifié ou forcé, avec avertissement ; historique des attributions numérotées
+  - [x] 4A.3a Base : tables `workstations` et `workstation_assignments` (numéro d’attribution unique), permission `workstations.manage` (admin seul), paramètres provisoires `workstations.enforce_main_post` (désactivé) et `workstations.silent_after_minutes` (5)
+  - [x] 4A.3b API : enregistrement du navigateur (jeton secret, haché en base), signal de présence, liste, renommer, désigner (premier, planifié, forcé avec motif), révoquer, réactiver ; journal d’audit
+  - [x] 4A.3c Blocage (D-062) : réservations et encaissements refusés hors du poste principal quand l’admin l’active (403 `workstation_not_main`) ; consultation et devis toujours permis. **6 tests backend verts (102 assertions)**
+  - [x] 4A.3d Frontend : enregistrement automatique, en-tête `X-Workstation-Token`, signal toutes les 30 s, page Administration → Postes de caisse, groupe « Postes de caisse » dans Paramètres
+  - [x] 4A.3e Tests : 6 tests backend (102 assertions) + `SettingsTest` à jour, **suite backend 243/243** ; 8 tests frontend (**126/126**) ; suite navigateur : 9/10 au premier passage (test visuel hors délai sur poste chargé), puis test visuel relancé **vert avec la nouvelle page ajoutée à la charte** (délai porté à 4 min) et scénario `workstations` vert ; scénario navigateur `workstations` (désignation, règle active, caissière d’un autre appareil refusée en français, saisie conservée, audit Axe) ; Larastan, Pint, lint, format verts. Base de dev migrée
 - [ ] 4A.4 **Centre de synchronisation** (avec le lot 4) : opérations acceptées, doublons, rejetées et en conflit, avec le motif en français ; liste « À examiner » pour les envois d’un ancien poste ; actions valider, ressaisir ou rejeter avec motif, inscrites au journal d’audit
 - [ ] 4A.5 **Règles hors ligne** (groupe « Hors ligne » de la page Paramètres) : opérations permises sans Internet (N-02), durée maximale de session et verrouillage (N-05), préfixe des numéros provisoires (N-03), délai d’alerte du poste muet. Valeurs provisoires étiquetées comme telles
 - [ ] 4A.6 **Sauvegardes** (N-06) : date de la dernière sauvegarde du poste principal, export manuel des opérations non synchronisées, procédure de restauration
@@ -156,3 +161,5 @@ Un menu **Administration → Mode hors ligne**, réservé à l’administrateur 
 - **21/11/2026** — Lot 1 : composant ticket, pages reçu et facture/avoir, boutons, 8 tests. Configuration remise en local sur demande ; production sauvegardée dans les fichiers `.env.production.backup`.
 - **21/11/2026** — Demande de l’utilisateur : module admin « Mode hors ligne » ajouté au plan (lot 4A).
 - **21/11/2026** — Lot 1 : scénario navigateur du ticket vert (PDF une page, 80 et 58 mm) ; libellé coupé et graisse corrigés après inspection visuelle.
+- **21/11/2026** — 4A.3 Postes de caisse : module `Workstations` (2 tables, droit admin, 2 paramètres provisoires), blocage des écritures hors poste principal quand la règle est active, page d’administration et pastille du poste dans la barre du haut.
+- **21/11/2026** — 4A.3 : relecture des captures : navigateur résumé (« Edge · Windows »), auteur sous la date, badge « Actif » quand la règle est inactive. Page « Postes de caisse » ajoutée au contrôle visuel de la charte.

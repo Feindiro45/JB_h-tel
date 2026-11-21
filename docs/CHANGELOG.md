@@ -4,6 +4,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Postes de caisse et poste principal unique (D-062) — 21/11/2026
+- Chaque navigateur connecté s’enregistre comme poste (jeton secret, empreinte SHA-256 en base) et signale sa présence toutes les 30 s ; pastille « Poste … · principal / consultation » dans la barre du haut.
+- Nouvelle page **Administration → Postes de caisse** (droit `workstations.manage`, admin seul) : renommer, désigner le poste principal (première désignation, transfert planifié, transfert forcé avec motif et confirmation), révoquer, réactiver, historique numéroté, procédure « Comment changer de poste principal ».
+- Règle provisoire `workstations.enforce_main_post` (désactivée par défaut) : une fois activée, réservations et encaissements sont refusés hors du poste principal (403 en français) ; consultation, devis et fiches clients restent permis. Délai « silencieux » réglable (`workstations.silent_after_minutes`, 5 min). Groupe « Postes de caisse » dans Paramètres, réglage Oui/Non éditable.
+- Tables `workstations` et `workstation_assignments` (migrations `2026_11_21_100000` et `100100`). Tests : 6 tests backend, 8 tests frontend, scénario navigateur `workstations`.
+
 ### Ticket thermique 80 mm (D-061) — 21/11/2026
 - Tickets 80 mm (ou 58 mm) du **reçu d’un versement** (`/documents/recus/:id/ticket`) et d’une **facture ou d’un avoir** (`/documents/factures/:id/ticket`), construits depuis l’API existante ; la facture uniquement depuis l’instantané figé. Jamais « Payé » tant qu’un reste dû subsiste ; aucune taxe ajoutée.
 - Impression sur une seule bande : format de page = largeur du rouleau × hauteur mesurée du ticket, injecté seulement sur la page du ticket (les impressions A4 ne changent pas).

@@ -87,6 +87,12 @@ export const NAVIGATION: { group: string; items: NavItem[] }[] = [
         permission: 'users.view',
       },
       {
+        path: '/admin/postes',
+        label: 'Postes de caisse',
+        icon: 'cash',
+        permission: 'workstations.manage',
+      },
+      {
         path: '/admin/parametres',
         label: 'Paramètres',
         icon: 'settings',

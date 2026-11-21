@@ -97,6 +97,25 @@ final class SettingsCatalog
             'editable' => false,
             'help' => 'Fixe pour garantir une numérotation continue (REC-AAAA-NNNNNN).',
         ],
+        'workstations.enforce_main_post' => [
+            'label' => 'Écritures réservées au poste principal',
+            'status' => 'PROVISIONAL',
+            'reference' => 'D-062',
+            'type' => 'boolean',
+            'editable' => true,
+            'help' => 'Oui : réservations et encaissements refusés sur les autres postes. Sans effet tant qu’aucun poste principal n’est désigné.',
+        ],
+        'workstations.silent_after_minutes' => [
+            'label' => 'Poste principal silencieux après',
+            'status' => 'PROVISIONAL',
+            'reference' => 'D-062',
+            'type' => 'integer',
+            'editable' => true,
+            'unit' => 'min',
+            'min' => 1,
+            'max' => 120,
+            'help' => 'Sans signal depuis ce délai, le poste principal est affiché hors ligne et son remplacement devient un transfert forcé, avec motif.',
+        ],
     ];
 
     /** @return array{label: string, status: 'VALIDATED'|'PROVISIONAL', reference: string, type: 'integer'|'methods'|'text'|'boolean'|'choice', editable: bool, unit?: string, min?: int, max?: int, options?: array<string, string>, help: string}|null */
@@ -114,6 +133,8 @@ final class SettingsCatalog
     {
         return match ($key) {
             'discounts.cashier_max_percent' => ['value' => ['required', 'integer', 'min:0', 'max:100']],
+            'workstations.enforce_main_post' => ['value' => ['required', 'boolean']],
+            'workstations.silent_after_minutes' => ['value' => ['required', 'integer', 'min:1', 'max:120']],
             'payments.methods' => [
                 'value' => ['required', 'array', 'min:1'],
                 'value.*' => ['string', 'distinct', 'in:'.implode(',', array_keys(PaymentMethods::LABELS))],

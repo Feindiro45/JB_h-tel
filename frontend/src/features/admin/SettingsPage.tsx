@@ -36,6 +36,11 @@ const GROUPS: { prefix: string; title: string; description: string }[] = [
     title: 'Facturation et caisse',
     description: 'Forfaits, numérotation des pièces et trop-perçu.',
   },
+  {
+    prefix: 'workstations',
+    title: 'Postes de caisse',
+    description: 'Poste principal unique (D-062) et délai avant de le considérer hors ligne.',
+  },
 ]
 
 function settingGroups(settings: Setting[]) {
@@ -194,17 +199,32 @@ export function SettingsPage() {
             path={`settings/${editing.key}`}
             method="put"
             fields={[
-              {
-                name: 'value',
-                label: editing.label,
-                type: 'number',
-                required: true,
-                min: editing.min ?? 0,
-                max: editing.max ?? 100,
-              },
+              editing.type === 'boolean'
+                ? {
+                    name: 'value',
+                    label: editing.label,
+                    required: true,
+                    hint: editing.help,
+                    options: [
+                      { value: 'true', label: 'Oui' },
+                      { value: 'false', label: 'Non' },
+                    ],
+                  }
+                : {
+                    name: 'value',
+                    label: editing.label,
+                    type: 'number',
+                    required: true,
+                    min: editing.min ?? 0,
+                    max: editing.max ?? 100,
+                  },
             ]}
             initial={{ value: String(editing.value) }}
-            transform={(v) => ({ value: Number(v.value) })}
+            transform={(v) =>
+              editing.type === 'boolean'
+                ? { value: v.value === 'true' }
+                : { value: Number(v.value) }
+            }
             onClose={() => setEditing(null)}
           />
         ))}

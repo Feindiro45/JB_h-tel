@@ -46,8 +46,13 @@ export function mockApi(handlers: Record<string, Handler>): ApiCall[] {
         body: { data: [{ id: '0190a000-0000-7000-8000-000000000001', name: 'Grâce' }] },
       },
       'GET /api/v1/room-types': { body: { data: [] } },
+      ...WORKSTATION_PRESENCE,
     }
-    const handler = { ...defaultHandlers, ...handlers }[`${method} ${url.pathname}`]
+    const key = `${method} ${url.pathname}`
+    // Signal de présence du poste (tâche de fond du shell) : répondu sans être enregistré, pour
+    // que « le premier POST » d'un test reste celui de l'écran testé.
+    if (key in WORKSTATION_PRESENCE && !(key in handlers)) calls.pop()
+    const handler = { ...defaultHandlers, ...handlers }[key]
     const reply: Reply = handler
       ? typeof handler === 'function'
         ? handler({ url, body })
@@ -60,6 +65,24 @@ export function mockApi(handlers: Record<string, Handler>): ApiCall[] {
     })
   })
   return calls
+}
+
+/** Poste de caisse de démonstration, renvoyé par défaut à l'enregistrement et au signal (D-062). */
+export const TEST_WORKSTATION = {
+  id: '0190a000-0000-7000-8000-0000000000f1',
+  name: 'Poste 1',
+  is_main: false,
+  revoked: false,
+  main: null,
+  enforce_main_post: false,
+}
+
+const WORKSTATION_PRESENCE: Record<string, Reply> = {
+  'POST /api/v1/workstations/register': {
+    status: 201,
+    body: { data: TEST_WORKSTATION, token: 'jeton-de-test' },
+  },
+  'POST /api/v1/workstations/heartbeat': { body: { data: TEST_WORKSTATION } },
 }
 
 export function renderApp(path: string) {
@@ -139,6 +162,7 @@ export function admin(overrides: Partial<CurrentUser> = {}): CurrentUser {
       'audit.view',
       'reports.export',
       'records.delete',
+      'workstations.manage',
     ],
     ...overrides,
   })

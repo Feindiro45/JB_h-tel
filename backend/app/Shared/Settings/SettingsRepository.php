@@ -36,6 +36,13 @@ final class SettingsRepository
         return is_numeric($value) ? (int) $value : $default;
     }
 
+    public function bool(string $key, bool $default): bool
+    {
+        $value = $this->get($key, $default);
+
+        return is_bool($value) ? $value : (filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default);
+    }
+
     public function string(string $key, string $default): string
     {
         $value = $this->get($key, $default);
