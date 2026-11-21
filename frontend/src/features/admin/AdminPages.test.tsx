@@ -290,7 +290,8 @@ describe('Administration', () => {
     renderApp('/admin/utilisateurs')
     await screen.findByText(account.email)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: /Utilisateur/ }))
+    // « + Utilisateur » (et non le bouton « Tutoriel : Utilisateurs et accès »).
+    await user.click(screen.getByRole('button', { name: /^\+\s*Utilisateur$/ }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByLabelText('Mot de passe (facultatif)')).not.toBeRequired()
     expect(within(dialog).getByLabelText('Confirmer le mot de passe')).not.toBeRequired()

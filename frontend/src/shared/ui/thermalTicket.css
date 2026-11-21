@@ -83,7 +83,7 @@
   margin: 2px 0;
 }
 
-/* Le libellé ne se coupe qu’ntre deux mots ; c’est la valeur (un nom long) qui se replie. */
+/* Le libellé ne se coupe qu’entre deux mots ; c’est la valeur (un nom long) qui se replie. */
 .thermal-ticket .ticket-pair > :first-child {
   flex: 0 1 auto;
   min-width: auto;

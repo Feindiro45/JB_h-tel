@@ -1,5 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
+import { registerOfflineEssential } from '../../shared/offline/essentials'
+import { todayIso } from '../../shared/utils/format'
 import type {
   Envelope,
   ExtensionPreview,
@@ -195,3 +197,10 @@ export async function modifyReservation(id: string, input: ModificationInput) {
     replacementInvoiceNumber: response.meta?.replacement_invoice_number ?? null,
   }
 }
+
+// Gardés pour le travail sans réseau (lot 2) : clés identiques à celles des écrans par défaut.
+registerOfflineEssential('reservations.view', () => occupancyQuery)
+registerOfflineEssential('reservations.view', () => planningQuery(todayIso(), 7, ''))
+
+// Liste par défaut de l’écran « Réservations » (mêmes filtres initiaux).
+registerOfflineEssential('reservations.view', () => reservationsQuery({ page: 1, per_page: 25 }))

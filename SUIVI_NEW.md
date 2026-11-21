@@ -3,7 +3,7 @@
 > Suivi des évolutions demandées dans le dossier `new/` (21/11/2026). Mis à jour à chaque étape.
 > Le suivi général du projet reste dans `CHECK_LEVEL.md`.
 
-**Dernière mise à jour :** 21/11/2026 — **lot 3 (D-063) terminé** : 250 tests backend, 130 tests frontend, suite navigateur 10/10 (vraies réservations et encaissements avec clé). Lot 2 et lot 4 en attente des décisions N-02, N-03, N-05, N-06.
+**Dernière mise à jour :** 21/11/2026 — **lot 2 complété** (listes principales hors ligne, message clair à la place du chargement sans fin) et **lot T terminé** (tutoriel animé sur les 16 sections) ; 146 tests frontend et recette hors ligne de production verts. Prochain : **lot 4** (enregistrements hors ligne, envoi au serveur).
 
 **Légende :** `[x]` fait et vérifié · `[~]` écrit, pas encore testé · `[ ]` à faire · `[!]` attend une décision ou l'hôtel.
 
@@ -23,10 +23,11 @@ Les deux documents se disent eux-mêmes « à valider avant implémentation ».
 |---|---|---|---|---|
 | 0 | Relancer le projet en local | non | ✅ Fait | 100 % |
 | 1 | Ticket thermique 80 mm (en ligne) | N-01 décidé : ajout (D-061) | ✅ Fait en local (reste l’essai sur l’imprimante de l’hôtel) | 95 % |
-| 2 | PWA en lecture hors ligne (consultation et réimpression) | N-05 décidé (D-064) | ⬜ Prêt à démarrer | 0 % |
+| 2 | Consultation hors ligne + menu « Synchronisation et sauvegardes » (sens local) + application installable | N-05 décidé (D-064) | ✅ Fait (suite navigateur en cours) | 95 % |
 | 3 | Fiabilité réseau : clés d'idempotence (D-063) | non | ✅ Fait | 100 % |
-| 4 | Écritures hors ligne et synchronisation | décidé : D-062, D-064 | ⬜ À faire (après le lot 2) | 0 % |
+| 4 | Tout fonctionne hors ligne : file d’attente rejouée, « Mettre à jour en ligne » | décidé : D-062, D-063, D-064 | 🟡 Démarré | 5 % |
 | 4A | Module admin « Mode hors ligne » (postes, synchronisation, règles, sauvegardes, guide) + encart du tableau de bord | en partie : postes et état possibles dès maintenant (D-062) ; le reste suit le lot 4 | 🟡 Postes de caisse faits (4A.3) ; reste encart, synchronisation, règles, sauvegardes, guide | 25 % |
+| T | Tutoriels : un bouton « Tutoriel » par section du menu, fenêtre pas à pas animée, contenu propre à chaque section | non | ✅ Fait | 100 % |
 | 5 | Recette (coupures, imprimante réelle) | matériel de l'hôtel | ⬜ À faire | 0 % |
 
 ## Lot 0 — Relancer le projet en local ✅
@@ -97,14 +98,18 @@ L'API fournit déjà le reçu (`GET /payments/{id}`) et la facture avec son inst
 - [x] 1.8 Contrôles qualité : `typecheck`, `lint`, `format:check` verts ; **118 tests frontend** verts (109 → 118) ; `CashierTest` 11 tests verts ; `check:dev` vert ; **suite navigateur complète 9/9 verte** (les 8 scénarios existants + le ticket)
 - [!] 1.9 Essai sur l'imprimante thermique réelle de l'hôtel (accents, marges, coupe)
 
-### Lot 2 — PWA en lecture hors ligne (sans écriture)
+### Lot 2 — Consultation hors ligne (sans écriture) et menu « Synchronisation et sauvegardes »
 
-- [ ] 2.1 Manifeste et service worker : cache versionné de l'application, compatible avec le déploiement en sous-dossier en cours (LWS)
-- [ ] 2.2 Indicateur permanent « En ligne / Hors ligne », vérifié par `GET /health` (le signal `online` du navigateur ne suffit pas)
-- [ ] 2.3 Copie locale IndexedDB des données consultées (chambres, réservations, clients, reçus, factures) avec la date de dernière mise à jour
-- [ ] 2.4 Réimpression hors ligne d'un ticket déjà chargé, sans nouvelle transaction
-- [ ] 2.5 Messages en français : action d'écriture bloquée hors ligne, avec la raison
-- [ ] 2.6 Tests : cache, bascule hors ligne, données périmées signalées
+- [x] 2.1 Service worker écrit à la main (sans dépendance) : l’application s’ouvre sans réseau une fois chargée en ligne ; cache versionné ; actif seulement en production ; mise à jour proposée, jamais imposée pendant une saisie
+- [x] 2.2 Indicateur permanent « En ligne / Hors ligne » dans la barre du haut, vérifié par `GET /health` (le signal `online` du navigateur ne suffit pas)
+- [x] 2.3 Copie locale (IndexedDB) des données consultées, avec la date de dernière mise à jour ; effacée à la déconnexion et après 12 h sans connexion (D-064)
+- [x] 2.4 Session hors ligne (D-064) : 12 h au plus, verrouillage après 15 min d’inactivité, mot de passe vérifié localement (empreinte PBKDF2, jamais en clair)
+- [x] 2.4b Réimpression hors ligne d’un ticket déjà chargé, sans nouvelle transaction
+- [x] 2.5 Messages en français : écriture refusée hors ligne tant que le lot 4 n’est pas livré, avec la raison (jamais d’opération mise en attente en silence)
+- [x] 2.5b **Menu « Synchronisation et sauvegardes »** (demandes de l’utilisateur, 21/11) : état de la copie locale (date, volume, nombre d’informations), **historique des 50 dernières synchronisations** (date, sens, origine, résultat réussie/partielle/échec, éléments, durée, auteur, **cause de chaque échec**), dernière copie automatique et son état, contenu détaillé de la copie et bouton **« Mettre à jour en local »** (télécharge chambres, réservations, clients et documents récents pour la consultation hors ligne). Le sens **« Mettre à jour en ligne »** (envoi des opérations faites hors ligne) et l’export chiffré arrivent au lot 4, dans ce même menu
+- [x] 2.6 Tests : 13 tests frontend (143 au total) + **recette navigateur sur la version de production** (`npm run test:e2e:offline`) : ouverture hors ligne par le service worker, planning affiché depuis la copie, échec journalisé avec sa cause, verrou après 15 min (mauvais puis bon mot de passe), retour du réseau journalisé, application déclarée installable par le navigateur
+- [x] 2.8 **Retours de l’utilisateur (21/11)** : hors ligne, les listes principales (réservations, alertes, clients, factures, journal de caisse du jour) sont téléchargées par « Mettre à jour en local » avec les écrans essentiels ; un écran jamais gardé affiche « Pas encore disponible hors ligne » et la marche à suivre au lieu d’un chargement sans fin ; recette de production étendue et verte. Rappel : sur le PC de développement, le serveur est local (couper Internet ne coupe pas `localhost`) : arrêter `php artisan serve` ou utiliser l’onglet Réseau « Hors connexion » d’Edge pour tester
+- [x] 2.7 **Application installable** (question de l’utilisateur, 21/11) : manifeste, icônes 192/512 px et adaptative, bouton « Installer l’application » dans « Synchronisation » ; seule réserve en recette : la navigation privée des tests
 
 ### Lot 3 — Clés d'idempotence côté serveur (utile même en ligne)
 
@@ -113,20 +118,19 @@ L'API fournit déjà le reçu (`GET /payments/{id}`) et la facture avec son inst
 - [x] 3.2b Frontend : une clé par dialogue ouvert (encaissement, remboursement, annulation, réservation et ses trois écritures, fiche client), gardée pour les nouvelles tentatives ; repli sans HTTPS ; 4 tests (130/130), dont un nouvel essai après erreur 503 qui réutilise la même clé
 - [x] 3.3 Tests backend : 6 tests fonctionnels (rejeu identique, autres valeurs refusées, erreur jamais mémorisée, clé propre à chaque utilisateur, réservation rejouée sans conflit, purge après 30 jours) + **test de concurrence à vrais processus PHP** (deux envois simultanés du même encaissement → un seul enregistré, le second attend le premier puis rejoue sa réponse). 14 routes d’écriture protégées ; purge quotidienne planifiée (`model:prune`, nécessite le cron `schedule:run`)
 
-### Lot 4 — Écritures hors ligne et synchronisation (après N-02 à N-06)
+### Lot 4 — Tout fonctionne hors ligne : file d’attente et « Mettre à jour en ligne » (D-062, D-063, D-064)
 
-- [ ] 4.0 Écran admin « Postes de caisse » : enregistrement des navigateurs, désignation du **poste principal unique** (D-062), transfert sécurisé et numéroté ; écritures réservations et encaissements refusées par le serveur depuis un autre poste
-  - *Changement planifié :* synchroniser l’ancien poste jusqu’à 0 opération en attente, puis l’admin désigne le nouveau ; l’ancien passe en consultation seule et le nouveau télécharge tout avant d’écrire
-  - *Changement forcé (panne, vol) :* avertissement (dernier contact, opérations en attente connues), journal d’audit ; les envois tardifs de l’ancien poste sont refusés mais gardés dans « À examiner », jamais appliqués ni effacés en silence
-  - *Retour à l’ancien PC :* même procédure, dans l’autre sens
-- [ ] 4.1 Postes déclarés (`devices`), journal `sync_events`, accusés `sync_receipts`, `sync_conflicts`
-- [ ] 4.2 `POST /api/v1/sync/push` : résultat par événement (`accepted`, `already_processed`, `conflict`, `rejected`) avec motif en français
-- [ ] 4.3 `GET /api/v1/sync/pull?cursor=` : curseur serveur monotone, pagination, suppressions
-- [ ] 4.4 File d'envoi locale (Dexie) écrite dans la même transaction que la donnée ; reprise avec délai croissant
-- [ ] 4.5 Numéros provisoires (N-03), puis numéro définitif à la réimpression
-- [ ] 4.6 Centre de synchronisation : opérations en attente, erreurs, conflits, « Réessayer », export de sauvegarde
-- [ ] 4.7 Session hors ligne limitée et verrouillage (N-05)
-- [ ] 4.8 Tableau de bord : indicateurs marqués « consolidés serveur » ou « locaux, non synchronisés »
+Conception retenue (21/11) : pas de protocole à part. Hors ligne, chaque écriture est gardée sur le poste avec sa **clé d’idempotence** (D-063) et le jeton du poste principal (D-062), l’écran montre aussitôt le résultat « en attente d’envoi » ; au retour du réseau, la file est **rejouée dans l’ordre** vers les routes habituelles, que le serveur revalide entièrement. Un envoi répété ne crée jamais de doublon ; un refus est gardé avec sa cause, jamais effacé.
+
+- [ ] 4.1 File d’attente (IndexedDB) : opération, clé, jeton du poste, auteur, date, état (en attente, envoi, acceptée, refusée), tentatives, cause du dernier échec, réponse du serveur ; dépendances (client créé hors ligne → réservation qui l’utilise)
+- [ ] 4.2 Moteur d’envoi : au retour du réseau et sur le bouton **« Mettre à jour en ligne »** ; ordre de création ; délai croissant après une erreur passagère ; arrêt propre si la session a expiré (401) ; chaque passage journalisé dans l’historique (sens « Vers le serveur »)
+- [ ] 4.3 Numéros provisoires `LOC-<poste>-<séquence>` (N-03), imprimés sur le ticket, remplacés par le numéro définitif à l’accusé du serveur
+- [ ] 4.4 Hors ligne, premières opérations : **encaissement** (reçu et ticket provisoires, solde du séjour mis à jour sur le poste), **arrivée et départ**, **création de client**
+- [ ] 4.5 Hors ligne, suite : **création de réservation** (prix et disponibilité calculés sur le poste à partir des tarifs et du planning gardés, confirmés par le serveur au retour), annulation, prolongation
+- [ ] 4.6 Menu « Synchronisation » : opérations en attente, refusées (avec cause, « Réessayer », « Abandonner » motivé), acceptées ; sens « Mettre à jour en ligne »
+- [ ] 4.7 Sauvegarde (N-06) : export chiffré des opérations en attente (mot de passe), rappel quand des opérations attendent depuis plus d’une heure
+- [ ] 4.8 Tableau de bord : opérations locales signalées (« en attente d’envoi ») tant qu’elles ne sont pas confirmées
+- [ ] 4.9 Tests : file d’attente, rejeu sans doublon (clé), refus gardé, dépendance client → réservation, recette de production coupure → encaissement → retour du réseau
 
 ### Lot 4A — Module admin « Mode hors ligne » (demande de l’utilisateur, 21/11)
 
@@ -145,6 +149,13 @@ Un menu **Administration → Mode hors ligne**, réservé à l’administrateur 
 - [ ] 4A.6 **Sauvegardes** (N-06) : date de la dernière sauvegarde du poste principal, export manuel des opérations non synchronisées, procédure de restauration
 - [ ] 4A.7 **Guide « Comment gérer »** intégré : coupure d’Internet, retour du réseau, changement de poste planifié, panne ou vol du poste, conflit de chambre, restauration ; une fiche pour la caissière et une pour l’administrateur
 - [ ] 4A.8 Tests : droits (caissière refusée), transfert forcé refusant l’ancien poste, alerte du poste muet, textes du guide
+### Lot T — Tutoriels intégrés (demande de l’utilisateur, 21/11)
+
+- [x] T.1 Composant commun : bouton « Tutoriel » dans l’en-tête de chaque page du menu, fenêtre accessible (clavier, focus, Échap) avec étapes numérotées, « Précédent », « Suivant », « Terminer » et indicateur « Étape 2 sur 5 »
+- [x] T.2 Contenu propre à chaque section (Vue d’ensemble, Réservations, Alertes, Disponibilités, Clients, Synchronisation, Caisse, Factures et reçus, Rapports, Chambres, Tarifs, Utilisateurs, Postes de caisse, Paramètres, Journal d’audit, État du système), en français, fidèle aux règles réelles (D-xx)
+- [x] T.3 Tests : chaque page du menu a son tutoriel, navigation entre étapes (boutons, pastilles, flèches), contenu différent par section, retour du focus (3 tests) ; suite frontend 146/146
+- [x] T.4 **Vrai design et animations** (demande de l’utilisateur, 21/11) : bandeau vert et or avec l’icône de la section, barre de progression animée, illustration par étape (apparition, halo), glissement selon le sens de lecture, points clés cochés qui apparaissent en cascade, encadré « Conseil » avec ampoule, pastilles animées ; trois boutons sur une ligne sur mobile ; animations coupées si le système demande de réduire les mouvements. Relu sur captures PC et mobile
+
 ### Lot 5 — Recette
 
 - [ ] 5.1 Scénarios des deux spécifications : coupure, reconnexion, envoi répété, échec serveur, conflit de chambre, prix historique, paiement partiel, imprimante absente, papier de 58 mm, effacement du navigateur
@@ -167,3 +178,8 @@ Un menu **Administration → Mode hors ligne**, réservé à l’administrateur 
 - **21/11/2026** — Lot 3 (D-063) : middleware `idempotent`, table `idempotency_keys`, test de concurrence à vrais processus, clés côté frontend. Base de dev migrée.
 - **21/11/2026** — Lot 3 : suite navigateur complète verte (10/10).
 - **21/11/2026** — Décisions de l’utilisateur : N-05 = 12 h + verrou 15 min ; N-02 = tout comme en ligne ; N-03 = provisoire puis définitif ; N-06 = export chiffré + rappel (D-064). Lots 2 et 4 débloqués.
+- **21/11/2026** — Demande de l’utilisateur : menu de synchronisation dans les deux sens (mise à jour en local et en ligne). Sens local au lot 2, sens en ligne au lot 4, dans le même menu.
+- **21/11/2026** — Lot 2 écrit : stockage IndexedDB, état du réseau vérifié, copie locale, session et verrou (D-064), service worker, menu « Synchronisation » avec historique et causes d’échec (demande de l’utilisateur). 130 tests existants toujours verts ; tests du mode hors ligne en cours.
+- **21/11/2026** — Demande de l’utilisateur : tutoriel pas à pas sur chaque section du menu (lot T, après le lot 2).
+- **21/11/2026** — Lot 2 vérifié : recette hors ligne de production verte. Corrigés en route : copie perdue lors d’un changement de page rapide (enregistrement à la sortie de page + écrans essentiels), état hors ligne non détecté au rechargement, caractère invisible dans un commentaire CSS du ticket.
+- **21/11/2026** — Retours de l’utilisateur : données hors ligne (listes principales ajoutées, message clair), demande d’un usage hors ligne complet (lot 4, suivant). Lot T : tutoriels animés sur les 16 sections du menu.

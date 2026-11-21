@@ -21,6 +21,7 @@ import { StatusPage } from '../features/system'
 import { RoomsPage, RatesPage, UsersPage, SettingsPage, AuditPage } from '../features/admin'
 import { ReportsPage } from '../features/reports'
 import { WorkstationsPage } from '../features/workstations'
+import { SyncPage } from '../features/offline'
 import { AppShell } from './AppShell'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
@@ -74,6 +75,7 @@ export const routes: RouteObject[] = [
       { path: 'disponibilites', element: guarded('reservations.view', <PlanningPage />) },
       { path: 'clients', element: guarded('customers.view', <CustomersPage />) },
       { path: 'clients/:id', element: guarded('customers.view', <CustomerDetailPage />) },
+      { path: 'synchronisation', element: guarded('reservations.view', <SyncPage />) },
       { path: 'caisse', element: guarded('payments.view', <CashierPage />) },
       { path: 'documents', element: guarded('invoices.view', <DocumentsPage />) },
       { path: 'documents/recus/:id', element: guarded('payments.view', <ReceiptPage />) },

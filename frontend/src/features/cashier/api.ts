@@ -1,5 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
+import { registerOfflineEssential } from '../../shared/offline/essentials'
+import { todayIso } from '../../shared/utils/format'
 import type {
   AccountSummary,
   CashJournal,
@@ -119,3 +121,6 @@ export async function refundPayment(
 ): Promise<void> {
   await api.post(`/api/v1/payments/${paymentId}/refunds`, input, { idempotencyKey })
 }
+
+// Journal de caisse du jour, gardé pour le travail sans réseau (lot 2).
+registerOfflineEssential('payments.view', () => cashJournalQuery(todayIso(), todayIso(), ''))

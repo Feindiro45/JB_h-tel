@@ -40,6 +40,12 @@ export const NAVIGATION: { group: string; items: NavItem[] }[] = [
         permission: 'reservations.view',
       },
       { path: '/clients', label: 'Clients', icon: 'people', permission: 'customers.view' },
+      {
+        path: '/synchronisation',
+        label: 'Synchronisation',
+        icon: 'refresh',
+        permission: 'reservations.view',
+      },
     ],
   },
   {

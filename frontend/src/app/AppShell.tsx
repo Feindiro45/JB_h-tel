@@ -4,10 +4,16 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { logout, ME_KEY, useCurrentUser } from '../features/auth'
 import { AlertLink } from '../features/reservations'
 import { WorkstationChip } from '../features/workstations'
+import { ConnectivityChip, OfflineBanner, OfflineLock } from '../features/offline'
+import { clearQueryCache } from '../shared/offline/persistence'
+import { forgetSession } from '../shared/offline/session'
 import { config } from '../shared/config'
 import { Icon } from '../shared/ui/Icon'
 import { formatDate, initials, todayIso } from '../shared/utils/format'
 import { NAVIGATION } from './navigation'
+import { TUTORIALS } from './tutorials'
+import { PageHeadingExtrasContext } from '../shared/ui/pageHeadingExtras'
+import { TutorialButton } from '../shared/ui/Tutorial'
 import './sidebar.css'
 
 const SIDEBAR_PREFERENCE = 'jb-hotel.sidebar-collapsed'
@@ -46,10 +52,15 @@ export function AppShell() {
   )
     .filter((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
     .sort((a, b) => b.path.length - a.path.length)[0]
+  // Tutoriel propre à la section affichée (lot T), proposé dans l'en-tête de la page.
+  const tutorial = currentPage ? TUTORIALS[currentPage.path] : undefined
 
   const signOut = useMutation({
     mutationFn: logout,
     onSettled: () => {
+      // La copie hors ligne et l’empreinte du mot de passe quittent le poste (D-064).
+      void clearQueryCache()
+      void forgetSession()
       queryClient.clear()
       queryClient.setQueryData(ME_KEY, null)
       navigate('/connexion', { replace: true })
@@ -166,14 +177,29 @@ export function AppShell() {
               <Icon name="calendar" size={17} />
               <time dateTime={todayIso()}>{formatDate(todayIso())}</time>
             </span>
+            <ConnectivityChip />
             <span className="role-chip">{user.role_label ?? 'Sans rôle'}</span>
             <WorkstationChip />
             <AlertLink />
           </div>
         </header>
         <main id="contenu" tabIndex={-1}>
-          <Outlet />
+          <OfflineBanner />
+          <PageHeadingExtrasContext.Provider
+            value={
+              tutorial ? (
+                <TutorialButton
+                  key={tutorial.section}
+                  tutorial={tutorial}
+                  icon={currentPage?.icon}
+                />
+              ) : null
+            }
+          >
+            <Outlet />
+          </PageHeadingExtrasContext.Provider>
         </main>
+        <OfflineLock onSignOut={() => signOut.mutate()} />
       </div>
     </div>
   )

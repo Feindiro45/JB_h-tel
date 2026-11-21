@@ -12,7 +12,7 @@ const { password } = JSON.parse(
 test('charte du contenu sur toutes les pages, aside conservé et adaptation mobile', async ({
   page,
 }) => {
-  // 19 écrans contrôlés, chacun avec un audit Axe, sur un serveur PHP à un seul processus.
+  // 20 écrans contrôlés, chacun avec un audit Axe, sur un serveur PHP à un seul processus.
   test.setTimeout(240_000)
   await page.setViewportSize({ width: 1752, height: 1000 })
   await page.goto('/connexion')
@@ -40,6 +40,7 @@ test('charte du contenu sur toutes les pages, aside conservé et adaptation mobi
     ['/admin/audit', 'audit'],
     ['/admin/etat', 'etat'],
     ['/admin/postes', 'postes'],
+    ['/synchronisation', 'synchronisation'],
   ]
   const payments = await page.request.get('http://localhost:8011/api/v1/payments', {
     headers: { Origin: 'http://localhost:5174', Referer: 'http://localhost:5174/' },

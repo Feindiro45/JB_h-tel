@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api, apiUrl } from '../../shared/api/client'
+import { registerOfflineEssential } from '../../shared/offline/essentials'
 import type {
   Envelope,
   InvoiceDetail,
@@ -71,3 +72,6 @@ export async function creditInvoice(invoiceId: string, reason: string): Promise<
     })
   ).data
 }
+
+// Liste par défaut de l’écran « Factures et reçus », gardée pour le travail sans réseau (lot 2).
+registerOfflineEssential('invoices.view', () => invoicesListQuery({ page: 1, per_page: 25 }))

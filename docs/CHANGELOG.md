@@ -4,6 +4,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Tutoriels intégrés (lot T) — 21/11/2026
+- Bouton « Tutoriel » dans l’en-tête de chaque section du menu (16 sections) : fenêtre pas à pas au contenu propre à chaque section, fidèle aux règles réelles (forfaits, remises, poste principal, mode hors ligne…).
+- Design animé : bandeau de la section, barre de progression, illustration par étape, glissement selon le sens de lecture, points clés cochés, conseil, pastilles ; clavier (flèches, Échap) et lecteurs d’écran ; animations coupées si le système demande de réduire les mouvements.
+
+### Consultation hors ligne, synchronisation et application installable (D-064, lot 2) — 21/11/2026
+- Compléments après retour de l’utilisateur : listes principales (réservations, alertes, clients, factures, journal du jour) téléchargées par « Mettre à jour en local » ; un écran jamais gardé affiche « Pas encore disponible hors ligne » au lieu d’un chargement sans fin.
+- L’application s’ouvre sans réseau une fois chargée en ligne (service worker, production seulement) et **s’installe** comme une application (manifeste, icônes, bouton « Installer l’application »).
+- Données consultées gardées sur le poste (IndexedDB) 12 h au plus ; pastille « En ligne / Hors ligne » vérifiée par le serveur ; bandeau hors ligne ; écritures refusées avec le message réseau (enregistrement hors ligne : lot 4).
+- Verrou après 15 min d’inactivité hors ligne, mot de passe vérifié localement (empreinte PBKDF2) ; session hors ligne refusée au-delà de 12 h (D-064).
+- Nouveau menu **Synchronisation et sauvegardes** : « Mettre à jour en local », historique des synchronisations (résultat, éléments, durée, auteur, cause de chaque échec), dernière copie automatique, contenu de la copie, effacement.
+- Tests : 13 tests frontend (143 au total) ; recette navigateur `npm run test:e2e:offline` sur la version de production (coupure, consultation, échec journalisé, verrou, retour du réseau, installabilité).
+
 ### Écritures idempotentes, sans doublon (D-063) — 21/11/2026
 - En-tête `Idempotency-Key` sur 14 routes d’écriture (réservations, caisse, factures, fiche client) : un envoi répété rend la réponse déjà enregistrée, sans deuxième encaissement ni deuxième séjour ; erreurs jamais mémorisées ; même clé avec d’autres valeurs refusée en français.
 - Clé écrite dans la même transaction que l’opération ; deux envois simultanés : un seul enregistrement (test à vrais processus PHP). Table `idempotency_keys`, purge après 30 jours.

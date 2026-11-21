@@ -1,6 +1,7 @@
 import { config } from '../config'
 import { errorFromResponse, networkError } from './errors'
 import { readWorkstationToken, WORKSTATION_HEADER } from './workstationToken'
+import { reportReachable, reportUnreachable } from '../offline/connectivity'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 type QueryValue = string | number | boolean | null | undefined
@@ -72,8 +73,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
+    // Serveur injoignable : l’application passe en consultation hors ligne (lot 2).
+    reportUnreachable()
     throw networkError()
   }
+  reportReachable()
 
   const payload = await parseBody(response)
   if (!response.ok) throw errorFromResponse(response.status, payload)

@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "php ../backend/tests/Support/prepare_e2e.php && playwright test",
+    "test:e2e:offline": "php ../backend/tests/Support/prepare_e2e.php && playwright test -c playwright.offline.config.ts",
     "check:dev": "node scripts/check-dev.mjs",
     "test:watch": "vitest"
   },

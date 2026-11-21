@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
+import { registerOfflineEssential } from '../../shared/offline/essentials'
 import type { Customer, Envelope, Paginated, Reservation } from '../../shared/api/types'
 
 export interface CustomerInput {
@@ -64,3 +65,8 @@ export async function createCustomer(
 export async function updateCustomer(id: string, input: Partial<CustomerInput>): Promise<Customer> {
   return (await api.patch<Envelope<Customer>>(`/api/v1/customers/${id}`, input)).data
 }
+
+// Liste par défaut de l’écran « Clients », gardée pour le travail sans réseau (lot 2).
+registerOfflineEssential('customers.view', () =>
+  customersQuery('', 1, 25, { email: '', origin_city: '', origin_country: '' }),
+)

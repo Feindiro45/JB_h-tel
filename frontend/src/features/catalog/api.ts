@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import type { Envelope, Room, RoomType } from '../../shared/api/types'
+import { registerOfflineEssential } from '../../shared/offline/essentials'
 
 export const roomsQuery = queryOptions({
   queryKey: ['catalog', 'rooms'],
@@ -15,3 +16,7 @@ export const roomTypesQuery = queryOptions({
     (await api.get<Envelope<RoomType[]>>('/api/v1/room-types', { signal })).data,
   staleTime: 5 * 60_000,
 })
+
+// Gardés pour le travail sans réseau (lot 2).
+registerOfflineEssential('rooms.view', () => roomsQuery)
+registerOfflineEssential('rooms.view', () => roomTypesQuery)
