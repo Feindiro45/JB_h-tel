@@ -6,7 +6,7 @@ import { storageDelete, storageGet, storageSet } from './storage'
  * poste ; les envois vers le serveur (lot 4) s'y ajouteront avec `direction: 'online'`.
  */
 export type SyncDirection = 'local' | 'online'
-export type SyncTrigger = 'manual' | 'reconnect' | 'auto'
+export type SyncTrigger = 'manual' | 'reconnect' | 'auto' | 'full'
 export type SyncStatus = 'success' | 'partial' | 'failure'
 
 export interface SyncFailure {

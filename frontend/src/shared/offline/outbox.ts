@@ -51,7 +51,8 @@ export async function readOutbox(): Promise<QueuedOperation[]> {
   return (await storageGet<QueuedOperation[]>(OUTBOX_KEY)) ?? []
 }
 
-async function writeOutbox(operations: QueuedOperation[]): Promise<void> {
+/** Remplace la file entière (restauration d’une sauvegarde). */
+export async function writeOperations(operations: QueuedOperation[]): Promise<void> {
   if (!(await storageSet(OUTBOX_KEY, operations))) {
     throw new Error(
       'Enregistrement impossible sur ce poste : stockage du navigateur plein ou refusé. L’opération n’a pas été gardée.',
@@ -60,7 +61,7 @@ async function writeOutbox(operations: QueuedOperation[]): Promise<void> {
 }
 
 export async function enqueueOperation(operation: QueuedOperation): Promise<void> {
-  await writeOutbox([...(await readOutbox()), operation])
+  await writeOperations([...(await readOutbox()), operation])
 }
 
 export async function updateOperation(
@@ -72,7 +73,7 @@ export async function updateOperation(
   if (index < 0) return null
   const updated = { ...operations[index]!, ...patch }
   operations[index] = updated
-  await writeOutbox(operations)
+  await writeOperations(operations)
   return updated
 }
 

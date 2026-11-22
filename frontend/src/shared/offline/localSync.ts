@@ -1,8 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { toUserError } from '../api/errors'
+import { ApiError, toUserError } from '../api/errors'
 import { newIdempotencyKey } from '../api/idempotency'
 import { getConnectivity } from './connectivity'
-import { offlineEssentials } from './essentials'
+import { offlineEssentials, offlinePreparations, type PreparationContext } from './essentials'
+import { createLimiter, RETRY_AFTER_429_MS, sleep } from './pacing'
 import { isKept, saveQueryCache, type StoredCache } from './persistence'
 import {
   appendRun,
@@ -88,14 +89,36 @@ export function isSyncing(): boolean {
 const OFFLINE_CAUSE =
   'Connexion impossible : le serveur n’est pas joignable. Réessayez au retour du réseau.'
 
+export interface DownloadProgress {
+  /** Données à télécharger connues à cet instant (le total grandit au fil des étapes). */
+  planned: number
+  done: number
+  failed: number
+  step: string
+}
+
+export interface DownloadOptions {
+  /** Téléchargement complet : fiches de détail en plus des écrans gardés et essentiels. */
+  full?: boolean
+  onProgress?: (progress: DownloadProgress) => void
+  /** Requêtes par minute au plus : le serveur en accepte 120 par utilisateur (marge gardée). */
+  perMinute?: number
+  concurrency?: number
+  /** Attente avant de réessayer après un « trop de requêtes » (429). */
+  retryDelayMs?: number
+}
+
 /**
  * « Mettre à jour en local » : recharge depuis le serveur chaque jeu de données gardé sur le
- * poste, enregistre la copie et ajoute une ligne au journal (succès, partiel ou échec et causes).
+ * poste et les écrans essentiels ; avec `full`, télécharge aussi les fiches de détail déclarées
+ * par chaque feature (« Tout télécharger pour le hors ligne »). La copie est enregistrée, et une
+ * ligne ajoutée au journal (succès, partiel ou échec et causes).
  */
 export async function updateLocalCopy(
   client: QueryClient,
   trigger: SyncTrigger,
   user: string | null,
+  options: DownloadOptions = {},
 ): Promise<SyncRun> {
   const startedAt = Date.now()
   const failures: SyncFailure[] = []
@@ -103,6 +126,49 @@ export async function updateLocalCopy(
   let records = 0
   let skipped = 0
   let bytes: number | null = null
+  const progress: DownloadProgress = { planned: 0, done: 0, failed: 0, step: 'Écrans gardés' }
+  const report = () => options.onProgress?.({ ...progress })
+  const fail = (dataset: string, cause: string) => {
+    if (!failures.some((f) => f.dataset === dataset && f.cause === cause)) {
+      failures.push({ dataset, cause })
+    }
+  }
+  const limit = createLimiter(options.perMinute, options.concurrency)
+  const retryDelay = options.retryDelayMs ?? RETRY_AFTER_429_MS
+
+  /** Une donnée : rythme limité, reprise après un 429, cause gardée en cas d'échec. */
+  async function download<T>(
+    key: readonly unknown[],
+    load: () => Promise<T>,
+  ): Promise<T | undefined> {
+    progress.planned++
+    report()
+    for (let attempt = 0; ; attempt++) {
+      if (!getConnectivity().online) {
+        progress.failed++
+        fail(datasetLabel(key), OFFLINE_CAUSE)
+        report()
+        return undefined
+      }
+      try {
+        const data = await limit(load)
+        succeeded++
+        records += countRecords(data)
+        progress.done++
+        report()
+        return data
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 429 && attempt < 3) {
+          await sleep(retryDelay)
+          continue
+        }
+        progress.failed++
+        fail(datasetLabel(key), toUserError(error).message)
+        report()
+        return undefined
+      }
+    }
+  }
 
   if (!getConnectivity().online) {
     failures.push({ dataset: 'Serveur', cause: OFFLINE_CAUSE })
@@ -119,44 +185,59 @@ export async function updateLocalCopy(
       const refreshed = new Set(queries.map((query) => query.queryHash))
       // Écrans essentiels téléchargés même s’ils n’ont jamais été ouverts sur ce poste.
       const me = client.getQueryData<{ permissions?: string[] } | null>(['auth', 'me'])
-      const essentials = offlineEssentials(me?.permissions ?? []).filter(
-        (options) => !refreshed.has(client.getQueryCache().build(client, options).queryHash),
+      const permissions = me?.permissions ?? []
+      const essentials = offlineEssentials(permissions).filter(
+        (essential) => !refreshed.has(client.getQueryCache().build(client, essential).queryHash),
       )
       const restored = new Set(
-        essentials.map((options) => client.getQueryCache().build(client, options).queryHash),
+        essentials.map((essential) => client.getQueryCache().build(client, essential).queryHash),
       )
       skipped = kept.filter(
         (query) => !refreshed.has(query.queryHash) && !restored.has(query.queryHash),
       ).length
-      const tasks: { key: readonly unknown[]; run: () => Promise<unknown> }[] = [
-        ...queries.map((query) => ({
-          key: query.queryKey,
-          run: () =>
+      await Promise.all([
+        ...queries.map((query) =>
+          download(query.queryKey, () =>
             client
               .refetchQueries({ queryKey: query.queryKey, exact: true }, { throwOnError: true })
               .then(() => query.state.data),
-        })),
-        ...essentials.map((options) => ({
-          key: options.queryKey,
-          run: () => client.fetchQuery({ ...options, staleTime: 0 }),
-        })),
-      ]
-      const results = await Promise.allSettled(tasks.map((task) => task.run()))
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          succeeded++
-          records += countRecords(result.value)
-          return
+          ),
+        ),
+        ...essentials.map((essential) =>
+          download(essential.queryKey, () =>
+            client.fetchQuery({ ...essential, staleTime: 0, retry: false }),
+          ),
+        ),
+      ])
+
+      if (options.full) {
+        const shared = new Map<string, string[]>()
+        const context: PreparationContext = {
+          can: (permission) => permissions.includes(permission),
+          fetch: (query) =>
+            download(query.queryKey, () =>
+              client.fetchQuery({ ...query, staleTime: 0, retry: false }),
+            ),
+          seed: (queryKey, data) => client.setQueryData(queryKey, data),
+          share: (key, values) =>
+            shared.set(key, [...new Set([...(shared.get(key) ?? []), ...values])]),
+          shared: (key) => shared.get(key) ?? [],
         }
-        const dataset = datasetLabel(tasks[index]!.key)
-        const cause = toUserError(result.reason).message
-        if (!failures.some((f) => f.dataset === dataset && f.cause === cause)) {
-          failures.push({ dataset, cause })
+        for (const preparation of offlinePreparations(permissions)) {
+          progress.step = preparation.label
+          report()
+          try {
+            await preparation.run(context)
+          } catch (error) {
+            fail(preparation.label, toUserError(error).message)
+          }
         }
-      })
+      }
     } finally {
       syncing = false
     }
+    progress.step = 'Enregistrement sur le poste'
+    report()
     try {
       bytes = sizeOf(await saveQueryCache(client))
     } catch (error) {

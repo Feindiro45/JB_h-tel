@@ -4,6 +4,15 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Hors ligne sans limite de durée, sauvegardes et page Synchronisation visuelle (lot 4, D-064) — 22/11/2026
+- **Aucune durée maximale hors ligne** (N-05 révisée par l’utilisateur : l’hôtel peut rester un mois sans Internet) ; le verrou après 15 min d’inactivité reste.
+- **« Tout télécharger pour le hors ligne »** : toutes les pages et leurs fiches gardées en un clic, avec barre de progression, au rythme accepté par le serveur.
+- **Sauvegarde chiffrée** des opérations en attente (export, restauration sans doublon, rappel après une heure) ; **tableau de bord** : opérations faites hors ligne signalées tant qu’elles ne sont pas confirmées.
+- Page **Synchronisation et sauvegardes** refaite : repères à icônes, camemberts (poste et serveur, stockage, opérations, synchronisations), barres du contenu de la copie.
+- **Stockage protégé** contre l’effacement par le navigateur ; écritures confirmées sur le disque ; envoi cadencé après une longue coupure.
+- **Corrigé :** une donnée non affichée depuis 5 minutes disparaissait de la copie du poste.
+- Tests : 169 tests frontend.
+
 ### Tout fonctionne hors ligne, première étape (lot 4, D-064) — 22/11/2026
 - Hors ligne, **encaissement**, **arrivée** et **départ** sont gardés sur le poste et visibles aussitôt (reçu et ticket `LOC-…` provisoires, solde recalculé, fiche « en attente d’envoi ») ; au retour du réseau, ils partent automatiquement, avec leur clé anti-doublon, et le serveur donne le numéro `REC-…` définitif.
 - Menu Synchronisation : panneau « Mettre à jour en ligne » (en attente, envoyées, refusées avec leur cause, « Réessayer », « Abandonner » motivé) ; bandeau des opérations en attente.

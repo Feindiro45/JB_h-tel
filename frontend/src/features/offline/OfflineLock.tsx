@@ -66,10 +66,11 @@ function LockDialog({
         </span>
         {expired ? (
           <>
-            <h2 id={titleId}>Session hors ligne expirée</h2>
+            <h2 id={titleId}>Session hors ligne indisponible</h2>
             <p>
-              Plus de 12 h sans connexion au serveur : par sécurité, les données gardées sur ce
-              poste ne sont plus affichées. Reconnectez-vous dès que le réseau revient.
+              Aucune session n’est gardée sur ce poste : sans le serveur, votre mot de passe ne peut
+              pas être vérifié. Reconnectez-vous dès que le réseau revient ; une fois connecté en
+              ligne, ce poste fonctionne ensuite sans réseau aussi longtemps que nécessaire.
             </p>
             <div className="toolbar">
               <button type="button" className="primary" onClick={() => void checkConnectivity()}>

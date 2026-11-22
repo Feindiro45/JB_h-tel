@@ -1,12 +1,11 @@
 import { storageDelete, storageGet, storageSet } from './storage'
 
 /**
- * Session hors ligne (D-064, N-05) : la dernière session confirmée par le serveur reste
- * utilisable 12 h au plus sans réseau ; après 15 min d'inactivité hors ligne, l'écran se
- * verrouille. Le mot de passe est vérifié localement par une empreinte PBKDF2 (jamais stocké en
+ * Session hors ligne (D-064, N-05 révisée le 22/11/2026) : la dernière session confirmée par le
+ * serveur reste utilisable **sans limite de durée** (l'hôtel peut rester un mois sans Internet) ;
+ * après 15 min d'inactivité hors ligne, l'écran se verrouille. Le mot de passe est vérifié localement par une empreinte PBKDF2 (jamais stocké en
  * clair), calculée à la connexion.
  */
-export const OFFLINE_SESSION_MAX_MS = 12 * 60 * 60_000
 export const LOCK_AFTER_MS = 15 * 60_000
 
 const SESSION_KEY = 'offline-session'
@@ -73,7 +72,7 @@ export function readSession(): Promise<OfflineSession | undefined> {
   return storageGet<OfflineSession>(SESSION_KEY)
 }
 
-/** Le serveur vient de confirmer la session : le délai de 12 h repart de maintenant. */
+/** Le serveur vient de confirmer la session : date gardée pour l'affichage (« dernière connexion »). */
 export async function confirmSessionOnline(user: { id: string; name: string }): Promise<void> {
   const session = await readSession()
   if (session && session.userId === user.id) {
@@ -102,8 +101,12 @@ export async function verifyOfflinePassword(password: string): Promise<boolean> 
   return difference === 0
 }
 
-export function sessionExpired(session: OfflineSession | undefined, now = Date.now()): boolean {
-  return !session || now - session.lastOnlineAt > OFFLINE_SESSION_MAX_MS
+/**
+ * Aucune session gardée sur ce poste (connexion antérieure au mode hors ligne, données du
+ * navigateur effacées) : le mot de passe ne peut pas être vérifié sans le serveur.
+ */
+export function sessionMissing(session: OfflineSession | undefined): boolean {
+  return !session
 }
 
 export function forgetSession(): Promise<void> {

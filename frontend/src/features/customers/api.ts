@@ -1,6 +1,10 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
-import { registerOfflineEssential } from '../../shared/offline/essentials'
+import {
+  registerOfflineEssential,
+  registerOfflineCoverage,
+  registerOfflinePreparation,
+} from '../../shared/offline/essentials'
 import type { Customer, Envelope, Paginated, Reservation } from '../../shared/api/types'
 
 export interface CustomerInput {
@@ -70,3 +74,33 @@ export async function updateCustomer(id: string, input: Partial<CustomerInput>):
 registerOfflineEssential('customers.view', () =>
   customersQuery('', 1, 25, { email: '', origin_city: '', origin_country: '' }),
 )
+
+// « Tout télécharger » : tout le fichier clients (chaque fiche vient de la liste, même présentation
+// côté serveur) et les séjours des clients présents ou attendus.
+registerOfflinePreparation({
+  order: 40,
+  label: 'Clients',
+  permission: 'customers.view',
+  run: async (context) => {
+    for (let page = 1; ; page++) {
+      const list = await context.fetch(customersQuery('', page, 100))
+      if (!list) break
+      for (const customer of list.data) context.seed(customerKeys.detail(customer.id), customer)
+      if (page >= list.meta.last_page) break
+    }
+    await Promise.all(
+      context.shared('customers').map((id) => context.fetch(customerReservationsQuery(id))),
+    )
+  },
+})
+
+// Comparaison « sur ce poste / en ligne » de la page Synchronisation.
+registerOfflineCoverage({
+  order: 20,
+  label: 'Clients',
+  permission: 'customers.view',
+  match: (key) => key[0] === 'customers' && (key[1] === 'list' || key.length === 2),
+  serverTotal: async () =>
+    (await api.get<Paginated<unknown>>('/api/v1/customers', { query: { per_page: 10 } })).meta
+      .total,
+})

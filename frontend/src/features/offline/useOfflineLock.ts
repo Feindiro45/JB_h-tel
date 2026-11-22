@@ -5,7 +5,7 @@ import {
   readLastActivity,
   readSession,
   recordActivity,
-  sessionExpired,
+  sessionMissing,
   type OfflineSession,
 } from '../../shared/offline/session'
 
@@ -13,8 +13,9 @@ const CHECK_EVERY_MS = 30_000
 const ACTIVITY_THROTTLE_MS = 15_000
 
 /**
- * État du verrou hors ligne (D-064) : session de plus de 12 h sans confirmation du serveur, ou
- * 15 min d'inactivité pendant une coupure. Le verrou posé reste jusqu'au mot de passe, même si le
+ * État du verrou hors ligne (D-064, N-05 révisée) : aucune limite de durée sans réseau ; verrou
+ * après 15 min d'inactivité pendant une coupure ; blocage seulement si aucune session n'est gardée
+ * sur le poste (le mot de passe ne pourrait pas être vérifié). Le verrou posé reste jusqu'au mot de passe, même si le
  * réseau revient entre-temps.
  */
 export function useOfflineLock() {
@@ -55,7 +56,7 @@ export function useOfflineLock() {
     }
   }, [online])
 
-  const expired = !online && session !== null && sessionExpired(session)
+  const expired = !online && session !== null && sessionMissing(session)
   return {
     expired,
     locked: locked && !expired,

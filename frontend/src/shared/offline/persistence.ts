@@ -1,11 +1,11 @@
 import { dehydrate, hydrate, type DehydratedState, type QueryClient } from '@tanstack/react-query'
-import { OFFLINE_SESSION_MAX_MS } from './session'
 import { storageDelete, storageGet, storageSet } from './storage'
 
 /**
  * Copie locale des données consultées (lot 2, D-064) : les lectures réussies sont gardées dans
- * IndexedDB et rechargées au démarrage, pour consulter et réimprimer sans réseau. La copie est
- * ignorée au-delà de 12 h et effacée à la déconnexion ou au changement d'utilisateur.
+ * IndexedDB et rechargées au démarrage, pour consulter et réimprimer sans réseau. La copie n'expire
+ * jamais avec le temps (N-05 révisée : coupure possible d'un mois) ; elle est effacée à la
+ * déconnexion ou au changement d'utilisateur.
  */
 const CACHE_KEY = 'query-cache'
 const SAVE_DELAY_MS = 500
@@ -35,13 +35,10 @@ export function snapshot(client: QueryClient, now = Date.now()): StoredCache {
 }
 
 /** Recharge la copie locale encore valide ; rend sa date d'enregistrement, ou `null`. */
-export async function restoreQueryCache(
-  client: QueryClient,
-  now = Date.now(),
-): Promise<number | null> {
+export async function restoreQueryCache(client: QueryClient): Promise<number | null> {
   const stored = await storageGet<StoredCache>(CACHE_KEY)
   if (!stored) return null
-  if (now - stored.savedAt > OFFLINE_SESSION_MAX_MS || !stored.userId) {
+  if (!stored.userId) {
     await storageDelete(CACHE_KEY)
     return null
   }

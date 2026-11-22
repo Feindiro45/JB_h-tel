@@ -17,6 +17,7 @@ import {
 import { sendPendingOperations } from '../shared/offline/outboxSync'
 import { setQueryClientRef } from '../shared/offline/queryClientRef'
 import { confirmSessionOnline, forgetSession } from '../shared/offline/session'
+import { requestPersistentStorage } from '../shared/offline/storage'
 import { SYNC_LOG_KEY } from '../shared/offline/syncQueries'
 import { ErrorModalProvider } from '../shared/ui/ErrorModalProvider'
 import { useErrorModal } from '../shared/ui/errorModalContext'
@@ -44,6 +45,8 @@ async function synchronize(
  * enregistrée après chaque lecture réussie, mise à jour (et journalisée) au retour du réseau,
  * effacée quand le serveur déclare la session expirée.
  */
+let persistenceAsked: Promise<boolean | null> | null = null
+
 function useOfflineCopy(client: QueryClient): boolean {
   const [ready, setReady] = useState(false)
 
@@ -79,8 +82,11 @@ function useOfflineCopy(client: QueryClient): boolean {
         if (event.type !== 'updated' || event.action.type !== 'success') return
         if (event.query.queryKey[0] !== ME_KEY[0] || event.query.queryKey[1] !== ME_KEY[1]) return
         const user = event.query.state.data as CurrentUser | null
-        // Le serveur vient de confirmer la session : le délai hors ligne de 12 h repart.
-        if (user && getConnectivity().online) void confirmSessionOnline(user)
+        if (!user || !getConnectivity().online) return
+        // Le serveur vient de confirmer la session : date de dernière connexion mise à jour.
+        void confirmSessionOnline(user)
+        // Données du poste protégées contre l’effacement automatique du navigateur (une fois).
+        persistenceAsked ??= requestPersistentStorage()
       }),
     [client],
   )

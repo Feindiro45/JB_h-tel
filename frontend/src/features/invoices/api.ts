@@ -1,6 +1,10 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api, apiUrl } from '../../shared/api/client'
-import { registerOfflineEssential } from '../../shared/offline/essentials'
+import {
+  registerOfflineEssential,
+  registerOfflineCoverage,
+  registerOfflinePreparation,
+} from '../../shared/offline/essentials'
 import type {
   Envelope,
   InvoiceDetail,
@@ -75,3 +79,30 @@ export async function creditInvoice(invoiceId: string, reason: string): Promise<
 
 // Liste par défaut de l’écran « Factures et reçus », gardée pour le travail sans réseau (lot 2).
 registerOfflineEssential('invoices.view', () => invoicesListQuery({ page: 1, per_page: 25 }))
+
+// « Tout télécharger » : factures et avoirs de chaque séjour gardé, réimprimables en ticket.
+registerOfflinePreparation({
+  order: 30,
+  label: 'Factures et avoirs',
+  permission: 'invoices.view',
+  run: async (context) => {
+    await Promise.all(
+      context.shared('reservations').map(async (reservationId) => {
+        const documents = await context.fetch(reservationInvoicesQuery(reservationId))
+        await Promise.all(
+          (documents ?? []).map((document) => context.fetch(invoiceQuery(document.id))),
+        )
+      }),
+    )
+  },
+})
+
+// Comparaison « sur ce poste / en ligne » de la page Synchronisation.
+registerOfflineCoverage({
+  order: 40,
+  label: 'Factures et avoirs',
+  permission: 'invoices.view',
+  match: (key) => key[0] === 'invoices',
+  serverTotal: async () =>
+    (await api.get<Paginated<unknown>>('/api/v1/invoices', { query: { per_page: 10 } })).meta.total,
+})

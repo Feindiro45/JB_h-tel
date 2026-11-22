@@ -5,13 +5,7 @@ import { getConnectivity, reportReachable, reportUnreachable } from './connectiv
 import { countRecords, describeLocalCopy, updateLocalCopy } from './localSync'
 import { restoreQueryCache, saveQueryCache } from './persistence'
 import { apiPrefixFor } from './registerServiceWorker'
-import {
-  OFFLINE_SESSION_MAX_MS,
-  readSession,
-  rememberSession,
-  sessionExpired,
-  verifyOfflinePassword,
-} from './session'
+import { readSession, rememberSession, sessionMissing, verifyOfflinePassword } from './session'
 import { readRuns } from './syncLog'
 
 const USER = { id: 'u-1', name: 'Grâce' }
@@ -35,12 +29,10 @@ describe('Session hors ligne (D-064)', () => {
     expect(await verifyOfflinePassword('secret-2026')).toBe(false)
   })
 
-  it('expire 12 h après la dernière confirmation du serveur', async () => {
+  it('reste utilisable sans limite de durée ; seule une session absente bloque (N-05 révisée)', async () => {
     await rememberSession(USER, 'x')
-    const session = await readSession()
-    expect(sessionExpired(session, session!.lastOnlineAt + OFFLINE_SESSION_MAX_MS - 1)).toBe(false)
-    expect(sessionExpired(session, session!.lastOnlineAt + OFFLINE_SESSION_MAX_MS + 1)).toBe(true)
-    expect(sessionExpired(undefined)).toBe(true)
+    expect(sessionMissing(await readSession())).toBe(false)
+    expect(sessionMissing(undefined)).toBe(true)
   })
 })
 
@@ -61,11 +53,12 @@ describe('Copie locale des données consultées', () => {
     expect(target.getQueryData(['audit', 'list'])).toBeUndefined()
   })
 
-  it('ignore une copie de plus de 12 h', async () => {
-    await saveQueryCache(clientWith({ 'reservations/list': { data: [] } }))
+  it('garde la copie après un mois sans réseau (N-05 révisée)', async () => {
+    await saveQueryCache(clientWith({ 'reservations/list': { data: [{ id: 'r1' }] } }))
+    vi.useFakeTimers({ now: Date.now() + 31 * 24 * 3_600_000, toFake: ['Date'] })
     const target = new QueryClient()
-    expect(await restoreQueryCache(target, Date.now() + OFFLINE_SESSION_MAX_MS + 1)).toBeNull()
-    expect(target.getQueryData(['reservations', 'list'])).toBeUndefined()
+    expect(await restoreQueryCache(target)).not.toBeNull()
+    expect(target.getQueryData(['reservations', 'list'])).toEqual({ data: [{ id: 'r1' }] })
   })
 
   it('compte les éléments par jeu de données', () => {

@@ -1,9 +1,13 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
-import { registerOfflineEssential } from '../../shared/offline/essentials'
+import {
+  registerOfflineEssential,
+  registerOfflineCoverage,
+  registerOfflinePreparation,
+} from '../../shared/offline/essentials'
 import { runOrQueue } from '../../shared/offline/offlineWrite'
 import { getQueryClientRef } from '../../shared/offline/queryClientRef'
-import { todayIso } from '../../shared/utils/format'
+import { addDays, todayIso } from '../../shared/utils/format'
 import type {
   Envelope,
   ExtensionPreview,
@@ -251,3 +255,51 @@ registerOfflineEssential('reservations.view', () => planningQuery(todayIso(), 7,
 
 // Liste par défaut de l’écran « Réservations » (mêmes filtres initiaux).
 registerOfflineEssential('reservations.view', () => reservationsQuery({ page: 1, per_page: 25 }))
+
+/** Séjours utiles sans réseau : en cours, à venir, et terminés depuis 30 jours (réimpressions). */
+const preparedLists = (): ReservationFilters[] => [
+  { status: 'IN_PROGRESS' },
+  { status: 'CONFIRMED' },
+  { status: 'PENDING' },
+  { status: 'COMPLETED', from: addDays(todayIso(), -30) },
+]
+
+// « Tout télécharger pour le hors ligne » : chaque fiche vient de sa liste (même présentation
+// côté serveur), seul l’historique demande une requête par séjour.
+registerOfflinePreparation({
+  order: 10,
+  label: 'Réservations et leurs fiches',
+  permission: 'reservations.view',
+  run: async (context) => {
+    const stays: Reservation[] = []
+    for (const filters of preparedLists()) {
+      for (let page = 1; ; page++) {
+        const list = await context.fetch(reservationsQuery({ ...filters, page, per_page: 100 }))
+        if (!list) break
+        stays.push(...list.data)
+        if (page >= list.meta.last_page) break
+      }
+    }
+    for (const stay of stays) context.seed(reservationKeys.detail(stay.id), stay)
+    context.share(
+      'reservations',
+      stays.map((stay) => stay.id),
+    )
+    context.share(
+      'customers',
+      stays.flatMap((stay) => (stay.customer ? [stay.customer.id] : [])),
+    )
+    await Promise.all(stays.map((stay) => context.fetch(historyQuery(stay.id))))
+  },
+})
+
+// Comparaison « sur ce poste / en ligne » de la page Synchronisation.
+registerOfflineCoverage({
+  order: 10,
+  label: 'Réservations',
+  permission: 'reservations.view',
+  match: (key) => key[0] === 'reservations' && (key[1] === 'list' || key.length === 2),
+  serverTotal: async () =>
+    (await api.get<Paginated<unknown>>('/api/v1/reservations', { query: { per_page: 10 } })).meta
+      .total,
+})

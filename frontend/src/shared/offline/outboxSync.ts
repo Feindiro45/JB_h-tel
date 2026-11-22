@@ -4,6 +4,7 @@ import { toUserError } from '../api/errors'
 import { newIdempotencyKey } from '../api/idempotency'
 import { getConnectivity } from './connectivity'
 import { notifyOutboxChanged, readOutbox, updateOperation, type QueuedOperation } from './outbox'
+import { createLimiter, RETRY_AFTER_429_MS, sleep } from './pacing'
 import { appendRun, statusOf, type SyncFailure, type SyncRun, type SyncTrigger } from './syncLog'
 
 let sending = false
@@ -27,6 +28,7 @@ export async function sendPendingOperations(
   client: QueryClient,
   trigger: SyncTrigger,
   user: { id: string; name: string } | null,
+  options: { perMinute?: number; retryDelayMs?: number } = {},
 ): Promise<SyncRun | null> {
   if (sending || !user) return null
   const pending = (await readOutbox())
@@ -38,6 +40,25 @@ export async function sendPendingOperations(
   const startedAt = Date.now()
   const failures: SyncFailure[] = []
   let accepted = 0
+  // Après une longue coupure, des centaines d’opérations : envoi une par une, dans l’ordre, à un
+  // rythme que le serveur accepte (120 par minute) ; un « trop de requêtes » est réessayé.
+  const limit = createLimiter(options.perMinute, 1)
+  const send = async (operation: QueuedOperation) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await limit(() =>
+          apiRequest<unknown>(operation.path, {
+            method: operation.method,
+            body: operation.body,
+            idempotencyKey: operation.id,
+          }),
+        )
+      } catch (error) {
+        if (!(toUserError(error).status === 429 && attempt < 3)) throw error
+        await sleep(options.retryDelayMs ?? RETRY_AFTER_429_MS)
+      }
+    }
+  }
   try {
     for (const operation of pending) {
       if (!getConnectivity().online) {
@@ -50,11 +71,7 @@ export async function sendPendingOperations(
       }
       const attempt = { attempts: operation.attempts + 1, lastAttemptAt: Date.now() }
       try {
-        const response = await apiRequest<unknown>(operation.path, {
-          method: operation.method,
-          body: operation.body,
-          idempotencyKey: operation.id,
-        })
+        const response = await send(operation)
         await updateOperation(operation.id, {
           ...attempt,
           status: 'accepted',

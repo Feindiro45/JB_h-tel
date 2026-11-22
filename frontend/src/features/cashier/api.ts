@@ -1,6 +1,10 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
-import { registerOfflineEssential } from '../../shared/offline/essentials'
+import {
+  registerOfflineEssential,
+  registerOfflineCoverage,
+  registerOfflinePreparation,
+} from '../../shared/offline/essentials'
 import { runOrQueue } from '../../shared/offline/offlineWrite'
 import { getQueryClientRef } from '../../shared/offline/queryClientRef'
 import { formatFcfa, todayIso } from '../../shared/utils/format'
@@ -148,3 +152,29 @@ export async function refundPayment(
 
 // Journal de caisse du jour, gardé pour le travail sans réseau (lot 2).
 registerOfflineEssential('payments.view', () => cashJournalQuery(todayIso(), todayIso(), ''))
+
+registerOfflinePreparation({
+  order: 20,
+  label: 'Encaissements et reçus',
+  permission: 'payments.view',
+  run: async (context) => {
+    await Promise.all(
+      context.shared('reservations').map(async (reservationId) => {
+        const payments = await context.fetch(reservationPaymentsQuery(reservationId))
+        await Promise.all(
+          (payments?.data ?? []).map((payment) => context.fetch(receiptQuery(payment.id))),
+        )
+      }),
+    )
+  },
+})
+
+// Comparaison « sur ce poste / en ligne » de la page Synchronisation.
+registerOfflineCoverage({
+  order: 30,
+  label: 'Encaissements',
+  permission: 'payments.view',
+  match: (key) => key[0] === 'payments',
+  serverTotal: async () =>
+    (await api.get<Paginated<unknown>>('/api/v1/payments', { query: { per_page: 10 } })).meta.total,
+})

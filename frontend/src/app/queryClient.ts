@@ -57,9 +57,13 @@ export function createQueryClient(onError: (error: unknown) => void): QueryClien
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         staleTime: 30_000,
+        // Jamais oubliées, même sans écran ouvert : la copie du poste (D-064) est prise dans ce
+        // cache ; une donnée effacée au bout de 5 min (valeur par défaut) disparaîtrait de la
+        // copie, alors qu'une coupure peut durer un mois (N-05 révisée).
+        gcTime: Number.POSITIVE_INFINITY,
       },
-      // Une écriture n’est jamais mise en attente en silence : hors ligne, elle échoue avec le
-      // message « Connexion impossible » (enregistrement hors ligne : lot 4).
+      // Hors ligne, seules les écritures passées par `runOrQueue` (lot 4) sont gardées sur le
+      // poste ; les autres échouent avec le message « Connexion impossible ».
       mutations: { retry: false, networkMode: 'always' },
     },
   })
