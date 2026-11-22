@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { lastBackupQuery } from '../../shared/offline/backup'
 import { coverageRows, readServerTotals } from '../../shared/offline/coverage'
 import { useConnectivity } from '../../shared/offline/connectivity'
@@ -24,6 +24,7 @@ import { Icon, type IconName } from '../../shared/ui/Icon'
 import { EmptyState, LoadingBlock, PageHeading, Panel } from '../../shared/ui/layout'
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { Modal } from '../../shared/ui/Modal'
+import { PageOverview } from '../../shared/ui/PageOverview'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatDateTime, formatNumber, formatTime } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
@@ -309,34 +310,10 @@ export function SyncPage() {
   )
 }
 
-function Tile({
-  icon,
-  tone,
-  label,
-  value,
-  children,
-}: {
-  icon: IconName
-  tone: 'green' | 'amber' | 'red' | 'blue' | 'neutral'
-  label: string
-  value: string
-  children?: ReactNode
-}) {
-  return (
-    <article className={`sync-tile sync-tile--${tone}`} aria-label={label}>
-      <span className="sync-tile__icon">
-        <Icon name={icon} size={26} />
-      </span>
-      <div className="sync-tile__body">
-        <small>{label}</small>
-        <strong>{value}</strong>
-        {children}
-      </div>
-    </article>
-  )
-}
-
-/** Quatre repères : serveur, disque du poste, opérations à envoyer, dernière sauvegarde. */
+/**
+ * Quatre repères, en vue d’ensemble comme sur chaque page métier : serveur, disque du poste,
+ * opérations à envoyer, dernière sauvegarde.
+ */
 function StatusTiles({ records }: { records: number }) {
   const { online, since } = useConnectivity()
   const storage = useQuery(storageQuery)
@@ -347,71 +324,54 @@ function StatusTiles({ records }: { records: number }) {
   const protection = storage.data?.protection
   const used = protection?.usage ?? null
   const quota = protection?.quota ?? null
-  const ratio = used && quota ? Math.min(1, used / quota) : 0
+  const share =
+    used && quota
+      ? ` · ${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format((used * 100) / quota)} % du disque permis`
+      : ''
 
   return (
-    <section className="sync-tiles" aria-label="État du poste">
-      <Tile
-        icon={online ? 'cloud' : 'cloudOff'}
-        tone={online ? 'green' : 'amber'}
-        label="Connexion au serveur"
-        value={online ? 'En ligne' : 'Hors ligne'}
-      >
-        <span className="sync-tile__hint">
-          {online ? 'Données en direct' : `Depuis ${formatTime(new Date(since))}`}
-        </span>
-      </Tile>
-      <Tile
-        icon="disk"
-        tone={protection?.persisted ? 'green' : protection?.durable === false ? 'red' : 'blue'}
-        label="Disque du poste"
-        value={formatBytes(used)}
-      >
-        <span
-          className="sync-meter"
-          role="meter"
-          aria-label="Espace utilisé sur le disque"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(ratio * 100)}
-        >
-          <span style={{ width: `${Math.max(ratio * 100, used ? 2 : 0)}%` }} />
-        </span>
-        <span className="sync-tile__hint">
-          <Icon name="shield" size={14} />
-          {protection?.persisted
-            ? 'Protégé'
-            : protection?.durable === false
-              ? 'Base indisponible'
-              : 'Non protégé'}
-          {` · ${formatNumber(records)} élément(s)`}
-        </span>
-      </Tile>
-      <Tile
-        icon="upload"
-        tone={pending ? 'amber' : 'green'}
-        label="Opérations à envoyer"
-        value={String(pending)}
-      >
-        <span className="sync-tile__hint">
-          {pending ? 'En attente du serveur' : 'Tout est envoyé'}
-        </span>
-      </Tile>
-      <Tile
-        icon="archive"
-        tone={reminder ? 'red' : last.data ? 'green' : 'neutral'}
-        label="Dernière sauvegarde"
-        value={last.data ? formatDateTime(new Date(last.data.at)) : 'Aucune'}
-      >
-        <span className="sync-tile__hint">
-          {reminder
+    <PageOverview
+      items={[
+        {
+          label: 'Connexion au serveur',
+          value: online ? 'En ligne' : 'Hors ligne',
+          hint: online ? 'Données en direct' : `Depuis ${formatTime(new Date(since))}`,
+          icon: online ? 'cloud' : 'cloudOff',
+          tone: online ? 'green' : 'amber',
+        },
+        {
+          label: 'Disque du poste',
+          value: formatBytes(used),
+          hint: `${
+            protection?.persisted
+              ? 'Protégé'
+              : protection?.durable === false
+                ? 'Base indisponible'
+                : 'Non protégé'
+          } · ${formatNumber(records)} élément(s)${share}`,
+          icon: 'disk',
+          tone: protection?.persisted ? 'green' : protection?.durable === false ? 'red' : 'blue',
+        },
+        {
+          label: 'Opérations à envoyer',
+          value: pending,
+          hint: pending ? 'En attente du serveur' : 'Tout est envoyé',
+          icon: 'upload',
+          tone: pending ? 'amber' : 'green',
+        },
+        {
+          label: 'Dernière sauvegarde',
+          value: last.data ? formatDateTime(new Date(last.data.at)) : 'Aucune',
+          hint: reminder
             ? 'Sauvegarde conseillée'
             : last.data
               ? `${last.data.count} opération(s)`
-              : 'Export chiffré manuel'}
-        </span>
-      </Tile>
-    </section>
+              : 'Export chiffré manuel',
+          icon: 'archive',
+          tone: reminder ? 'red' : last.data ? 'green' : 'mint',
+        },
+      ]}
+    />
   )
 }
 

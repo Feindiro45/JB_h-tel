@@ -4,6 +4,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Réservation hors ligne (lot 4, 4.5) — 22/11/2026
+- Hors ligne, **nouvelle réservation** comme en ligne : chambres libres et prix calculés sur le poste avec les règles du serveur ; **nouveau client** et recherche parmi les clients gardés ; **prolongation** et **annulation**.
+- Un élément créé hors ligne peut déjà servir : encaisser une avance sur une réservation qui n’est pas encore sur le serveur. Au retour du réseau, tout part dans l’ordre, chaque élément reçoit son identifiant définitif et la fiche s’ouvre d’elle-même sur la version du serveur.
+- Page Synchronisation : la vue d’ensemble reprend les tuiles communes à toutes les pages.
+- Tests : 183 tests frontend ; recette de production : coupure, nouveau client, réservation, paiement intégral, retour du réseau, 4 opérations acceptées.
+
 ### Hors ligne sans limite de durée, sauvegardes et page Synchronisation visuelle (lot 4, D-064) — 22/11/2026
 - **Aucune durée maximale hors ligne** (N-05 révisée par l’utilisateur : l’hôtel peut rester un mois sans Internet) ; le verrou après 15 min d’inactivité reste.
 - **« Tout télécharger pour le hors ligne »** : toutes les pages et leurs fiches gardées en un clic, avec barre de progression, au rythme accepté par le serveur.

@@ -172,119 +172,6 @@
 }
 
 /* Page Synchronisation et sauvegardes, version visuelle (22/11/2026) */
-.sync-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.sync-tile {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  animation: sync-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.sync-tile:nth-child(2) {
-  animation-delay: 60ms;
-}
-
-.sync-tile:nth-child(3) {
-  animation-delay: 120ms;
-}
-
-.sync-tile:nth-child(4) {
-  animation-delay: 180ms;
-}
-
-.sync-tile__icon {
-  display: inline-grid;
-  flex: none;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-}
-
-.sync-tile--green .sync-tile__icon {
-  background: #e8f4ee;
-  color: #17613f;
-}
-
-.sync-tile--amber .sync-tile__icon {
-  background: var(--warning-bg);
-  color: var(--warning);
-}
-
-.sync-tile--red .sync-tile__icon {
-  background: var(--error-bg);
-  color: var(--error);
-}
-
-.sync-tile--blue .sync-tile__icon {
-  background: #e5eef8;
-  color: #24507b;
-}
-
-.sync-tile--neutral .sync-tile__icon {
-  background: var(--paper);
-  color: var(--muted);
-}
-
-.sync-tile__body {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.sync-tile__body small {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.sync-tile__body strong {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 1.3rem;
-  font-weight: 800;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.sync-tile__hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.sync-meter {
-  display: block;
-  height: 6px;
-  margin: 2px 0;
-  border-radius: 99px;
-  background: #e5eef8;
-  overflow: hidden;
-}
-
-.sync-meter > span {
-  display: block;
-  height: 100%;
-  border-radius: 99px;
-  background: #2a78d6;
-  transition: width 600ms ease;
-}
-
 .sync-charts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
@@ -391,13 +278,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-@keyframes sync-rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
-
 @keyframes sync-grow {
   from {
     transform: scaleX(0);
@@ -416,13 +296,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sync-tile,
   .dataset-bars__track > span {
     animation: none;
-  }
-
-  .sync-meter > span {
-    transition: none;
   }
 }
 

@@ -117,6 +117,31 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await expect(page.getByText(/^LOC-.*-000001$/).first()).toBeVisible()
   await expect(page.getByText('En attente d’envoi').first()).toBeVisible()
 
+  // Réservation hors ligne (4.5) : nouveau client, chambre libre et prix calculés sur le poste,
+  // paiement intégral sur la réservation encore locale ; tout part en chaîne au retour du réseau.
+  await page.goto('/reservations')
+  await page.getByRole('button', { name: '+ Nouvelle réservation' }).click()
+  const offlineBooking = page.getByRole('dialog')
+  await expect(
+    offlineBooking.getByText(/chambres libres et prix calculés sur ce poste/),
+  ).toBeVisible()
+  await offlineBooking.getByRole('radio', { name: 'Nouveau client', exact: true }).check()
+  await offlineBooking.getByLabel('Nom', { exact: true }).fill('Sans Reseau')
+  await offlineBooking.getByLabel('Téléphone', { exact: true }).fill('+23672007777')
+  await offlineBooking.getByLabel('Titulaire du séjour').fill('Sans Reseau')
+  const offlineRoom = offlineBooking.getByLabel('Chambre', { exact: true })
+  await expect(offlineRoom.locator('option')).not.toHaveCount(1)
+  await offlineRoom.selectOption({ index: 1 })
+  await expect(offlineBooking.getByText('Total net')).toBeVisible()
+  await offlineBooking.getByRole('radio', { name: 'Paiement intégral', exact: true }).check()
+  await offlineBooking.getByRole('button', { name: 'Créer la réservation' }).click()
+  await expect(page).toHaveURL(/\/reservations\/local-[0-9a-f-]{36}$/)
+  await expect(
+    page.getByText('Gardée sur ce poste, pas encore reçue par le serveur.'),
+  ).toBeVisible()
+  await expect(page.getByText(/^LOC-.*-000002$/).first()).toBeVisible()
+  const localBookingUrl = page.url()
+
   // Écran d’administration jamais gardé : message clair, jamais un chargement sans fin.
   await page.goto('/admin/audit')
   await expect(page.getByText('Pas encore disponible hors ligne.').first()).toBeVisible()
@@ -148,11 +173,23 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
     timeout: 40_000,
   })
 
-  // L’encaissement fait hors ligne est parti tout seul : accepté, numéro définitif attribué.
+  // Tout ce qui a été fait hors ligne est parti tout seul et a été accepté par le serveur :
+  // encaissement, puis client → réservation → encaissement, chacun avec l’identifiant du serveur.
   const outbox = page.getByRole('region', { name: 'Mettre à jour en ligne' })
-  await expect(outbox.getByRole('row').nth(1)).toContainText('Envoyée', { timeout: 40_000 })
-  await expect(outbox.getByRole('row').nth(1)).toContainText(/LOC-.*-000001 → REC-\d{4}-\d+/)
+  await expect(outbox.getByText('Envoyée', { exact: true })).toHaveCount(4, { timeout: 60_000 })
+  await expect(outbox.getByText('Refusée', { exact: true })).toHaveCount(0)
+  await expect(outbox).toContainText(/LOC-.*-000001 → REC-\d{4}-\d+/)
+  await expect(outbox).toContainText(/LOC-.*-000002 → REC-\d{4}-\d+/)
   await expect(history).toContainText('Vers le serveur')
+
+  // La fiche provisoire s’ouvre sur la réservation créée par le serveur, payée.
+  await page.goto(localBookingUrl)
+  await expect(page).toHaveURL(/\/reservations\/[0-9a-f-]{36}$/, { timeout: 20_000 })
+  await expect(page.getByRole('heading', { name: /Sans Reseau/i, level: 1 })).toBeVisible()
+  await expect(page.getByText('Gardée sur ce poste, pas encore reçue par le serveur.')).toHaveCount(
+    0,
+  )
+  await expect(page.getByText(/^REC-\d{4}-\d+$/).first()).toBeVisible()
   await page.goto(reservationUrl)
   await expect(page.getByText(/^REC-\d{4}-\d+$/).first()).toBeVisible()
   await expect(page.getByText('En attente d’envoi')).toHaveCount(0)

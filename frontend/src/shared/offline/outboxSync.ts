@@ -3,11 +3,43 @@ import { apiRequest } from '../api/client'
 import { toUserError } from '../api/errors'
 import { newIdempotencyKey } from '../api/idempotency'
 import { getConnectivity } from './connectivity'
+import { dependencyRefusal, resolveLocalRefs } from './localRefs'
 import { notifyOutboxChanged, readOutbox, updateOperation, type QueuedOperation } from './outbox'
 import { createLimiter, RETRY_AFTER_429_MS, sleep } from './pacing'
 import { appendRun, statusOf, type SyncFailure, type SyncRun, type SyncTrigger } from './syncLog'
 
 let sending = false
+
+/** Identifiant de l'élément créé par le serveur (client, réservation…). */
+function resultIdOf(response: unknown): string | null {
+  const id = (response as { data?: { id?: unknown } } | null)?.data?.id
+  return typeof id === 'string' ? id : null
+}
+
+/**
+ * Éléments provisoires (`local-…`) d'opérations déjà reçues par le serveur : retirés du poste, les
+ * données du serveur les remplacent (une réservation ne compte pas deux fois dans les chambres
+ * libres). Fait au passage suivant, quand l'écran provisoire a déjà basculé sur la fiche définitive.
+ */
+export function forgetSentLocalItems(client: QueryClient, operations: QueuedOperation[]): void {
+  const sent = new Set(
+    operations.flatMap((o) => (o.status === 'accepted' && o.localId ? [o.localId] : [])),
+  )
+  if (sent.size === 0) return
+  client.removeQueries({
+    predicate: (query) => query.queryKey.some((part) => typeof part === 'string' && sent.has(part)),
+  })
+  for (const query of client.getQueryCache().getAll()) {
+    const data = query.state.data as { data?: unknown } | undefined
+    if (!data || typeof data !== 'object' || !Array.isArray(data.data)) continue
+    const rows = data.data as { id?: unknown }[]
+    if (!rows.some((row) => typeof row?.id === 'string' && sent.has(row.id))) continue
+    client.setQueryData(query.queryKey, {
+      ...data,
+      data: rows.filter((row) => !(typeof row?.id === 'string' && sent.has(row.id))),
+    })
+  }
+}
 
 /** Numéro définitif renvoyé par le serveur (reçu d'un encaissement). */
 function definitiveNumberOf(operation: QueuedOperation, response: unknown): string | null {
@@ -31,7 +63,10 @@ export async function sendPendingOperations(
   options: { perMinute?: number; retryDelayMs?: number } = {},
 ): Promise<SyncRun | null> {
   if (sending || !user) return null
-  const pending = (await readOutbox())
+  // Toute la file (tous auteurs) : un élément créé hors ligne peut l'avoir été par un collègue.
+  const known = await readOutbox()
+  forgetSentLocalItems(client, known)
+  const pending = known
     .filter((operation) => operation.status === 'pending' && operation.userId === user.id)
     .sort((a, b) => a.createdAt - b.createdAt)
   if (pending.length === 0) return null
@@ -40,16 +75,21 @@ export async function sendPendingOperations(
   const startedAt = Date.now()
   const failures: SyncFailure[] = []
   let accepted = 0
+  const remember = (updated: QueuedOperation | null) => {
+    if (!updated) return
+    const index = known.findIndex((operation) => operation.id === updated.id)
+    if (index >= 0) known[index] = updated
+  }
   // Après une longue coupure, des centaines d’opérations : envoi une par une, dans l’ordre, à un
   // rythme que le serveur accepte (120 par minute) ; un « trop de requêtes » est réessayé.
   const limit = createLimiter(options.perMinute, 1)
-  const send = async (operation: QueuedOperation) => {
+  const send = async (operation: QueuedOperation, path: string, body: unknown) => {
     for (let attempt = 0; ; attempt++) {
       try {
         return await limit(() =>
-          apiRequest<unknown>(operation.path, {
+          apiRequest<unknown>(path, {
             method: operation.method,
-            body: operation.body,
+            body,
             idempotencyKey: operation.id,
           }),
         )
@@ -69,15 +109,39 @@ export async function sendPendingOperations(
         })
         break
       }
+      // Élément créé hors ligne (`local-…`) : remplacé par l'identifiant donné par le serveur.
+      const resolution = resolveLocalRefs(operation.path, operation.body, known)
+      if (!resolution.ok) {
+        if (resolution.refused) {
+          const error = dependencyRefusal(resolution.waitingFor)
+          failures.push({ dataset: operation.label, cause: error.message })
+          remember(
+            await updateOperation(operation.id, {
+              status: 'rejected',
+              error: { title: error.title, message: error.message, code: error.code },
+            }),
+          )
+        } else {
+          const origin = resolution.waitingFor
+          failures.push({
+            dataset: operation.label,
+            cause: `En attente de l’envoi de « ${origin.label} » (${origin.userName}).`,
+          })
+        }
+        continue
+      }
       const attempt = { attempts: operation.attempts + 1, lastAttemptAt: Date.now() }
       try {
-        const response = await send(operation)
-        await updateOperation(operation.id, {
-          ...attempt,
-          status: 'accepted',
-          error: null,
-          definitiveNumber: definitiveNumberOf(operation, response),
-        })
+        const response = await send(operation, resolution.path, resolution.body)
+        remember(
+          await updateOperation(operation.id, {
+            ...attempt,
+            status: 'accepted',
+            error: null,
+            definitiveNumber: definitiveNumberOf(operation, response),
+            resultId: resultIdOf(response),
+          }),
+        )
         accepted++
       } catch (cause) {
         const error = toUserError(cause)
@@ -88,11 +152,13 @@ export async function sendPendingOperations(
           error.status === 401 ||
           error.status === 429 ||
           error.status >= 500
-        await updateOperation(operation.id, {
-          ...attempt,
-          status: temporary ? 'pending' : 'rejected',
-          error: detail,
-        })
+        remember(
+          await updateOperation(operation.id, {
+            ...attempt,
+            status: temporary ? 'pending' : 'rejected',
+            error: detail,
+          }),
+        )
         // Coupure, session expirée ou serveur indisponible : la suite attendra le prochain passage.
         if (temporary) break
       }

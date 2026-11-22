@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toUserError } from '../../shared/api/errors'
 import { newIdempotencyKey } from '../../shared/api/idempotency'
+import { useConnectivity } from '../../shared/offline/connectivity'
+import { isLocalId } from '../../shared/offline/localRefs'
 import type { Customer } from '../../shared/api/types'
 import { useErrorModal } from '../../shared/ui/errorModalContext'
 import { SelectField, TextAreaField, TextField } from '../../shared/ui/fields'
@@ -38,6 +40,7 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
   const { showError } = useErrorModal()
   const { notify } = useToast()
+  const { online } = useConnectivity()
   const today = todayIso()
 
   const [mode, setMode] = useState<'existing' | 'new'>('existing')
@@ -94,6 +97,8 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
     enabled: periodValid,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
+    // Hors ligne, les chambres libres sont calculées sur le poste (lot 4, 4.5).
+    networkMode: 'always',
     meta: { silentError: true },
   })
 
@@ -129,6 +134,7 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
     queryFn: () => quoteReservation({ ...payload, customer_id: null }),
     enabled: quoteReady,
     retry: false,
+    networkMode: 'always',
     meta: { silentError: true },
   })
 
@@ -179,6 +185,8 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
       if (paymentError) {
         showError(paymentError)
         notify('Réservation enregistrée. L’encaissement est à reprendre depuis la fiche.')
+      } else if (isLocalId(reservation.id)) {
+        notify('Réservation gardée sur ce poste — envoyée au serveur au retour du réseau')
       } else {
         notify('Réservation enregistrée')
       }
@@ -228,6 +236,12 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
       submitLabel="Créer la réservation"
       submitting={submit.isPending}
     >
+      {!online && (
+        <p className="notice notice--info" role="status" style={{ marginBottom: 14 }}>
+          Hors ligne : chambres libres et prix calculés sur ce poste. Le serveur revérifiera tout au
+          retour du réseau.
+        </p>
+      )}
       <fieldset>
         <legend>Client</legend>
         <div

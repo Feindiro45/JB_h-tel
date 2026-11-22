@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api, apiUrl } from '../../shared/api/client'
+import { isLocalId, localQuery } from '../../shared/offline/localRefs'
 import {
   registerOfflineEssential,
   registerOfflineCoverage,
@@ -26,6 +27,9 @@ export const reservationInvoicesQuery = (reservationId: string) =>
           { signal },
         )
       ).data,
+    ...(isLocalId(reservationId)
+      ? localQuery<InvoiceSummary[]>(invoicesKey(reservationId), [])
+      : {}),
   })
 
 export async function issueInvoice(reservationId: string): Promise<InvoiceSummary> {

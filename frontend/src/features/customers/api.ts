@@ -1,5 +1,10 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
+import { ApiError } from '../../shared/api/errors'
+import { getConnectivity } from '../../shared/offline/connectivity'
+import { isLocalId, localQuery } from '../../shared/offline/localRefs'
+import { runOrQueue } from '../../shared/offline/offlineWrite'
+import { getQueryClientRef } from '../../shared/offline/queryClientRef'
 import {
   registerOfflineEssential,
   registerOfflineCoverage,
@@ -36,11 +41,22 @@ export const customersQuery = (
 ) =>
   queryOptions({
     queryKey: [...customerKeys.list(search, page), perPage, filters],
-    queryFn: ({ signal }) =>
-      api.get<Paginated<Customer>>('/api/v1/customers', {
-        query: { search, page, per_page: perPage, ...filters },
-        signal,
-      }),
+    // Hors ligne, la recherche porte sur les clients gardés sur le poste (lot 4, 4.5).
+    queryFn: async ({ signal }) => {
+      if (!getConnectivity().online) return searchKeptCustomers(search, page, perPage)
+      try {
+        return await api.get<Paginated<Customer>>('/api/v1/customers', {
+          query: { search, page, per_page: perPage, ...filters },
+          signal,
+        })
+      } catch (error) {
+        if (error instanceof ApiError && error.isNetworkError) {
+          return searchKeptCustomers(search, page, perPage)
+        }
+        throw error
+      }
+    },
+    networkMode: 'always',
     placeholderData: (previous) => previous,
   })
 
@@ -49,6 +65,7 @@ export const customerQuery = (id: string) =>
     queryKey: customerKeys.detail(id),
     queryFn: async ({ signal }) =>
       (await api.get<Envelope<Customer>>(`/api/v1/customers/${id}`, { signal })).data,
+    ...(isLocalId(id) ? localQuery<Customer>(customerKeys.detail(id)) : {}),
   })
 
 export const customerReservationsQuery = (id: string) =>
@@ -57,13 +74,76 @@ export const customerReservationsQuery = (id: string) =>
     queryFn: async ({ signal }) =>
       (await api.get<Envelope<Reservation[]>>(`/api/v1/customers/${id}/reservations`, { signal }))
         .data,
+    ...(isLocalId(id) ? localQuery<Reservation[]>(customerKeys.reservations(id), []) : {}),
   })
 
+/**
+ * Création « comme en ligne » (D-064, lot 4) : hors ligne, la fiche provisoire (`local-…`) est
+ * utilisable aussitôt, par exemple pour une réservation ; le serveur la crée à l'envoi, et les
+ * opérations qui en dépendent reçoivent son identifiant définitif.
+ */
 export async function createCustomer(
   input: CustomerInput,
   idempotencyKey?: string,
 ): Promise<Customer> {
-  return (await api.post<Envelope<Customer>>('/api/v1/customers', input, { idempotencyKey })).data
+  const fullName = `${input.name.trim()} ${input.first_name?.trim() ?? ''}`.trim()
+  return runOrQueue<Customer>({
+    kind: 'customer.create',
+    label: `Nouveau client — ${fullName}${input.phone ? ` · ${input.phone}` : ''}`,
+    path: '/api/v1/customers',
+    body: input,
+    idempotencyKey,
+    provisional: (operation, client) => {
+      const customer: Customer = {
+        id: operation.localId!,
+        name: input.name.trim(),
+        first_name: input.first_name?.trim() || null,
+        full_name: fullName,
+        phone: input.phone || null,
+        email: input.email || null,
+        email_notifications: input.email_notifications ?? Boolean(input.email),
+        origin_city: input.origin_city ?? null,
+        origin_country: input.origin_country ?? null,
+        address: input.address ?? null,
+        identification_type: input.identification_type ?? null,
+        identification_number: input.identification_number ?? null,
+        notes: input.notes ?? null,
+        created_at: new Date(operation.createdAt).toISOString(),
+      }
+      client.setQueryData(customerKeys.detail(customer.id), customer)
+      client.setQueryData(customerKeys.reservations(customer.id), [])
+      return customer
+    },
+  })
+}
+
+/** Recherche dans les clients gardés sur le poste (nom, prénoms, téléphone, e-mail). */
+function searchKeptCustomers(search: string, page: number, perPage: number): Paginated<Customer> {
+  const client = getQueryClientRef()
+  const byId = new Map<string, Customer>()
+  for (const query of client?.getQueryCache().findAll({ queryKey: customerKeys.all }) ?? []) {
+    const data = query.state.data as Customer | Paginated<Customer> | undefined
+    if (!data || typeof data !== 'object') continue
+    if ('data' in data && Array.isArray(data.data)) {
+      for (const item of data.data) if (!byId.has(item.id)) byId.set(item.id, item)
+    } else if ('id' in data && query.queryKey.length === 2) {
+      byId.set(data.id, data)
+    }
+  }
+  const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  const needle = normalize(search.trim())
+  const found = [...byId.values()]
+    .filter((customer) =>
+      normalize(`${customer.full_name} ${customer.phone ?? ''} ${customer.email ?? ''}`).includes(
+        needle,
+      ),
+    )
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, 'fr'))
+  const lastPage = Math.max(1, Math.ceil(found.length / perPage))
+  return {
+    data: found.slice((page - 1) * perPage, page * perPage),
+    meta: { total: found.length, current_page: page, last_page: lastPage },
+  }
 }
 
 export async function updateCustomer(id: string, input: Partial<CustomerInput>): Promise<Customer> {

@@ -92,6 +92,7 @@ describe('Synchronisation et sauvegardes', () => {
     const calls = mockApi({
       'GET /api/v1/auth/me': { body: { data: USER } },
       'GET /api/v1/rooms': { body: { data: [] } },
+      'GET /api/v1/room-rates/grid': { body: { data: [] } },
       'GET /api/v1/dashboard': { body: EMPTY_DASHBOARD },
       'GET /api/v1/occupancy': { body: { at: '2026-12-01T10:00:00+01:00', data: [] } },
       'GET /api/v1/planning': {
@@ -139,6 +140,7 @@ describe('Synchronisation et sauvegardes', () => {
       '/api/v1/dashboard',
       '/api/v1/occupancy',
       '/api/v1/planning',
+      '/api/v1/room-rates/grid',
     ])
       expect(paths).toContain(path)
   })
@@ -290,16 +292,11 @@ describe('Opérations en attente et sauvegardes (lot 4)', () => {
     renderApp('/synchronisation')
     const user = userEvent.setup()
 
-    const tiles = await screen.findByRole('region', { name: 'État du poste' })
+    const tiles = await screen.findByRole('region', { name: 'Vue d’ensemble' })
+    const tile = (label: string) => within(tiles).getByText(label).closest('article')!
+    await waitFor(() => expect(tile('Opérations à envoyer')).toHaveTextContent('1'))
     await waitFor(() =>
-      expect(
-        within(tiles).getByRole('article', { name: 'Opérations à envoyer' }),
-      ).toHaveTextContent('1'),
-    )
-    await waitFor(() =>
-      expect(within(tiles).getByRole('article', { name: 'Dernière sauvegarde' })).toHaveTextContent(
-        'Sauvegarde conseillée',
-      ),
+      expect(tile('Dernière sauvegarde')).toHaveTextContent('Sauvegarde conseillée'),
     )
     const operations = screen.getByRole('figure', { name: 'Opérations faites hors ligne par état' })
     expect(within(operations).getByText('En attente').closest('li')).toHaveTextContent('1')
@@ -332,11 +329,7 @@ describe('Opérations en attente et sauvegardes (lot 4)', () => {
     expect(file).toContain('"format":"jb-hotel-sauvegarde"')
     expect(file).not.toContain('NGUEMA')
     // L’opération est sauvegardée : le rappel cesse.
-    await waitFor(() =>
-      expect(within(tiles).getByRole('article', { name: 'Dernière sauvegarde' })).toHaveTextContent(
-        '1 opération(s)',
-      ),
-    )
+    await waitFor(() => expect(tile('Dernière sauvegarde')).toHaveTextContent('1 opération(s)'))
     click.mockRestore()
   })
 

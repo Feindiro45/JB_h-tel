@@ -2,9 +2,11 @@ import { LocalTable } from '../../shared/ui/LocalTable'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { InvoiceSummary, Reservation } from '../../shared/api/types'
+import { isLocalId, operationIdOf } from '../../shared/offline/localRefs'
+import { outboxQuery, type QueuedOperation } from '../../shared/offline/outbox'
 import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
 import { DeleteDialog } from '../../shared/ui/DeleteDialog'
 import { EmptyState, LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
@@ -53,11 +55,22 @@ type Dialog =
 
 export function ReservationDetailPage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const reservation = useQuery({
     ...reservationQuery(id),
-    refetchInterval: (query) => (query.state.data?.status === 'IN_PROGRESS' ? 30_000 : false),
-    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'IN_PROGRESS' && !isLocalId(id) ? 30_000 : false,
+    refetchOnWindowFocus: !isLocalId(id),
   })
+  // Réservation créée hors ligne : une fois reçue par le serveur, la fiche définitive s'ouvre.
+  const outbox = useQuery({ ...outboxQuery, enabled: isLocalId(id) })
+  const origin = isLocalId(id)
+    ? (outbox.data?.find((operation) => operation.id === operationIdOf(id)) ?? null)
+    : null
+  const serverId = origin?.status === 'accepted' ? origin.resultId : null
+  useEffect(() => {
+    if (serverId) void navigate(`/reservations/${serverId}`, { replace: true })
+  }, [navigate, serverId])
 
   if (reservation.isPending) return <LoadingBlock lines={6} label="Chargement de la réservation…" />
   if (!reservation.data) {
@@ -75,10 +88,18 @@ export function ReservationDetailPage() {
       />
     )
   }
-  return <ReservationDetail reservation={reservation.data} />
+  return <ReservationDetail reservation={reservation.data} origin={origin} />
 }
 
-function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
+function ReservationDetail({
+  reservation: r,
+  origin,
+}: {
+  reservation: Reservation
+  /** Opération qui a créé la réservation hors ligne, tant qu'elle n'est pas reçue par le serveur. */
+  origin: QueuedOperation | null
+}) {
+  const local = isLocalId(r.id)
   const { can } = useCurrentUser()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -163,7 +184,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         actions={
           <>
             <ReservationStatusBadge status={r.status} label={r.status_label} />
-            {can('records.delete') && (
+            {can('records.delete') && !local && (
               <button type="button" className="danger" onClick={() => setDialog('delete')}>
                 <Icon name="trash" size={17} />
                 Supprimer
@@ -173,6 +194,24 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         }
       />
 
+      {local && origin?.status === 'rejected' ? (
+        <p className="notice departure-warning" role="alert">
+          <Icon name="close" size={21} />
+          <span>
+            <strong>Refusée par le serveur :</strong> {origin.error?.message ?? 'cause inconnue'}{' '}
+            <Link to="/synchronisation">Voir dans Synchronisation</Link>
+          </span>
+        </p>
+      ) : local ? (
+        <p className="notice notice--info departure-warning" role="status">
+          <Icon name="upload" size={21} />
+          <span>
+            <strong>Gardée sur ce poste, pas encore reçue par le serveur.</strong> Encaissement,
+            arrivée, départ, prolongation et annulation restent possibles ; tout part au retour du
+            réseau.
+          </span>
+        </p>
+      ) : null}
       {r.departure_overdue && (
         <p className="notice departure-warning" role="status">
           <Icon name="bell" size={21} />
@@ -237,7 +276,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           <Icon name="back" size={17} />
           <span className="sr-only">←</span> Réservations
         </Link>
-        {r.status === 'PENDING' && can('reservations.update') && (
+        {r.status === 'PENDING' && can('reservations.update') && !local && (
           <button type="button" className="primary" onClick={() => setDialog('confirm')}>
             <Icon name="check" size={17} />
             Confirmer la réservation
@@ -268,13 +307,15 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
               <Icon name="clock" size={17} />
               Prolonger
             </button>
-            <button type="button" className="secondary" onClick={() => setDialog('occupants')}>
-              <Icon name="edit" size={17} />
-              Modifier les occupants
-            </button>
+            {!local && (
+              <button type="button" className="secondary" onClick={() => setDialog('occupants')}>
+                <Icon name="edit" size={17} />
+                Modifier les occupants
+              </button>
+            )}
           </>
         )}
-        {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.update') && (
+        {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.update') && !local && (
           <button type="button" className="secondary" onClick={() => setDialog('modify')}>
             <Icon name="calendar" size={17} />
             Modifier la réservation
@@ -291,6 +332,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           )}
         {!['PENDING', 'CANCELLED'].includes(r.status) &&
           !hasActiveInvoice &&
+          !local &&
           can('invoices.issue') && (
             <button type="button" className="secondary" onClick={() => setDialog('invoice')}>
               <Icon name="document" size={17} />

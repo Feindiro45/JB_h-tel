@@ -105,8 +105,8 @@ export function OutboxPanel() {
       </div>
       {operations.length === 0 ? (
         <EmptyState title="Aucune opération faite hors ligne">
-          Hors ligne, les encaissements, arrivées et départs sont gardés ici puis envoyés au
-          serveur.
+          Hors ligne, réservations, clients, encaissements, arrivées, départs, prolongations et
+          annulations sont gardés ici puis envoyés au serveur.
         </EmptyState>
       ) : (
         <LocalTable

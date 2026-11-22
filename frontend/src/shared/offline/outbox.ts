@@ -6,7 +6,14 @@ import { storageGet, storageSet } from './storage'
  * d'idempotence (D-063) : rejouée autant de fois que nécessaire, elle n'est enregistrée qu'une
  * fois par le serveur, qui la revalide entièrement. Une opération refusée n'est jamais effacée.
  */
-export type OperationKind = 'payment.record' | 'reservation.check-in' | 'reservation.check-out'
+export type OperationKind =
+  | 'payment.record'
+  | 'reservation.check-in'
+  | 'reservation.check-out'
+  | 'customer.create'
+  | 'reservation.create'
+  | 'reservation.cancel'
+  | 'reservation.extend'
 
 export type OperationStatus = 'pending' | 'accepted' | 'rejected' | 'abandoned'
 
@@ -33,6 +40,8 @@ export interface QueuedOperation {
   /** Identifiant local de l'élément affiché en attendant (encaissement provisoire…). */
   localId: string | null
   abandonReason: string | null
+  /** Identifiant donné par le serveur à l’élément créé (remplace `local-…` dans la suite). */
+  resultId?: string | null
 }
 
 const OUTBOX_KEY = 'outbox'

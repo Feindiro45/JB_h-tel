@@ -5,6 +5,7 @@ import {
   registerOfflineCoverage,
   registerOfflinePreparation,
 } from '../../shared/offline/essentials'
+import { isLocalId, localQuery } from '../../shared/offline/localRefs'
 import { runOrQueue } from '../../shared/offline/offlineWrite'
 import { getQueryClientRef } from '../../shared/offline/queryClientRef'
 import { formatFcfa, todayIso } from '../../shared/utils/format'
@@ -39,6 +40,9 @@ export const reservationPaymentsQuery = (reservationId: string) =>
         `/api/v1/reservations/${reservationId}/payments`,
         { signal },
       ),
+    ...(isLocalId(reservationId)
+      ? localQuery<{ data: Payment[]; summary: AccountSummary }>(paymentsKey(reservationId))
+      : {}),
   })
 
 /** « chambre 101 · NGUEMA Paul », d'après la fiche gardée sur le poste. */
@@ -67,8 +71,6 @@ export async function recordPayment(
     body: input,
     idempotencyKey,
     numbered: true,
-    send: async (key) =>
-      (await api.post<Envelope<Payment>>(path, input, { idempotencyKey: key })).data,
     provisional: (operation, client) => provisionalPayment(client, reservationId, input, operation),
   })
 }
@@ -124,6 +126,7 @@ export const receiptQuery = (paymentId: string) =>
     queryKey: ['payments', 'receipt', paymentId],
     queryFn: async ({ signal }) =>
       (await api.get<Envelope<Receipt>>(`/api/v1/payments/${paymentId}`, { signal })).data,
+    ...(isLocalId(paymentId) ? localQuery<Receipt>(['payments', 'receipt', paymentId]) : {}),
   })
 
 /** Annulation motivée d'un encaissement (jamais de suppression). */

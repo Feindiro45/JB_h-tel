@@ -47,6 +47,9 @@ export const TUTORIALS: Record<string, Tutorial> = {
         icon: 'plus',
         body: 'Cliquez sur « + Nouvelle réservation ». Choisissez un client existant ou créez sa fiche, puis indiquez le titulaire et les autres occupants.',
         tip: 'La capacité de la chambre est vérifiée : le prix est par chambre, quel que soit le nombre d’occupants.',
+        points: [
+          'Sans réseau : chambres libres et prix sont calculés sur le poste ; la réservation, marquée « en attente d’envoi », part au retour du réseau.',
+        ],
       },
       {
         title: 'Période et forfait',
@@ -154,7 +157,7 @@ export const TUTORIALS: Record<string, Tutorial> = {
       {
         title: 'Travailler sans réseau',
         icon: 'globe',
-        body: 'Sans réseau, la pastille passe à « Hors ligne ». Les écrans gardés restent consultables, et encaissements, arrivées et départs sont gardés sur le poste, avec un reçu provisoire LOC-….',
+        body: 'Sans réseau, la pastille passe à « Hors ligne ». Les écrans gardés restent consultables. Réservations (chambres libres et prix calculés sur le poste), clients, encaissements (reçu provisoire LOC-…), arrivées, départs, prolongations et annulations sont gardés sur le poste.',
         tip: 'Au retour du réseau, tout part automatiquement ; le serveur revalide chaque opération.',
       },
       {
