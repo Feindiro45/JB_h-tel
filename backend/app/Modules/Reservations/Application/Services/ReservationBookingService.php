@@ -14,6 +14,7 @@ use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Modules\RoomCatalog\Contracts\RoomSnapshot;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -83,9 +84,10 @@ final class ReservationBookingService
      * Confirme une réservation en attente. Le tarif appliqué est celui en vigueur **maintenant**
      * (invariant 3) ; tout écart avec l'estimation initiale est tracé (ancien et nouveau montant).
      */
-    public function confirm(Reservation $reservation, User $actor): Reservation
+    /** @param  CarbonInterface|null  $pricedAt  N-09 : moment du tarif si la confirmation a été faite hors ligne. */
+    public function confirm(Reservation $reservation, User $actor, ?CarbonInterface $pricedAt = null): Reservation
     {
-        return DB::transaction(function () use ($reservation, $actor): Reservation {
+        return DB::transaction(function () use ($reservation, $actor, $pricedAt): Reservation {
             $room = $this->rooms->lockForReservation($reservation->room_id) ?? throw ReservationQuoter::roomNotFound();
             /** @var Reservation $reservation */
             $reservation = Reservation::query()->with('occupants')->lockForUpdate()->findOrFail($reservation->id);
@@ -106,6 +108,7 @@ final class ReservationBookingService
                 quantity: $reservation->quantity,
                 occupants: $reservation->occupants->map(fn ($o) => new OccupantData($o->name, $o->is_primary))->values()->all(),
                 discount: $reservation->discount(),
+                pricedAt: $pricedAt,
             );
             $quote = $this->quoter->quote($data, $actor, $room, $reservation->id);
             self::assertBookable($quote);

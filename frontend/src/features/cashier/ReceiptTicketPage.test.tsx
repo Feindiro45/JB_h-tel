@@ -132,6 +132,23 @@ describe('Ticket 80 mm d’un reçu', () => {
     expect(normalize(note.textContent)).toContain('plus de valeur de paiement')
   })
 
+  it('réimprime autant de fois que nécessaire sans créer de transaction (imprimante absente)', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const calls = serve(receipt())
+    renderApp('/documents/recus/pay-1/ticket')
+    const user = userEvent.setup()
+
+    await screen.findByRole('article', { name: /Ticket du reçu/ })
+    // Imprimante éteinte ou papier épuisé : la caissière relance l’impression plus tard.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await user.click(screen.getByRole('button', { name: 'Imprimer le ticket' }))
+    }
+    expect(print).toHaveBeenCalledTimes(3)
+    // Recette 7 (spécification 80 mm) : aucune écriture envoyée au serveur, seulement des lectures.
+    expect(calls.filter((call) => call.method !== 'GET')).toEqual([])
+    print.mockRestore()
+  })
+
   it('imprime sur une page à la largeur du rouleau, retirée en quittant le ticket', async () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})
     serve(receipt())

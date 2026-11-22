@@ -8,8 +8,8 @@ use App\Modules\Workstations\Models\Workstation;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
 use App\Shared\Http\Middleware\EnsureIdempotency;
+use App\Shared\Offline\OfflineReplay;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class OfflineJournal
 {
-    public const HEADER = 'X-Offline-Replay';
+    public const HEADER = OfflineReplay::HEADER;
 
     /** Réponses passagères : l'opération reste en attente sur le poste et repartira. */
     private const TEMPORARY = [401, 408, 419, 429];
@@ -33,9 +33,9 @@ final class OfflineJournal
     {
         $user = $request->user();
         $key = (string) $request->header(EnsureIdempotency::HEADER, '');
-        $meta = self::decode((string) $request->header(self::HEADER, ''));
+        $replay = OfflineReplay::fromRequest($request);
         $status = $response->getStatusCode();
-        if (! $user instanceof User || $meta === null || ! preg_match('/^[0-9a-f-]{36}$/i', $key)) {
+        if (! $user instanceof User || $replay === null || ! preg_match('/^[0-9a-f-]{36}$/i', $key)) {
             return;
         }
         if (in_array($status, self::TEMPORARY, true) || $status >= 500 || $status < 200) {
@@ -48,18 +48,18 @@ final class OfflineJournal
         $reason = $outcome === OfflineOperation::REJECTED ? self::reason($response) : [null, null, null];
         $workstation = Workstation::findByToken($request->header(Workstation::HEADER));
 
-        DB::transaction(function () use ($user, $key, $meta, $request, $status, $outcome, $reason, $workstation): void {
+        DB::transaction(function () use ($user, $key, $replay, $request, $status, $outcome, $reason, $workstation): void {
             $existing = OfflineOperation::query()
                 ->where(['user_id' => $user->id, 'idempotency_key' => strtolower($key)])
                 ->lockForUpdate()
                 ->first();
             $values = [
                 'workstation_id' => $workstation !== null ? $workstation->id : $existing?->workstation_id,
-                'kind' => $meta['kind'],
-                'label' => $meta['label'],
+                'kind' => $replay->kind,
+                'label' => $replay->label,
                 'method' => strtoupper($request->method()),
                 'path' => mb_substr('/'.ltrim($request->path(), '/'), 0, 255),
-                'created_offline_at' => $meta['created_at'],
+                'created_offline_at' => $replay->createdAt,
                 'received_at' => now(),
                 'outcome' => $outcome,
                 'http_status' => $status,
@@ -117,30 +117,6 @@ final class OfflineJournal
 
             return $operation;
         });
-    }
-
-    /** @return array{kind: string, label: string, created_at: ?Carbon}|null */
-    private static function decode(string $header): ?array
-    {
-        if ($header === '' || strlen($header) > 2000) {
-            return null;
-        }
-        $json = base64_decode(strtr($header, '-_', '+/'), true);
-        $data = $json === false ? null : json_decode($json, true);
-        if (! is_array($data) || ! is_string($data['kind'] ?? null) || ! preg_match('/^[a-z][a-z.-]{2,39}$/', $data['kind'])) {
-            return null;
-        }
-        $label = is_string($data['label'] ?? null) && trim($data['label']) !== '' ? $data['label'] : $data['kind'];
-        $created = null;
-        if (is_string($data['created_at'] ?? null)) {
-            try {
-                $created = Carbon::parse($data['created_at'])->setTimezone((string) config('app.timezone'));
-            } catch (\Throwable) {
-                $created = null;
-            }
-        }
-
-        return ['kind' => $data['kind'], 'label' => mb_substr($label, 0, 255), 'created_at' => $created];
     }
 
     /** @return array{0: ?string, 1: ?string, 2: ?string} titre, message et code du refus (contrat d'erreur JSON). */

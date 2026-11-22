@@ -6,6 +6,7 @@ use App\Modules\Reservations\Domain\Billing\CalendarDayQuantity;
 use App\Modules\Reservations\DTO\ModificationData;
 use App\Modules\RoomCatalog\Contracts\BillingUnit;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
+use App\Shared\Offline\OfflineReplay;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -80,6 +81,7 @@ final class ModifyReservationRequest extends FormRequest
             billingUnit: $this->enum('billing_unit', BillingUnit::class) ?? BillingUnit::Day,
             quantity: $this->integer('quantity'),
             reason: $this->string('reason')->trim()->toString(),
+            pricedAt: OfflineReplay::fromRequest($this)?->pricedAt(),
         );
     }
 }

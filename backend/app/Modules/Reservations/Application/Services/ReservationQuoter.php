@@ -39,7 +39,8 @@ final class ReservationQuoter
         self::assertValidPeriod($period);
         self::assertCapacity($room, count($data->occupants));
 
-        $rate = $this->prices->currentRate($room->roomTypeId, $data->billingUnit);
+        // N-09 : une opération faite hors ligne garde le tarif en vigueur sur le poste à ce moment-là.
+        $rate = $this->prices->currentRate($room->roomTypeId, $data->billingUnit, $data->pricedAt);
         $this->assertDuration($data->billingUnit, $data->quantity, $period, $rate->amountFcfa);
 
         $price = $this->calculator->compute($rate->amountFcfa, $data->quantity, $data->discount);

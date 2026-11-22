@@ -18,6 +18,7 @@ use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Shared\Audit\AuditLog;
 use App\Shared\Exceptions\BusinessRuleException;
 use App\Shared\Http\PerPage;
+use App\Shared\Offline\OfflineReplay;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -97,7 +98,7 @@ final class ReservationController
 
     public function confirm(Request $request, Reservation $reservation): JsonResponse
     {
-        return $this->respond($this->booking->confirm($reservation, $this->actor($request)));
+        return $this->respond($this->booking->confirm($reservation, $this->actor($request), OfflineReplay::fromRequest($request)?->pricedAt()));
     }
 
     public function checkIn(Request $request, Reservation $reservation): JsonResponse

@@ -142,6 +142,20 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await expect(page.getByText(/^LOC-.*-000002$/).first()).toBeVisible()
   const localBookingUrl = page.url()
 
+  // Recette 1 : fermer puis rouvrir l’application sans réseau ; la réservation et le reçu
+  // provisoires sont toujours là, et le ticket 80 mm s’imprime.
+  const reopened = await context.newPage()
+  await reopened.goto(localBookingUrl)
+  await expect(reopened.getByRole('heading', { name: /Sans Reseau/i, level: 1 })).toBeVisible()
+  await expect(reopened.locator('.connectivity-chip')).toHaveText('Hors ligne')
+  const ticketLink = reopened.getByRole('link', { name: /Ticket 80 mm du reçu LOC-.*-000002/ })
+  await ticketLink.click()
+  await expect(reopened.getByRole('article', { name: /Ticket du reçu/ })).toContainText(
+    'Provisoire',
+  )
+  await expect(reopened.getByRole('button', { name: 'Imprimer le ticket' })).toBeEnabled()
+  await reopened.close()
+
   // Facture hors ligne (4.13) : provisoire FAC-LOC-…, numéro définitif au retour du réseau.
   await page.goto(reservationUrl)
   await page.getByRole('button', { name: 'Émettre une facture' }).click()
@@ -211,7 +225,11 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await expect(page.getByRole('heading', { name: 'Mode hors ligne', level: 1 })).toBeVisible()
   const center = page.getByRole('region', { name: 'Centre de synchronisation' })
   await center.getByLabel('Examen').selectOption('')
-  await expect(center.getByText('Acceptée', { exact: true })).toHaveCount(5)
+  // Recherche sur les noms de ce scénario : le journal est partagé avec les autres recettes.
+  await center.getByLabel('Recherche').fill('Sans Reseau')
+  await expect(center.getByText('Acceptée', { exact: true })).toHaveCount(3)
+  await center.getByLabel('Recherche').fill('Hors Ligne')
+  await expect(center.getByText('Acceptée', { exact: true })).toHaveCount(2)
   await expect(center).toContainText('Facture provisoire')
   await expect(center.getByText('Refusée', { exact: true })).toHaveCount(0)
   expect(errors).toEqual([])

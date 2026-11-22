@@ -3,6 +3,7 @@
 namespace App\Modules\Reservations\DTO;
 
 use App\Modules\RoomCatalog\Contracts\BillingUnit;
+use Carbon\CarbonInterface;
 
 /** Correction d'une réservation pas encore commencée (D-058) : nouvelle chambre, période, forfait. */
 final readonly class ModificationData
@@ -16,5 +17,7 @@ final readonly class ModificationData
         public BillingUnit $billingUnit,
         public int $quantity,
         public string $reason,
+        /** N-09 : moment du tarif (modification faite hors ligne) ; `null` = maintenant. */
+        public ?CarbonInterface $pricedAt = null,
     ) {}
 }

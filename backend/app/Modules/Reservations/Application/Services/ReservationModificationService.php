@@ -148,6 +148,7 @@ final class ReservationModificationService
             occupants: $reservation->occupants->map(fn (ReservationOccupant $o) => new OccupantData($o->name, $o->is_primary))->values()->all(),
             discount: $reservation->discount(),
             notes: $reservation->notes,
+            pricedAt: $data->pricedAt,
         );
     }
 }

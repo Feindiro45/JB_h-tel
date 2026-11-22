@@ -107,6 +107,7 @@ export function PaymentDialog({
           className="full"
           label="Référence (facultative)"
           placeholder="N° de transaction mobile money, virement…"
+          hint="Jamais de numéro de carte bancaire ni de code secret : ce champ est imprimé sur le reçu."
           value={reference}
           onChange={(e) => setReference(e.target.value)}
         />

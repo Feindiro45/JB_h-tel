@@ -272,3 +272,31 @@ describe('Règles hors ligne et journal du serveur (lot 4A)', () => {
     expect((await readOutbox()).map((o) => o.kind)).toEqual(['payment.record'])
   })
 })
+
+describe('Recette : panne du serveur (lot 5)', () => {
+  it('garde l’opération en attente sur une panne du serveur (500, 503) et la renvoie ensuite', async () => {
+    const c = client()
+    reportUnreachable()
+    await write()
+    reportReachable()
+
+    for (const status of [500, 503]) {
+      fetchMock.mockResolvedValueOnce(
+        json({ title: 'Panne', message: 'Serveur indisponible.' }, status),
+      )
+      const run = await sendPendingOperations(c, 'reconnect', USER)
+      expect(run?.status).toBe('failure')
+      // Ni perdue ni refusée : elle attend le prochain passage, avec la cause en français.
+      expect((await readOutbox())[0]).toMatchObject({ status: 'pending' })
+      expect((await readOutbox())[0]!.error?.message).toMatch(/./)
+    }
+
+    fetchMock.mockResolvedValueOnce(json({ data: { receipt_number: 'REC-2026-000090' } }, 201))
+    await sendPendingOperations(c, 'manual', USER)
+    expect((await readOutbox())[0]).toMatchObject({
+      status: 'accepted',
+      attempts: 3,
+      definitiveNumber: 'REC-2026-000090',
+    })
+  })
+})

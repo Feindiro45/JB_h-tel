@@ -10,6 +10,7 @@ use App\Modules\Reservations\DTO\OccupantData;
 use App\Modules\Reservations\DTO\ReservationRequestData;
 use App\Modules\RoomCatalog\Contracts\BillingUnit;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
+use App\Shared\Offline\OfflineReplay;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -122,6 +123,7 @@ class ReservationRequest extends FormRequest
             discount: $this->discount(),
             notes: $this->filled('notes') ? $this->string('notes')->trim()->toString() : null,
             confirm: $this->boolean('confirm', true),
+            pricedAt: OfflineReplay::fromRequest($this)?->pricedAt(),
         );
     }
 

@@ -3,9 +3,13 @@
 namespace Tests\Feature\Workstations;
 
 use App\Modules\Identity\Domain\PermissionName;
+use App\Modules\RoomCatalog\Application\Services\RateService;
+use App\Modules\RoomCatalog\Contracts\BillingUnit;
+use App\Modules\RoomCatalog\DTO\PublishRateData;
 use App\Modules\Workstations\Models\OfflineOperation;
 use App\Modules\Workstations\Models\Workstation;
 use App\Shared\Audit\AuditLog;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -197,5 +201,57 @@ class OfflineModuleTest extends TestCase
             ->assertJsonPath('data.reviewed_by', 'Directeur');
         $this->assertSame(1, AuditLog::query()->where('action', 'offline_operation.reviewed')->count());
         $this->actingAs($this->admin)->getJson('/api/v1/offline/overview')->assertJsonPath('data.to_review', 0);
+    }
+
+    /**
+     * Rejeu d'une écriture faite hors ligne à l'heure donnée (heure de Bangui).
+     *
+     * @return array<string, string>
+     */
+    private function replayAt(string $createdAt, string $kind): array
+    {
+        return [
+            'Idempotency-Key' => (string) Str::uuid(),
+            'X-Offline-Replay' => rtrim(strtr(base64_encode((string) json_encode([
+                'kind' => $kind,
+                'label' => $kind,
+                'created_at' => CarbonImmutable::parse($createdAt, 'Africa/Bangui')->toIso8601String(),
+            ])), '+/', '-_'), '='),
+        ];
+    }
+
+    /**
+     * N-09 (décision de l'utilisateur, 22/11/2026) : une réservation faite hors ligne garde le tarif
+     * en vigueur sur le poste à ce moment-là, même si un nouveau tarif est entré en vigueur avant le
+     * retour du réseau. Moment dans le futur ou trop ancien : tarif de l'heure du serveur.
+     */
+    public function test_offline_operations_keep_the_rate_in_force_on_the_workstation(): void
+    {
+        $pending = $this->bookOk(['confirm' => false, 'start_date' => '2026-12-05', 'end_date' => '2026-12-05']);
+        // 10:00 : le tarif VIP journée passe de 50 000 à 60 000 FCFA.
+        app(RateService::class)->publish(new PublishRateData($this->vip->id, BillingUnit::Day, 60000, 'Révision'));
+        $this->travel(5)->minutes();
+
+        $book = fn (string $at, string $date) => $this->actingAs($this->cashier)
+            ->withHeaders($this->replayAt($at, 'reservation.create'))
+            ->postJson('/api/v1/reservations', $this->payload(['start_date' => $date, 'end_date' => $date]))
+            ->assertCreated()
+            ->json('data.price.net_fcfa');
+
+        $this->assertSame(50000, $book('2026-12-01 09:30', '2026-12-02'), 'réservée avant le changement');
+        $this->assertSame(60000, $book('2026-12-01 10:02', '2026-12-03'), 'réservée après le changement');
+        $this->assertSame(60000, $book('2026-12-01 11:00', '2026-12-04'), 'heure du poste dans le futur');
+        $this->assertSame(60000, $book('2026-09-01 09:00', '2026-12-06'), 'heure trop ancienne');
+        $this->flushHeaders();
+        $this->assertSame(60000, $this->actingAs($this->cashier)
+            ->postJson('/api/v1/reservations', $this->payload(['start_date' => '2026-12-07', 'end_date' => '2026-12-07']))
+            ->assertCreated()->json('data.price.net_fcfa'), 'en ligne');
+
+        // Confirmation faite hors ligne avant le changement : même règle.
+        $this->actingAs($this->cashier)
+            ->withHeaders($this->replayAt('2026-12-01 09:45', 'reservation.confirm'))
+            ->postJson("/api/v1/reservations/{$pending}/confirm")
+            ->assertOk()
+            ->assertJsonPath('data.price.net_fcfa', 50000);
     }
 }
