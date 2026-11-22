@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { RouteObject } from 'react-router'
+import { Navigate, type RouteObject } from 'react-router'
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -7,7 +7,7 @@ import {
   RequirePermission,
   SetPasswordPage,
 } from '../features/auth'
-import { CashierPage, ReceiptPage, ReceiptTicketPage } from '../features/cashier'
+import { CashierPage, ReceiptTicketPage } from '../features/cashier'
 import { CustomerDetailPage, CustomersPage } from '../features/customers'
 import { DashboardPage } from '../features/dashboard'
 import { DocumentsPage, InvoiceTicketPage } from '../features/invoices'
@@ -78,7 +78,8 @@ export const routes: RouteObject[] = [
       { path: 'synchronisation', element: guarded('reservations.view', <SyncPage />) },
       { path: 'caisse', element: guarded('payments.view', <CashierPage />) },
       { path: 'documents', element: guarded('invoices.view', <DocumentsPage />) },
-      { path: 'documents/recus/:id', element: guarded('payments.view', <ReceiptPage />) },
+      // L'ancien reçu A4 n'existe plus (D-065) : son adresse ouvre le ticket.
+      { path: 'documents/recus/:id', element: <Navigate to="ticket" replace /> },
       {
         path: 'documents/recus/:id/ticket',
         element: guarded('payments.view', <ReceiptTicketPage />),

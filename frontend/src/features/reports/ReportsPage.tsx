@@ -1,3 +1,4 @@
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
@@ -59,6 +60,11 @@ export function ReportsPage() {
         actions={
           can('reports.export') && (
             <>
+              <ExportButton
+                path="/api/v1/reports/financial"
+                module="rapport"
+                query={{ ...filters, format: 'xlsx' }}
+              />
               <a className="secondary" href={exportUrl('csv')}>
                 <Icon name="download" size={17} />
                 Exporter CSV

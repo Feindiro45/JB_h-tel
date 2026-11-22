@@ -5,6 +5,7 @@ use App\Modules\Reservations\Http\Controllers\DepartureAlertsController;
 use App\Modules\Reservations\Http\Controllers\OccupancyController;
 use App\Modules\Reservations\Http\Controllers\ReservationController;
 use App\Modules\Reservations\Http\Controllers\ReservationCorrectionController;
+use App\Modules\Reservations\Http\Controllers\ReservationExportController;
 use App\Modules\Reservations\Http\Controllers\ReservationExtensionController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,8 @@ Route::middleware('authenticated')->group(function (): void {
         Route::get('occupancy', [OccupancyController::class, 'occupancy'])->name('occupancy');
         Route::get('planning', [OccupancyController::class, 'planning'])->name('planning');
         Route::get('reservations', [ReservationController::class, 'index'])->name('reservations.index');
+        // Export Excel (avant la route paramétrée : « export » n'est pas un identifiant).
+        Route::get('reservations/export', ReservationExportController::class)->name('reservations.export');
         Route::get('reservations/{reservation}', [ReservationController::class, 'show'])->name('reservations.show');
         Route::get('reservations/{reservation}/history', [ReservationController::class, 'history'])->name('reservations.history');
         Route::get('customers/{customer}/reservations', [ReservationController::class, 'forCustomer'])->name('customers.reservations');

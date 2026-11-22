@@ -105,6 +105,51 @@ export const api = {
   csrf: () => apiRequest<void>('/sanctum/csrf-cookie'),
 }
 
+/** Fichier reçu de l'API (export Excel) : contenu et nom proposé par le serveur. */
+export interface DownloadedFile {
+  blob: Blob
+  filename: string
+}
+
+function filenameFrom(disposition: string | null, fallback: string): string {
+  const match = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)
+  return match ? decodeURIComponent(match[1]) : fallback
+}
+
+/**
+ * Télécharge un fichier de l'API (session, poste de caisse) ; les erreurs suivent le même
+ * contrat que `apiRequest` (message français, « Connexion impossible… » sans réseau).
+ */
+export async function apiDownload(
+  path: string,
+  options: { query?: Record<string, QueryValue>; signal?: AbortSignal; fallbackName: string },
+): Promise<DownloadedFile> {
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  }
+  const workstation = readWorkstationToken()
+  if (workstation) headers[WORKSTATION_HEADER] = workstation
+  let response: Response
+  try {
+    response = await fetch(buildUrl(path, options.query), {
+      headers,
+      credentials: 'include',
+      signal: options.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    reportUnreachable()
+    throw networkError()
+  }
+  reportReachable()
+  if (!response.ok) throw errorFromResponse(response.status, await parseBody(response))
+  return {
+    blob: await response.blob(),
+    filename: filenameFrom(response.headers.get('Content-Disposition'), options.fallbackName),
+  }
+}
+
 /** Adresse absolue d'une ressource de l'API (PDF à ouvrir dans un nouvel onglet). */
 export function apiUrl(path: string): string {
   return buildUrl(path)

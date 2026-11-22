@@ -85,6 +85,18 @@ test('connexion réelle, administration, réservation avec avance, facture, rapp
   const pdf = await pdfDownload
   expect(pdf.suggestedFilename()).toMatch(/rapport-.*\.pdf/)
   await pdf.saveAs('test-results/rapport.pdf')
+  // Classeur Excel du vrai serveur : session, CORS et nom de fichier lu dans Content-Disposition.
+  const xlsxDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exporter (Excel)' }).click()
+  const xlsx = await xlsxDownload
+  expect(xlsx.suggestedFilename()).toMatch(/^jb-hotel-rapport-\d{4}-\d{2}-\d{2}-\d{4}\.xlsx$/)
+  await xlsx.saveAs('test-results/rapport.xlsx')
+  await expect(page.getByText('Classeur Excel téléchargé.')).toBeVisible()
+  await page.goto('/reservations')
+  const stays = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exporter (Excel)' }).click()
+  expect((await stays).suggestedFilename()).toMatch(/^jb-hotel-reservations-.*\.xlsx$/)
+  await page.goto('/rapports')
   await page.screenshot({ path: 'test-results/rapports-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 768, height: 1024 })
   await page.goto('/admin/chambres')

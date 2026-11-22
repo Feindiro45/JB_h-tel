@@ -1,3 +1,5 @@
+import { exportQuery } from '../../shared/export/exportQuery'
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
@@ -39,6 +41,13 @@ export function AuditPage() {
         eyebrow="Administration"
         title="Journal d’audit"
         description="Historique en lecture seule des opérations et de leurs auteurs."
+        actions={
+          <ExportButton
+            path="/api/v1/audit-logs/export"
+            module="audit"
+            query={exportQuery(filters)}
+          />
+        }
       />
       <PageOverview
         items={[

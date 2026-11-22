@@ -125,13 +125,18 @@ test('tickets 80 mm et 58 mm d’un reçu et d’une facture, imprimés sur une 
   await expectSingleStripPdf(page, 58, 'recu-58mm.pdf')
   await page.getByLabel('Largeur du papier').selectOption('80')
 
-  // Ticket de la facture, depuis la fiche réservation ; la page A4 retrouve son format ensuite.
+  // Ticket de la facture (QR code de vérification, D-065), depuis la fiche réservation ; les
+  // autres pages retrouvent leur format ensuite.
   await page.goto(reservationUrl)
   await page.getByRole('link', { name: /^Ticket 80 mm de facture FAC-/ }).click()
   await expect(page).toHaveURL(/\/documents\/factures\/[a-f0-9-]{36}\/ticket$/)
   const invoice = page.getByRole('article', { name: /^Ticket facture FAC-/ })
   await expect(invoice).toContainText('Hébergement')
   await expect(invoice).toContainText(/Reste dû\d/)
+  await expect(
+    invoice.getByRole('img', { name: 'QR code de vérification de la facture' }),
+  ).toBeVisible()
+  await expect(invoice).toContainText('/verification/factures/')
   expect(await expectNothingOverflows(page)).toBeCloseTo((80 * 96) / 25.4, 0)
   await expectSingleStripPdf(page, 80, 'facture-80mm.pdf')
 

@@ -3,14 +3,16 @@
 namespace App\Modules\Workstations\Http\Controllers;
 
 use App\Modules\Identity\Models\User;
+use App\Modules\Workstations\Application\Queries\OfflineOperationSearch;
 use App\Modules\Workstations\Application\Services\OfflineJournal;
 use App\Modules\Workstations\Application\Services\WorkstationService;
+use App\Modules\Workstations\Http\OfflineOperationPresenter;
+use App\Modules\Workstations\Http\Requests\OfflineOperationsRequest;
 use App\Modules\Workstations\Http\WorkstationPresenter;
 use App\Modules\Workstations\Models\OfflineOperation;
 use App\Modules\Workstations\Models\Workstation;
 use App\Modules\Workstations\Models\WorkstationAssignment;
 use App\Shared\Http\PerPage;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -58,28 +60,14 @@ final class OfflineController
     }
 
     /** Centre de synchronisation : filtres par résultat, examen et recherche. */
-    public function operations(Request $request): JsonResponse
+    public function operations(OfflineOperationsRequest $request, OfflineOperationSearch $search): JsonResponse
     {
-        $request->validate([
-            'outcome' => ['nullable', Rule::in(array_keys(OfflineOperation::OUTCOME_LABELS))],
-            'review' => ['nullable', Rule::in(array_keys(OfflineOperation::REVIEW_LABELS))],
-            'search' => ['nullable', 'string', 'max:160'],
-        ]);
-        $page = OfflineOperation::query()
-            ->with(['user', 'workstation', 'reviewer'])
-            ->when($request->filled('outcome'), fn (Builder $q) => $q->where('outcome', $request->string('outcome')->toString()))
-            ->when($request->filled('review'), fn (Builder $q) => $q->where('review_status', $request->string('review')->toString()))
-            ->when($request->filled('search'), function (Builder $q) use ($request): void {
-                $term = '%'.addcslashes($request->string('search')->trim()->toString(), '%_\\').'%';
-                $q->where(fn (Builder $w) => $w->where('label', 'like', $term)->orWhere('reason', 'like', $term));
-            })
-            ->orderByDesc('received_at')
-            ->orderByDesc('id')
+        $page = $search->query($request->toData())
             ->paginate(PerPage::from($request))
             ->withQueryString();
 
         return new JsonResponse([
-            'data' => array_map(fn (OfflineOperation $o) => $this->operation($o), $page->items()),
+            'data' => array_map(fn (OfflineOperation $o) => OfflineOperationPresenter::present($o), $page->items()),
             'meta' => ['total' => $page->total(), 'current_page' => $page->currentPage(), 'last_page' => $page->lastPage()],
         ]);
     }
@@ -94,7 +82,7 @@ final class OfflineController
         $actor = $request->user();
         $operation = $this->journal->review($offlineOperation, $validated['resolution'], trim($validated['reason']), $actor);
 
-        return new JsonResponse(['data' => $this->operation($operation->load(['user', 'workstation', 'reviewer']))]);
+        return new JsonResponse(['data' => OfflineOperationPresenter::present($operation->load(['user', 'workstation', 'reviewer']))]);
     }
 
     /** @return array<string, mixed> */
@@ -112,33 +100,6 @@ final class OfflineController
             'last_seen_at' => $workstation->last_seen_at?->toIso8601String(),
             'last_seen_by' => $workstation->lastSeenBy?->name,
             'report' => $this->presenter->report($workstation),
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function operation(OfflineOperation $o): array
-    {
-        return [
-            'id' => $o->uuid,
-            'kind' => $o->kind,
-            'kind_label' => OfflineOperation::KIND_LABELS[$o->kind] ?? $o->kind,
-            'label' => $o->label,
-            'user' => $o->user?->name,
-            'workstation' => $o->workstation?->name,
-            'created_offline_at' => $o->created_offline_at?->toIso8601String(),
-            'received_at' => $o->received_at->toIso8601String(),
-            'attempts' => $o->attempts,
-            'outcome' => $o->outcome,
-            'outcome_label' => OfflineOperation::OUTCOME_LABELS[$o->outcome] ?? $o->outcome,
-            'http_status' => $o->http_status,
-            'reason_title' => $o->reason_title,
-            'reason' => $o->reason,
-            'reason_code' => $o->reason_code,
-            'review_status' => $o->review_status,
-            'review_label' => $o->review_status === null ? null : (OfflineOperation::REVIEW_LABELS[$o->review_status] ?? $o->review_status),
-            'reviewed_by' => $o->reviewer?->name,
-            'reviewed_at' => $o->reviewed_at?->toIso8601String(),
-            'review_reason' => $o->review_reason,
         ];
     }
 }

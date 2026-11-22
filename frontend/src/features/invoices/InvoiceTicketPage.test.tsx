@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { InvoiceDetail, InvoiceSnapshot } from '../../shared/api/types'
 import { cashier, mockApi, renderApp } from '../../test/renderApp'
@@ -74,6 +74,7 @@ function invoice(overrides: Partial<InvoiceDetail> = {}): InvoiceDetail {
     discount_fcfa: 5000,
     net_fcfa: 45000,
     verification_url: 'http://localhost:8000/verification/factures/inv-1?code=x',
+    verification_qr: 'data:image/png;base64,iVBORw0KGgo=',
     snapshot: snapshot(),
     ...overrides,
   }
@@ -113,7 +114,12 @@ describe('Ticket 80 mm d’une facture', () => {
     expect(text).toContain('Mode de paiementEspèces')
     expect(text).not.toContain('60 000')
     expect(text).not.toMatch(/tax|TVA/i)
-    expect(text).toContain('facture A4 avec QR code')
+    // D-065 : le ticket est le seul format ; il porte le QR code de vérification publique.
+    expect(
+      within(ticket).getByRole('img', { name: 'QR code de vérification de la facture' }),
+    ).toHaveAttribute('src', 'data:image/png;base64,iVBORw0KGgo=')
+    expect(text).toContain('http://localhost:8000/verification/factures/inv-1?code=x')
+    expect(text).not.toContain('A4')
     expect(calls.map((c) => `${c.method} ${c.path}`)).toContain('GET /api/v1/invoices/inv-1')
     expect(screen.getByRole('link', { name: 'Ouvrir la réservation' })).toHaveAttribute(
       'href',

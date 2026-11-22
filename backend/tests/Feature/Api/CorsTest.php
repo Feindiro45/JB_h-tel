@@ -39,9 +39,11 @@ class CorsTest extends TestCase
 
     public function test_request_from_frontend_origin_gets_cors_headers(): void
     {
-        $this->getJson('/api/v1/health', ['Origin' => 'http://localhost:5173'])
+        $response = $this->getJson('/api/v1/health', ['Origin' => 'http://localhost:5173'])
             ->assertOk()
             ->assertHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+        // Nom du fichier d'un export Excel, lu par le navigateur.
+        $this->assertStringContainsString('Content-Disposition', (string) $response->headers->get('Access-Control-Expose-Headers'));
     }
 
     public function test_unknown_origin_is_not_allowed(): void

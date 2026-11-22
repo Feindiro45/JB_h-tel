@@ -18,7 +18,7 @@ import {
 import { receiptQuery } from './api'
 
 /**
- * Ticket 80 mm d'un versement (D-061) : mêmes données que le reçu A4, situation du séjour au
+ * Ticket 80 mm d'un versement (D-061) : seul format du reçu (D-065), situation du séjour au
  * moment de l'édition. Jamais « payé » tant qu'un reste dû subsiste.
  */
 export function ReceiptTicketPage() {
@@ -56,7 +56,7 @@ export function ReceiptTicketPage() {
       title="Ticket 80 mm du reçu"
       description={r.receipt_number}
       links={[
-        { to: `/documents/recus/${r.id}`, label: 'Reçu A4', icon: 'document' },
+        { to: '/caisse', label: 'Caisse', icon: 'back' },
         { to: `/reservations/${r.reservation.id}`, label: 'Ouvrir la réservation', icon: 'eye' },
       ]}
     >

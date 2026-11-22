@@ -2,10 +2,11 @@
 
 namespace App\Modules\Identity\Http\Controllers;
 
+use App\Modules\Identity\Application\Queries\UserSearch;
 use App\Modules\Identity\Application\Services\UserAdministrationService;
-use App\Modules\Identity\Domain\RoleName;
 use App\Modules\Identity\Http\Requests\StoreUserRequest;
 use App\Modules\Identity\Http\Requests\UpdateUserRequest;
+use App\Modules\Identity\Http\Requests\UserListRequest;
 use App\Modules\Identity\Http\Resources\UserResource;
 use App\Modules\Identity\Models\User;
 use App\Shared\Http\DeletionRequest;
@@ -16,23 +17,13 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 final class UserController
 {
-    private const RELATIONS = ['roles.permissions', 'permissions'];
+    private const RELATIONS = UserSearch::RELATIONS;
 
     public function __construct(private readonly UserAdministrationService $users) {}
 
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(UserListRequest $request, UserSearch $search): AnonymousResourceCollection
     {
-        $search = $request->string('search')->trim()->toString();
-        $role = RoleName::tryFrom($request->string('role')->toString());
-
-        $users = User::query()
-            ->with(self::RELATIONS)
-            ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")))
-            ->when($role !== null, fn ($query) => $query->role($role->value))
-            ->when($request->has('active'), fn ($query) => $query->where('active', $request->boolean('active')))
-            ->orderBy('name')
+        $users = $search->query($request->toData())
             ->paginate(PerPage::from($request))
             ->withQueryString();
 

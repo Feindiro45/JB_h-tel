@@ -3,7 +3,7 @@
 > Suivi des évolutions demandées dans le dossier `new/` (21/11/2026). Mis à jour à chaque étape.
 > Le suivi général du projet reste dans `CHECK_LEVEL.md`.
 
-**Dernière mise à jour :** 22/11/2026 — lot 4 commité (`a4c4d55`). **Lot 4A terminé** : module administrateur « Mode hors ligne » (état du poste principal envoyé avec son signal, centre de synchronisation tenu par le serveur avec examen des refus, règles « Hors ligne » dans Paramètres, guide « Comment gérer », encart du tableau de bord). **Hors ligne vérifié écran par écran** sur la version de production locale (`npm run hors-ligne`) : 4 trous comblés (soldes de la caisse, reçus, rapports, tarifs) ; planning et occupation calculés sur le poste pour toute période ; données d’administration sensibles jamais gardées sur le poste. 253 tests backend, 192 tests frontend verts. Reste : recette à l’hôtel (lot 5).
+**Dernière mise à jour :** 22/11/2026 — lot 4A commité (`36f4f9a`). **Lot 5, recette : 5.1 terminé** (dossier `docs/RECETTE_HORS_LIGNE.md` : chaque scénario des deux spécifications relié à sa preuve) ; ajoutés : conflit entre deux postes contre le vrai serveur, application rouverte sans réseau avec ticket imprimable, panne du serveur (500, 503), réimpression sans transaction ; **décision N-09** (tarif d’une réservation faite hors ligne) mise en œuvre. 255 tests backend, 194 tests frontend, 10 + 2 scénarios navigateur. **Reste 5.2 : essais sur le poste et l’imprimante de l’hôtel** (fiche de la partie 3 du dossier).
 
 **Légende :** `[x]` fait et vérifié · `[~]` écrit, pas encore testé · `[ ]` à faire · `[!]` attend une décision ou l'hôtel.
 
@@ -28,7 +28,7 @@ Les deux documents se disent eux-mêmes « à valider avant implémentation ».
 | 4 | Tout fonctionne hors ligne : file d’attente rejouée, « Mettre à jour en ligne » | décidé : D-062, D-063, D-064 (N-05 révisée, N-08 le 22/11) | ✅ Toutes les opérations de caisse et de réservation hors ligne, export chiffré, tableau de bord, téléchargement complet | 100 % |
 | 4A | Module admin « Mode hors ligne » (postes, synchronisation, règles, sauvegardes, guide) + encart du tableau de bord | décidé : D-062, D-064 | ✅ Fait | 100 % |
 | T | Tutoriels : un bouton « Tutoriel » par section du menu, fenêtre pas à pas animée, contenu propre à chaque section | non | ✅ Fait | 100 % |
-| 5 | Recette (coupures, imprimante réelle) | matériel de l'hôtel | ⬜ À faire | 0 % |
+| 5 | Recette (coupures, imprimante réelle) | matériel de l'hôtel | 🟡 5.1 fait ; 5.2 sur place avec la fiche de recette | 60 % |
 
 ## Lot 0 — Relancer le projet en local ✅
 
@@ -80,6 +80,7 @@ npm run dev
 | N-06 | ✅ **Décidé (21/11) : export manuel chiffré + rappel après 1 h** → D-064. Question initiale : sauvegarde des opérations non synchronisées | Export chiffré manuel depuis le centre de synchronisation | Procédure à former côté hôtel |
 | N-07 | Imprimante : modèle, largeur (80 ou 58 mm), découpe automatique | Largeur 80 mm par défaut, avec une option 58 mm | Impression silencieuse et découpe : hors navigateur, non traitées |
 | N-08 | ✅ **Décidé (22/11) : facture provisoire puis définitive** → D-064. Question : comment émettre une facture hors ligne ? | Comme les reçus (N-03) : « FACTURE PROVISOIRE FAC-LOC-<poste>-<séquence> » imprimable, numéro FAC définitif attribué par le serveur au retour du réseau, réimpression | À faire valider par l’hôtel sur le plan fiscal (Q-09, Q-16) |
+| N-09 | ✅ **Décidé (22/11) : tarif du moment de la réservation** → D-064. Question : réservation faite hors ligne au tarif A, nouveau tarif B en vigueur avant le retour du réseau ; quel prix ? | Le serveur applique le tarif en vigueur au moment où l’opération a été faite sur le poste (heure bornée : jamais dans le futur, jamais plus de 62 jours en arrière) ; vaut pour la création, la confirmation et la modification | Une heure de poste fausse peut faire appliquer un ancien tarif ; l’opération reste dans le journal des rejeus |
 
 ## Plan de travail
 
@@ -163,8 +164,8 @@ Un menu **Administration → Mode hors ligne**, réservé à l’administrateur 
 
 ### Lot 5 — Recette
 
-- [ ] 5.1 Scénarios des deux spécifications : coupure, reconnexion, envoi répété, échec serveur, conflit de chambre, prix historique, paiement partiel, imprimante absente, papier de 58 mm, effacement du navigateur
-- [!] 5.2 Essais sur le poste et l'imprimante de l'hôtel
+- [x] 5.1 Scénarios des deux spécifications reliés à leur preuve dans **`docs/RECETTE_HORS_LIGNE.md`** : coupure (client, réservation, paiement, ticket, application rouverte), reconnexion et envoi répété sans doublon, échec du serveur (500, 503 : opération gardée, renvoyée), **conflit de chambre entre deux postes contre le vrai serveur** (`e2e-offline/conflict.spec.ts`), prix historique et tarif hors ligne (N-09), paiement partiel, imprimante absente (réimpression sans transaction), papier 58 mm, données sensibles (aucune donnée bancaire ; consigne sur le champ « Référence »), effacement du navigateur (sauvegarde et restauration)
+- [!] 5.2 Essais sur le poste et l’imprimante de l’hôtel : **fiche pas à pas prête** (partie 3 du dossier : installation, impression 80 et 58 mm, coupure réelle, retour du réseau, conflit à deux postes, restauration sur un second poste, mise à jour). Attend le matériel et la présence de l’équipe de l’hôtel
 
 ## Points d'attention relevés au lancement
 
@@ -194,3 +195,6 @@ Un menu **Administration → Mode hors ligne**, réservé à l’administrateur 
 - **22/11/2026** — Décision de l’utilisateur N-08 : facture provisoire `FAC-LOC-…` puis définitive. 4.13 terminé : confirmation, occupants, modification et facture hors ligne ; lot 4 terminé. Recette de production verte (5 opérations acceptées, dont la facture). Un test d’écran d’export chiffré rendu stable (attente allongée pour le chiffrement sous charge).
 - **22/11/2026** — Lot 4A terminé. Remarque de l’utilisateur « l’application n’est pas encore vraiment hors ligne » : en mode développement (`npm run dev`), le service worker n’est pas actif et l’API locale reste joignable sans Internet. Ajout de `npm run hors-ligne` (version de production locale sur http://localhost:4173, API locale forcée car `.env.production` vise le serveur hébergé). Balayage de tous les écrans hors ligne : 4 trous comblés (soldes de la caisse, reçus, rapports, tarifs), planning et occupation calculés sur le poste pour toute période, utilisateurs, audit et paramètres jamais copiés sur le poste. Postes de test automatiques révoqués dans la base locale.
 - **22/11/2026** — Corrigé avant livraison : l’en-tête `X-Offline-Replay` n’était pas autorisé par la configuration CORS du serveur ; au retour du réseau, le navigateur bloquait l’envoi et le poste se croyait de nouveau hors ligne (vu par la recette de production). Test CORS ajouté ; la recette vérifie aussi le journal du serveur (5 opérations acceptées).
+- **22/11/2026** — Lot 5 : dossier de recette ; nouveaux essais (conflit à deux postes, réouverture sans réseau, panne du serveur, réimpression) ; décision N-09 (tarif hors ligne) mise en œuvre et testée. 5.2 attend le matériel de l’hôtel.
+- **22/11/2026** — Demande de l’utilisateur (D-065) : facture et reçu A4 et boutons « Imprimer » retirés ; le client reçoit le ticket 80 mm (PDF d’une bande, QR code) par e-mail ; le ticket de facture imprimé à la caisse porte le QR code.
+- **22/11/2026** — Demande de l’utilisateur (D-066) : exports Excel sur chaque module (tableau de bord avec graphiques + feuilles de données), en ligne par le serveur et hors ligne sur le poste (réservations, clients, caisse, factures). Remarque de l’utilisateur sur SOLID et DTO : les exports ont été refaits avec FormRequest, DTO de filtres partagé par la liste et l’export, requête commune et classe d’export par module.

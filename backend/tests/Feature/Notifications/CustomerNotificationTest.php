@@ -71,7 +71,7 @@ class CustomerNotificationTest extends TestCase
         $this->assertSame(10, AuditLog::query()->where('action', 'notification.sent')->count());
     }
 
-    public function test_invoice_email_attaches_the_pdf_with_its_verification_link(): void
+    public function test_invoice_email_attaches_the_ticket_with_its_verification_link(): void
     {
         $id = $this->bookOk();
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/invoices")->assertCreated();
@@ -81,7 +81,7 @@ class CustomerNotificationTest extends TestCase
                 return false;
             }
             $attachment = $mail->attachments()[0];
-            $this->assertSame('FAC-2026-000001.pdf', $attachment->as);
+            $this->assertSame('ticket-FAC-2026-000001.pdf', $attachment->as);
             $this->assertSame('application/pdf', $attachment->mime);
             $this->assertStringStartsWith('%PDF', $attachment->attachWith(fn (string $path) => $path, fn (Closure $data) => $data()));
             $this->assertStringContainsString('/verification/factures/', (string) $mail->message->actionUrl);

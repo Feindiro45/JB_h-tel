@@ -52,7 +52,6 @@ test('charte du contenu sur toutes les pages, aside conservé et adaptation mobi
     screens.push(
       [`/reservations/${payment.reservation.id}`, 'fiche-reservation'],
       [`/clients/${payment.customer.id}`, 'fiche-client'],
-      [`/documents/recus/${payment.id}`, 'fiche-recu'],
     )
   }
   for (const [path, name] of screens) {

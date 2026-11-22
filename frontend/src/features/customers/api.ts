@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import { ApiError } from '../../shared/api/errors'
 import { getConnectivity } from '../../shared/offline/connectivity'
@@ -117,9 +117,8 @@ export async function createCustomer(
   })
 }
 
-/** Recherche dans les clients gardés sur le poste (nom, prénoms, téléphone, e-mail). */
-function searchKeptCustomers(search: string, page: number, perPage: number): Paginated<Customer> {
-  const client = getQueryClientRef()
+/** Clients gardés sur le poste : fiches et lignes des listes, sans doublon. */
+export function keptCustomers(client: QueryClient | null | undefined): Customer[] {
   const byId = new Map<string, Customer>()
   for (const query of client?.getQueryCache().findAll({ queryKey: customerKeys.all }) ?? []) {
     const data = query.state.data as Customer | Paginated<Customer> | undefined
@@ -130,9 +129,14 @@ function searchKeptCustomers(search: string, page: number, perPage: number): Pag
       byId.set(data.id, data)
     }
   }
+  return [...byId.values()]
+}
+
+/** Recherche dans les clients gardés sur le poste (nom, prénoms, téléphone, e-mail). */
+function searchKeptCustomers(search: string, page: number, perPage: number): Paginated<Customer> {
   const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
   const needle = normalize(search.trim())
-  const found = [...byId.values()]
+  const found = keptCustomers(getQueryClientRef())
     .filter((customer) =>
       normalize(`${customer.full_name} ${customer.phone ?? ''} ${customer.email ?? ''}`).includes(
         needle,

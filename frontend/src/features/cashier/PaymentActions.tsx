@@ -53,7 +53,7 @@ function useCashRefresh() {
 }
 
 /**
- * Actions d'un encaissement : reçu imprimable, remboursement et annulation (droits
+ * Actions d'un encaissement : ticket 80 mm du reçu (D-065), remboursement et annulation (droits
  * `refunds.create` et `payments.cancel`, réservés à l'administrateur par défaut, D-035).
  */
 export function PaymentActions({ payment }: { payment: PaymentActionTarget }) {
@@ -63,14 +63,6 @@ export function PaymentActions({ payment }: { payment: PaymentActionTarget }) {
 
   return (
     <span className="compact-actions">
-      <Link
-        className="text-button"
-        to={`/documents/recus/${payment.id}`}
-        aria-label={`Reçu ${payment.receipt_number}`}
-      >
-        <Icon name="document" size={17} />
-        Reçu
-      </Link>
       <Link
         className="text-button"
         to={`/documents/recus/${payment.id}/ticket`}

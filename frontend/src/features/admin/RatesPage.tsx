@@ -1,3 +1,4 @@
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
@@ -39,10 +40,13 @@ export function RatesPage() {
         title="Tarifs"
         description="Les nouvelles versions préservent les prix des séjours et des factures existants."
         actions={
-          <button className="primary" onClick={() => setPublishing(true)}>
-            <Icon name="plus" size={17} />
-            Publier un tarif
-          </button>
+          <>
+            <ExportButton path="/api/v1/room-catalog/export" module="chambres-tarifs" />
+            <button className="primary" onClick={() => setPublishing(true)}>
+              <Icon name="plus" size={17} />
+              Publier un tarif
+            </button>
+          </>
         }
       />
       <PageOverview

@@ -1,3 +1,6 @@
+import { reservationsOfflineWorkbook } from './exportOffline'
+import { exportQuery } from '../../shared/export/exportQuery'
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
@@ -39,12 +42,20 @@ export function ReservationsPage() {
         title="Réservations"
         description="Suivez les demandes, les arrivées et les départs de vos clients."
         actions={
-          can('reservations.create') && (
-            <button type="button" className="primary" onClick={() => setCreating(true)}>
-              <Icon name="plus" size={17} />
-              <span className="sr-only">+</span> Nouvelle réservation
-            </button>
-          )
+          <>
+            <ExportButton
+              path="/api/v1/reservations/export"
+              module="reservations"
+              query={exportQuery(filters)}
+              offline={(client) => reservationsOfflineWorkbook(client, filters)}
+            />
+            {can('reservations.create') && (
+              <button type="button" className="primary" onClick={() => setCreating(true)}>
+                <Icon name="plus" size={17} />
+                <span className="sr-only">+</span> Nouvelle réservation
+              </button>
+            )}
+          </>
         }
       />
       <PageOverview

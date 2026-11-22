@@ -170,18 +170,18 @@ describe('Ticket 80 mm d’un reçu', () => {
     expect(pageStyle()?.textContent).toContain('size: 58mm')
     expect(localStorage.getItem('jb-hotel.ticket-width')).toBe('58')
 
-    await router.navigate('/documents/recus/pay-1')
-    await screen.findByRole('article', { name: 'Reçu REC-2026-000042' })
+    await router.navigate('/page-inconnue')
     await waitFor(() => expect(pageStyle()).toBeNull())
     expect(document.documentElement).not.toHaveClass('ticket-printing')
     print.mockRestore()
   })
 
-  it('propose le ticket depuis le reçu A4', async () => {
+  it('ouvre le ticket depuis l’ancienne adresse du reçu A4, qui n’existe plus (D-065)', async () => {
     serve(receipt())
-    renderApp('/documents/recus/pay-1')
+    const router = renderApp('/documents/recus/pay-1')
 
-    const link = await screen.findByRole('link', { name: 'Ticket 80 mm' })
-    expect(link).toHaveAttribute('href', '/documents/recus/pay-1/ticket')
+    await screen.findByRole('article', { name: /Ticket du reçu/ })
+    expect(router.state.location.pathname).toBe('/documents/recus/pay-1/ticket')
+    expect(screen.queryByRole('link', { name: 'Reçu A4' })).toBeNull()
   })
 })

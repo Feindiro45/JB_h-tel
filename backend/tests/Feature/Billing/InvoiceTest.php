@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Billing;
 
+use App\Modules\Billing\Application\InvoiceTicketRenderer;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\RoomCatalog\Application\Services\RateService;
 use App\Modules\RoomCatalog\Contracts\BillingUnit;
@@ -147,7 +148,7 @@ class InvoiceTest extends TestCase
             ->assertJsonPath('data.snapshot.lines.1.quantity', 1)
             ->assertJsonPath('data.snapshot.lines.1.amount_fcfa', 50000)
             ->assertJsonPath('data.snapshot.totals.gross_fcfa', 100000);
-        $this->actingAs($this->cashier)->get("/api/v1/invoices/{$replacement['id']}/pdf")->assertOk();
+        $this->assertStringStartsWith('%PDF', $this->app->make(InvoiceTicketRenderer::class)->bytes(Invoice::query()->where('uuid', $replacement['id'])->firstOrFail()));
 
         // Facturé du mois : 50 000 + 100 000 − 50 000 (avoir) = 100 000, sans double compte.
         $this->assertSame(100000, $this->actingAs($this->admin)->getJson('/api/v1/dashboard')->json('data.invoiced_month_fcfa'));
@@ -186,15 +187,23 @@ class InvoiceTest extends TestCase
         $this->actingAs($this->cashier)->getJson("/api/v1/invoices/{$invoice->id}")->assertNotFound();
     }
 
-    public function test_pdf_is_generated_server_side_from_the_snapshot(): void
+    /** D-065 : le ticket 80 mm (une seule bande, QR code) remplace la facture A4, qui n'existe plus. */
+    public function test_ticket_pdf_is_a_single_80_mm_strip_built_from_the_snapshot(): void
     {
         $reservation = $this->bookOk(['discount' => ['type' => 'FIXED', 'value' => 2500, 'reason' => 'Arrondi']]);
-        $id = $this->issue($reservation)->json('data.id');
+        $id = $this->issue($reservation)
+            ->assertJsonPath('data.verification_qr', fn (string $qr) => str_starts_with($qr, 'data:image/png;base64,'))
+            ->json('data.id');
 
-        $response = $this->actingAs($this->cashier)->get("/api/v1/invoices/{$id}/pdf")->assertOk();
+        $pdf = $this->app->make(InvoiceTicketRenderer::class)->bytes(Invoice::query()->where('uuid', $id)->firstOrFail());
 
-        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
-        $this->assertStringStartsWith('%PDF', (string) $response->getContent());
-        $this->assertStringContainsString('FAC-2026-000001.pdf', (string) $response->headers->get('Content-Disposition'));
+        $this->assertStringStartsWith('%PDF', $pdf);
+        $this->assertSame(1, preg_match_all('#/Type /Page\b#', $pdf), 'Une seule page : la bande continue du ticket.');
+        $this->assertSame(1, preg_match('#/MediaBox \[0\.000 0\.000 226\.77\d (\d+)\.\d+\]#', $pdf, $box));
+        $this->assertGreaterThan(300, (int) $box[1]);
+        $this->assertLessThan(1400, (int) $box[1]);
+        $this->actingAs($this->cashier)->get("/api/v1/invoices/{$id}/pdf")->assertNotFound();
+        // La liste reste légère : pas de QR code par ligne.
+        $this->actingAs($this->cashier)->getJson('/api/v1/invoices')->assertJsonMissingPath('data.0.verification_qr');
     }
 }

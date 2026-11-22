@@ -25,7 +25,7 @@
 | 7 | Reporting | ✅ Implémenté, tests API verts | 100 % |
 | 8 | Qualité et livraison | 🟡 Livraison locale vérifiée ; recette hôtel et CI distante restantes | 90 % |
 
-> **Nouvelles évolutions (dossier `new/`, 21/11/2026)** : ticket thermique 80 mm et mode hors ligne. Plan, décisions N-01 à N-07 et avancement dans **`SUIVI_NEW.md`**. Lot 1 (ticket 80 mm, D-061) terminé en local ; poste principal unique (D-062) : page **Postes de caisse** livrée (désignation, règle activable) ; écritures sans doublon par clé d’idempotence (D-063) ; consultation hors ligne, menu Synchronisation et application installable (lot 2, D-064) ; tutoriels animés sur chaque section (lot T) ; hors ligne, encaissement, arrivée et départ envoyés au retour du réseau (lot 4, première étape) ; hors ligne sans limite de durée (N-05 révisée), sauvegarde chiffrée, « Tout télécharger pour le hors ligne », page Synchronisation visuelle ; tout fonctionne hors ligne, facture provisoire FAC-LOC-… comprise (lot 4 terminé, N-08) ; module administrateur « Mode hors ligne » (lot 4A terminé) ; suite du module admin « Mode hors ligne » planifiée.
+> **Nouvelles évolutions (dossier `new/`, 21/11/2026)** : ticket thermique 80 mm et mode hors ligne. Plan, décisions N-01 à N-07 et avancement dans **`SUIVI_NEW.md`**. Lot 1 (ticket 80 mm, D-061) terminé en local ; poste principal unique (D-062) : page **Postes de caisse** livrée (désignation, règle activable) ; écritures sans doublon par clé d’idempotence (D-063) ; consultation hors ligne, menu Synchronisation et application installable (lot 2, D-064) ; tutoriels animés sur chaque section (lot T) ; hors ligne, encaissement, arrivée et départ envoyés au retour du réseau (lot 4, première étape) ; hors ligne sans limite de durée (N-05 révisée), sauvegarde chiffrée, « Tout télécharger pour le hors ligne », page Synchronisation visuelle ; tout fonctionne hors ligne, facture provisoire FAC-LOC-… comprise (lot 4 terminé, N-08) ; module administrateur « Mode hors ligne » (lot 4A terminé) ; recette du hors ligne (lot 5.1 fait, dossier `docs/RECETTE_HORS_LIGNE.md` ; 5.2 à l’hôtel) ; **ticket 80 mm seul (D-065, 22/11/2026)** : facture et reçu A4 et boutons « Imprimer » retirés, le client reçoit le ticket (PDF avec QR code) par e-mail ; **exports Excel sur chaque module (D-066, 22/11/2026)** : tableau de bord avec graphiques et feuilles de données, en ligne (serveur) et hors ligne (poste) ; suite du module admin « Mode hors ligne » planifiée.
 
 ## Phase 0 — Audit et questions bloquantes ✅
 
@@ -236,13 +236,13 @@
 - [x] Facture numérotée `FAC-AAAA-NNNNNN` et **figée** (instantané complet : client, chambre, période, prix, remise, versements, solde), une seule facture active par réservation
 - [x] Facture immuable : ni modification ni suppression ; seule la mention « annulée par avoir » est possible
 - [x] Avoir (document rectificatif `AV-AAAA-NNNNNN`) qui crédite une facture ; nouvelle facture possible ensuite
-- [x] PDF A4 généré côté serveur à partir de l'instantané (dompdf, environ 30 Ko grâce au sous-ensemble de police)
+- [x] PDF A4 généré côté serveur à partir de l'instantané (dompdf, environ 30 Ko grâce au sous-ensemble de police) — **retiré le 22/11/2026 (D-065) : ticket 80 mm en PDF à la place**
 - [!] Mentions légales et TVA en RCA (Q-09) : en attente ; en-tête provisoire « JB Hôtel »
 - [x] Tests : l'ancienne facture reste à 50 000 après un changement de tarif ; immuabilité ; avoir ; droits ; PDF (**7 tests verts**)
 
 ### 5C — QR code de vérification sur la facture (demande du 19/11/2026) ✅ (commit `f520504`, CI verte)
 - [x] Code de vérification aléatoire (24 caractères) enregistré à l'émission de chaque facture ou avoir ; jamais journalisé
-- [x] QR code imprimé sur le PDF A4, pointant vers la page publique de vérification
+- [x] QR code imprimé sur le PDF A4, pointant vers la page publique de vérification — **depuis D-065 : sur le ticket 80 mm (e-mail et caisse)**
 - [x] Route publique (sans connexion) : page HTML en français et API JSON, limitée à 30 requêtes par minute ; réponse identique si la facture est inconnue ou le code faux ; non indexée
 - [x] Données publiées minimales : type, numéro, date, émetteur, montant net, statut (émise ou annulée par avoir), initiales du client
 - [x] Tests : **7 tests** ; vérifié sur le serveur (facture réelle, page « Document authentique », code faux → « Document introuvable »)
@@ -288,7 +288,7 @@
 - [x] Écran Caisse : période (raccourcis aujourd’hui, hier, 7 jours, mois), indicateurs, ventilations par moyen et par agent, mouvements, soldes à encaisser avec bouton « Encaisser », impression du journal
 - [x] Annulation d'un encaissement et remboursement (administrateur), depuis la caisse, la liste des reçus et la fiche réservation ; avoir depuis la fiche réservation
 - [x] Écran Factures et reçus : onglets accessibles au clavier, filtres, totaux factures − avoirs, PDF, vérification, avoir motivé
-- [x] Reçu imprimable A4 (`/documents/recus/:id`) : en-tête de l’hôtel, versement, remboursements, reste à payer
+- [x] Reçu imprimable A4 (`/documents/recus/:id`) : en-tête de l’hôtel, versement, remboursements, reste à payer — **retiré le 22/11/2026 (D-065), l’adresse ouvre le ticket 80 mm**
 - [x] Tests : 7 tests backend ; **55 tests frontend** (+8 : caisse, raccourcis de période, remboursement plafonné et motivé, factures et totaux, avoir réservé à l'administrateur, onglets au clavier, reçu imprimable, reçu annulé)
 - [x] Contrats des nouveaux appels vérifiés contre le serveur réel (caissière puis administrateur) : net du jour, soldes, remboursement refusé à la caissière (403), annulation refusée après remboursement (409), avoir
 
@@ -454,6 +454,10 @@
 - [x] Page Paramètres redessinée : vue d’ensemble, légende, règles regroupées par domaine, valeur et statut lisibles, référence et date de modification, envoi des e-mails ; aucune valeur changée
 - [x] Tests : 3 backend (234 au total, Pint et Larastan verts), 2 frontend nouveaux et test Paramètres réécrit (109 au total), 1 parcours navigateur nouveau (8 au total, tous verts) avec audit d’accessibilité des pages 404 ; contraste du gris des règles corrigé (4,41 → 5,56) après l’audit Axe ; captures PC et mobile inspectées ; D-060, CHANGELOG, CLAUDE.md et RAPPORT à jour
 
+### Audit de sécurité (demande du 20/11/2026)
+- [x] Audit serveur et navigateur réalisé, sans correction (à la demande) : [docs/AUDIT_SECURITE.md](docs/AUDIT_SECURITE.md). Aucune faille critique ; 2 points élevés (essais de mots de passe et comptes devinables S-01, fin des correctifs de PHP 8.2 au 31/12/2026 S-02), 4 moyens, 5 faibles
+- [ ] Corrections à décider : S-01 à S-12, puis liste de contrôle de mise en production
+
 ## Phase 7 — Reporting ✅
 
 - [x] API d'agrégation, indicateurs définis (facturé ≠ encaissé ≠ chiffre d'affaires)
@@ -516,3 +520,111 @@ Voir `docs/QUESTIONS.md`. Questions **P1**, qui bloquent la mise en production :
 - Phases 6C, 6D et 7 envoyées sur `main` (commit `eabbbbf`) ; 6L (D-053) envoyée ensuite. Aucun déploiement.
 - Les données de travail n’ont pas été réinitialisées. Les E2E utilisent exclusivement `jb_hotel_e2e` ; la restauration de contrôle utilise `jb_hotel_restore_test`.
 - Restent externes à la livraison locale : validation P1 par l’hôtel, SMTP réel (Q-22), mentions légales, impression papier et confirmation de la nouvelle CI sur MySQL 8.4.
+
+### Préparation du test en ligne — LWS cPanel, banguiweb-tech.com (20/11/2026)
+
+- [x] Deux modèles sans secrets : `backend/.env.production.example` (à copier en `.env` sur le serveur) et `frontend/.env.production.example` (à copier en `.env.production.local` avant le build). Les vrais `.env` restent ignorés par Git.
+- [x] Adresses proposées cohérentes : `hotel.banguiweb-tech.com` (React) et `api.hotel.banguiweb-tech.com` (Laravel), cookies limités à `.hotel.banguiweb-tech.com`, liens d’invitation et QR publics HTTPS.
+- [x] Procédure détaillée dans `docs/EXPLOITATION.md` : sous-domaines, racines distinctes, PHP, MySQL, initialisation sans données de démonstration, build React, réécriture Apache, cron de traitement des e-mails et contrôles après livraison. Le guide générique sans SSH reste dans `docs/DEPLOIEMENT_CPANEL.md`.
+- [x] Modèles relus avec le parseur Dotenv du projet : 8 contrôles de cohérence réussis. Login sans image vérifié par 4 tests d’authentification et 1 test navigateur (PC/mobile, validation, visibilité du mot de passe et accessibilité) ; build, lint et serveur Vite actif verts.
+- [ ] À faire sur l’hébergement : créer les sous-domaines/HTTPS et la base, renseigner les secrets, déployer, configurer le cron puis vérifier la connexion et les e-mails. Aucun accès distant ni déploiement effectué pendant cette préparation.
+
+### Incident en ligne — API LWS Panel (20/11/2026)
+
+- [x] Diagnostic HTTP : racine API sur la page d’attente LWS, routes API en 404 hébergeur, OPTIONS génériques sans CORS. Accès direct à `public/index.php` : Laravel répond avec les en-têtes CORS corrects, puis 500.
+- [x] Offre réellement observée : LWS Panel Perso, pas cPanel ; dossier du backend confirmé `/htdocs/api.hotel.banguiweb-tech.com`. Procédure corrigée dans EXPLOITATION et avertissement ajouté au guide cPanel.
+- [x] Cause du 500 confirmée par le journal fourni : MySQL `localhost` et valeurs d’exemple `CPANELUSER_...` ; utiliser l’IP serveur et les identifiants réels de MySql & PhpMyadmin. Aucun secret demandé dans le chat.
+- [x] Fichier `infra/lws/api-root.htaccess` préparé pour diriger les requêtes vers `public`, conserver les chemins, protéger les fichiers cachés et ne pas exposer les fichiers privés existants. Rappel du `.htaccess` distinct dans `public`. Modèle d’environnement clarifié avec `A_REMPLACER_...`.
+- [x] Les 3 tests CORS Laravel passent (10 assertions), avec un environnement de test isolé de la configuration de production copiée localement ; aucune modification des identifiants locaux.
+- [ ] Appliquer les fichiers et les identifiants MySQL réels sur l’hébergement, recharger le cache Laravel puis confirmer les réponses de santé, la connexion et l’absence d’erreur CORS. Aucun correctif distant appliqué pendant ce diagnostic.
+
+### Rechargement des routes du frontend en ligne (20/11/2026)
+
+- [x] `frontend/public/.htaccess` ajouté : les chemins React inexistants sur disque renvoient `index.html`, fichiers et dossiers réels préservés. Indexation et MultiViews désactivés.
+- [x] Build frontend réussi ; copie identique vérifiée dans `frontend/dist/.htaccess`. Les futurs builds incluent automatiquement le fichier.
+- Demande remplacée : le frontend utilise désormais le domaine principal et `/htdocs/.htaccess` (voir section suivante).
+
+### Frontend LWS : 500 après ajout du routage (20/11/2026)
+
+- [x] Tests HTTP : racine et `index.html` en 200, routes React en 500 hébergeur ; fichier frontend présent.
+- [x] Version simplifiée du `.htaccess` préparée : base `/`, cible absolue `/index.html`, drapeau `[END]`, sans Options ni DirectoryIndex. Build réussi et copie dans `dist` à vérifier lors de la publication.
+- Diagnostic du sous-domaine abandonné à la demande de l’utilisateur ; publication du frontend sur le domaine principal confirmée ci-dessous.
+
+### Frontend directement sur banguiweb-tech.com (20/11/2026)
+
+- [x] Destination validée : `https://banguiweb-tech.com` ; API conservée sur `https://api.hotel.banguiweb-tech.com`.
+- [x] Page de connexion observée dans Chrome ; quatre accès directs (`/`, `/connexion`, `/reservations`, `/mot-de-passe`) répondent 200 avec l’index React. La mise en place distante a été constatée, pas effectuée par l’agent.
+- [x] Modèle backend et configuration locale de production adaptés : origine CORS, URL des invitations, hôte Sanctum et cookie `.banguiweb-tech.com`. Identifiants et clé d’application conservés.
+- [x] Modèle frontend, fichier de routage et guides actualisés : contenu de `dist` dans `/htdocs`, fichier `.htaccess` inclus. Build réussi, 11 contrôles de configuration et présence du fichier compilé vérifiés.
+- [ ] Reporter les valeurs dans le `.env` distant de l’API, recharger son cache, puis vérifier la connexion. Le précontrôle API répond toujours sans CORS : le routage Laravel et les paramètres MySQL restent à corriger sur LWS.
+
+- [x] Vérification du fichier CORS fourni : PHP valide ; précontrôles locaux `/api/v1/auth/me` et `/sanctum/csrf-cookie` en 204 avec origine `https://banguiweb-tech.com` et cookies autorisés. Configuration existante conservée ; version propre fournie pour copie sur le serveur.
+
+
+### En-têtes et routage du sous-domaine API (20/11/2026)
+
+- [x] Réponse distante vérifiée : les routes santé/CSRF de l’API renvoient l’index React du domaine principal (contenu et empreinte identiques), OPTIONS reste sans CORS.
+- [x] Repli du `.htaccess` frontend limité à `banguiweb-tech.com` pour éviter de traiter les autres hôtes. Build réussi et copie identique dans `dist` vérifiée.
+- [x] Précontrôles locaux connexion et CSRF : 204, origine exacte, cookies et quatre en-têtes du client autorisés. Pas d’élargissement inutile de la configuration CORS.
+- [ ] Publier le `.htaccess` racine corrigé et confirmer que le sous-domaine API atteint Laravel ; configuration/routage distants inchangés par l’agent.
+
+
+### API en dossier sur le domaine principal — 20/11/2026
+
+- [x] Nouvelle publication préparée : `https://banguiweb-tech.com/backend/api/v1`, CSRF dans `/backend/sanctum/csrf-cookie`. Même origine que le frontend.
+- [x] Client HTTP corrigé pour conserver le dossier de la racine Laravel ; PDF et exports inclus. Régression couverte par un test frontend, six tests client réussis.
+- [x] Entrée publique `infra/lws/backend-public` préparée ; projet privé attendu dans `/home/jb-hotel-backend`, hors `/htdocs`. Racine React exclut `/backend` de son repli.
+- [x] Modèles et configurations locales de production adaptés (URL, QR, cookie de l’hôte sur `/`). Tests de montage Laravel : trois réussis, 13 assertions.
+- [x] Build et archive `output/lws/deploiement-dossier.zip` vérifiés (7 fichiers, sans `.env`). Guide complet `docs/DEPLOIEMENT_LWS_DOSSIER.md` fourni.
+- [ ] Copier le projet existant, adapter son `.env`, publier l’archive et basculer le cron sur LWS ; vérifier santé, connexion et documents. Aucun déplacement distant effectué pendant cette préparation.
+
+- [x] Validation complémentaire : 9 tests d’authentification et 7 de vérification des factures réussis avec un environnement de test isolé. Suite frontend : 109/110 au premier passage, puis les 4 tests Caisse passent lors de la réexécution ciblée ; lint réussi.
+
+
+### Correction de la 404 au login après montage en dossier (20/11/2026)
+
+- [x] Nouveau frontend constaté en ligne ; toutes les routes `/backend` renvoient alors la 404 JSON Laravel, y compris santé et CSRF.
+- [x] Reproduction locale en exécutant le véritable point d’entrée avec un SCRIPT_NAME sans dossier : 404. Normalisation des variables du script pour `/backend` : utilisateur 401 attendu, racine 200, CSRF 204. Syntaxe PHP valide.
+- [x] Correctif minimal `output/lws/correctif-login.zip` et archive complète mis à jour et vérifiés. Un seul fichier à remplacer : `/htdocs/backend/index.php`.
+- [ ] Publier le correctif et confirmer santé/connexion en ligne ; aucun fichier distant modifié pendant cette correction.
+
+
+### 503 après remplacement du point d’entrée (20/11/2026)
+
+- [x] Réponse distante identifiée : garde de configuration du point d’entrée public, avant Laravel. L’utilisateur confirme le projet complet dans `/htdocs/backend`, au lieu de `/home/jb-hotel-backend`.
+- [x] Script CLI `infra/lws/reparer-emplacement-backend.php` préparé, téléchargeable dans `output/lws` et en ZIP. Préserve `.env` et les données, refuse une destination existante, sépare le projet privé des deux fichiers publics et restaure la source si l’installation publique échoue.
+- [x] Syntaxe PHP et déplacement sur fixture locale vérifiés, avec conservation du `.env` et refus d’une relance sans écrasement.
+- [ ] Exécuter sur LWS, recharger la configuration puis confirmer santé/connexion ; aucune opération de déplacement distant exécutée par l’agent.
+
+
+### Réparateur d’emplacement V2 — 20/11/2026
+
+- [x] Précondition erronée corrigée : un projet Laravel complet n’a pas besoin de `index.php` ni de `.htaccess` à sa racine. Le script exige seulement le projet et son `.env`, puis génère lui-même les deux fichiers publics à partir des modèles embarqués.
+- [x] Syntaxe PHP valide ; scénario sans fichiers publics réussi avec conservation du `.env` et des documents, projet incomplet refusé sans déplacement, destination existante refusée sans écrasement.
+- [x] `output/lws/correctif-emplacement-v2.zip` vérifié ; sortie « version 2 » ajoutée pour identifier le bon fichier exécuté. Script autonome et archive précédente actualisés.
+- [ ] Remplacer le script sur LWS, l’exécuter et confirmer santé/connexion après réussite.
+
+- [x] Variante sans terminal documentée : déplacement manuel vers le dossier privé, archive `output/lws/backend-public.zip` de deux fichiers publics vérifiée, édition du `.env` puis suppression ciblée des caches générés `config.php` et `routes-v7.php`. Vérification distante encore attendue.
+
+
+### Arborescence réellement observée dans LWS — 20/11/2026
+
+- [x] Dossier du projet constaté dans `/htdocs/jb-hotel-backend`, avec entrée PHP racine `/htdocs/index.php` et absence de frontend `index.html` dans cette vue. L’entrée attend pourtant le projet dans `/home/jb-hotel-backend`.
+- [x] Publication complète V3 préparée et archive contrôlée : index React à la racine, entrée API dans le sous-dossier backend, priorité `DirectoryIndex index.html`. Pas de nouveau changement du chemin privé attendu.
+- [ ] Déplacer le dossier projet hors de htdocs, extraire la publication complète puis confirmer santé/connexion. Aucun fichier distant déplacé ni édité par l’agent pendant ce diagnostic.
+
+
+### 419 au login : domaine des cookies confirmé — 20/11/2026
+
+- [x] Contrôles distants : santé API 200 (`database: ok`), cookie CSRF 204. Le routage et le chargement du projet fonctionnent désormais.
+- [x] Cause du 419 confirmée : le serveur répond sur `banguiweb-tech.com` mais émet XSRF et session avec `domain=.hotel.banguiweb-tech.com`. Le client refuse ces cookies ; une soumission vide avec la séquence CSRF reproduit 419 sans tentative de connexion à un compte.
+- [ ] Dans le `.env` privé actif, appliquer `SESSION_DOMAIN=null`, retirer le cache généré `bootstrap/cache/config.php` puis effacer les anciens cookies du site et retester. Aucun changement distant exécuté pendant ce diagnostic.
+
+
+### Vérification directe des e-mails automatiques en production — 20/11/2026
+
+- [x] Application connectée, Paramètres consultés : transport SMTP réel, 5 messages en attente, 0 en échec. Le test utilise un envoi immédiat ; les notifications personnel/clients utilisent ShouldQueue.
+- [x] LWS → Tâches cron consulté : 0 tâche utilisée sur 1 disponible. Aucun traitement planifié configuré dans ce panneau.
+- [ ] Activer un worker court périodique sur le projet privé, puis confirmer que les 5 messages sont traités et que de nouveaux événements sont envoyés. Aucune tâche créée ni message envoyé par l’agent pendant cette vérification.
+
+- [x] Format cron contrôlé dans LWS : quatre champs de fréquence vides identifiés ; saisie des cinq astérisques expliquée. Création du cron encore à effectuer.

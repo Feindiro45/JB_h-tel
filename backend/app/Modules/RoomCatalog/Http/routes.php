@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Identity\Domain\PermissionName;
+use App\Modules\RoomCatalog\Http\Controllers\RoomCatalogExportController;
 use App\Modules\RoomCatalog\Http\Controllers\RoomController;
 use App\Modules\RoomCatalog\Http\Controllers\RoomRateController;
 use App\Modules\RoomCatalog\Http\Controllers\RoomTypeController;
@@ -15,6 +16,8 @@ Route::middleware('authenticated')->group(function (): void {
     Route::middleware('permission:'.PermissionName::RoomsView->value)->group(function (): void {
         Route::get('room-types', [RoomTypeController::class, 'index'])->name('room-types.index');
         Route::get('rooms', [RoomController::class, 'index'])->name('rooms.index');
+        // Export Excel « Chambres et tarifs » : la feuille des tarifs exige en plus `rates.view`.
+        Route::get('room-catalog/export', RoomCatalogExportController::class)->name('room-catalog.export');
         Route::get('rooms/{room}', [RoomController::class, 'show'])->name('rooms.show');
     });
 

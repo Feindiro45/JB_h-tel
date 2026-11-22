@@ -1,3 +1,5 @@
+import { exportQuery } from '../../shared/export/exportQuery'
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -309,6 +311,13 @@ function SyncCenterPanel() {
     <Panel
       title="Centre de synchronisation"
       subtitle="Opérations faites hors ligne et reçues par le serveur, avec la cause de chaque refus."
+      action={
+        <ExportButton
+          path="/api/v1/offline/operations/export"
+          module="hors-ligne"
+          query={exportQuery(filters)}
+        />
+      }
     >
       <div className="filterbar">
         <TextField

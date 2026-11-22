@@ -2,7 +2,7 @@
 
 namespace App\Modules\Billing\Infrastructure;
 
-use App\Modules\Billing\Application\InvoicePdfRenderer;
+use App\Modules\Billing\Application\InvoiceTicketRenderer;
 use App\Modules\Billing\Application\InvoiceVerification;
 use App\Modules\Billing\Contracts\InvoiceDocument;
 use App\Modules\Billing\Contracts\InvoiceDocuments;
@@ -12,7 +12,7 @@ use App\Modules\Billing\Models\Invoice;
 final class EloquentInvoiceDocuments implements InvoiceDocuments
 {
     public function __construct(
-        private readonly InvoicePdfRenderer $renderer,
+        private readonly InvoiceTicketRenderer $renderer,
         private readonly InvoiceVerification $verification,
     ) {}
 

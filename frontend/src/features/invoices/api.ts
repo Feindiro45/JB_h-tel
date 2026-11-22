@@ -1,5 +1,5 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
-import { api, apiUrl } from '../../shared/api/client'
+import { api } from '../../shared/api/client'
 import { ApiError } from '../../shared/api/errors'
 import { isLocalId, localQuery } from '../../shared/offline/localRefs'
 import { runOrQueue } from '../../shared/offline/offlineWrite'
@@ -98,11 +98,6 @@ export const invoiceQuery = (invoiceId: string) =>
       (await api.get<Envelope<InvoiceDetail>>(`/api/v1/invoices/${invoiceId}`, { signal })).data,
     ...(isLocalId(invoiceId) ? localQuery<InvoiceDetail>(['invoices', 'detail', invoiceId]) : {}),
   })
-
-/** PDF A4 généré par le serveur (source de vérité), ouvert dans un nouvel onglet. */
-export function invoicePdfUrl(invoiceId: string): string {
-  return apiUrl(`/api/v1/invoices/${invoiceId}/pdf`)
-}
 
 export interface InvoiceFilters {
   type?: string

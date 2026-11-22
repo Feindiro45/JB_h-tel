@@ -1,3 +1,4 @@
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
@@ -75,6 +76,7 @@ export function RoomsPage() {
         title="Chambres et catégories"
         actions={
           <>
+            <ExportButton path="/api/v1/room-catalog/export" module="chambres-tarifs" />
             <button className="secondary" onClick={() => setDialog({ kind: 'type' })}>
               <Icon name="plus" size={17} />
               <span className="sr-only">+</span> Catégorie

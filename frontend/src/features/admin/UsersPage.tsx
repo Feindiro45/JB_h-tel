@@ -1,3 +1,5 @@
+import { exportQuery } from '../../shared/export/exportQuery'
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { Icon } from '../../shared/ui/Icon'
@@ -83,12 +85,19 @@ export function UsersPage() {
         eyebrow="Administration"
         title="Utilisateurs et accès"
         actions={
-          can('users.manage') && (
-            <button className="primary" onClick={() => setEditing('new')}>
-              <Icon name="plus" size={17} />
-              <span className="sr-only">+</span> Utilisateur
-            </button>
-          )
+          <>
+            <ExportButton
+              path="/api/v1/users/export"
+              module="utilisateurs"
+              query={exportQuery(filters)}
+            />
+            {can('users.manage') && (
+              <button className="primary" onClick={() => setEditing('new')}>
+                <Icon name="plus" size={17} />
+                <span className="sr-only">+</span> Utilisateur
+              </button>
+            )}
+          </>
         }
       />
       <PageOverview

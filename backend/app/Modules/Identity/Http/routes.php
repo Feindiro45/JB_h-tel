@@ -4,6 +4,7 @@ use App\Modules\Identity\Domain\PermissionName;
 use App\Modules\Identity\Http\Controllers\AuthController;
 use App\Modules\Identity\Http\Controllers\RoleController;
 use App\Modules\Identity\Http\Controllers\UserController;
+use App\Modules\Identity\Http\Controllers\UserExportController;
 use App\Modules\Identity\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,7 @@ Route::middleware('authenticated')->group(function (): void {
     Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
 
     Route::get('users', [UserController::class, 'index'])->name('users.index')->can('viewAny', User::class);
+    Route::get('users/export', UserExportController::class)->name('users.export')->can('viewAny', User::class);
     Route::post('users', [UserController::class, 'store'])->name('users.store')->can('create', User::class);
     Route::get('users/{user}', [UserController::class, 'show'])->name('users.show')->can('view', 'user');
     Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update')->can('update', 'user');

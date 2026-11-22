@@ -137,6 +137,25 @@
   font-size: 0.9em;
 }
 
+/* QR code de vérification (D-065) : net à l'impression, sans lissage des modules. */
+.thermal-ticket .ticket-qr {
+  display: block;
+  width: 30mm;
+  height: 30mm;
+  margin: 4px auto 2px;
+  image-rendering: pixelated;
+}
+
+.thermal-ticket--58 .ticket-qr {
+  width: 26mm;
+  height: 26mm;
+}
+
+.thermal-ticket .ticket-url {
+  font-size: 0.72em;
+  overflow-wrap: anywhere;
+}
+
 .thermal-ticket .ticket-section-title {
   margin: 2px 0;
   font-weight: 700;

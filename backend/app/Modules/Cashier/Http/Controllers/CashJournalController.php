@@ -6,6 +6,7 @@ use App\Modules\Cashier\Application\Queries\CashJournal;
 use App\Modules\Cashier\Domain\PaymentMethods;
 use App\Modules\Cashier\Domain\PaymentStatus;
 use App\Modules\Cashier\Http\PaymentPresenter;
+use App\Modules\Cashier\Http\Requests\CashJournalRequest;
 use App\Modules\Cashier\Models\Payment;
 use App\Modules\Identity\Models\User;
 use App\Shared\Http\PerPage;
@@ -13,35 +14,17 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 /** Écrans « Caisse » (journal d'une période) et « Factures et reçus » (liste des reçus). */
 final class CashJournalController
 {
-    /** Période maximale du journal ; les analyses plus longues relèvent des rapports (phase 7). */
-    public const MAX_DAYS = 92;
-
     public function __construct(private readonly CashJournal $journal) {}
 
-    public function journal(Request $request): JsonResponse
+    public function journal(CashJournalRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-            'agent_id' => ['nullable', 'uuid', Rule::exists('users', 'uuid')],
-        ], attributes: ['from' => 'date de début', 'to' => 'date de fin', 'agent_id' => 'agent']);
+        $period = $request->toData();
 
-        $timezone = (string) config('app.timezone');
-        $today = CarbonImmutable::now($timezone)->startOfDay();
-        $from = isset($validated['from']) ? CarbonImmutable::parse($validated['from'], $timezone)->startOfDay() : $today;
-        $to = isset($validated['to']) ? CarbonImmutable::parse($validated['to'], $timezone)->startOfDay() : $from;
-        if ($from->diffInDays($to) >= self::MAX_DAYS) {
-            throw ValidationException::withMessages([
-                'to' => ['Le journal de caisse couvre au plus '.self::MAX_DAYS.' jours : réduisez la période, ou utilisez les rapports pour une analyse plus longue.'],
-            ]);
-        }
-
-        return new JsonResponse(['data' => $this->journal->journal($from, $to->addDay(), self::agentId($validated['agent_id'] ?? null))]);
+        return new JsonResponse(['data' => $this->journal->journal($period->from, $period->until, $period->agentId)]);
     }
 
     public function index(Request $request, PaymentMethods $methods): JsonResponse

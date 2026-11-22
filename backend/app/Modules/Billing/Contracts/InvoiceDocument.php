@@ -5,9 +5,9 @@ namespace App\Modules\Billing\Contracts;
 use Closure;
 
 /**
- * Facture ou avoir prêt à être envoyé (notifications) : informations clés et PDF A4.
- * Le PDF n'est produit qu'à la demande (`pdf()`) : le rendu dompdf prend plusieurs secondes et
- * n'est utile que si un e-mail part réellement (client joignable par e-mail).
+ * Facture ou avoir prêt à être envoyé (notifications) : informations clés et ticket 80 mm en PDF
+ * (D-065, il remplace la facture A4). Le PDF n'est produit qu'à la demande (`pdf()`) : le rendu
+ * dompdf n'est utile que si un e-mail part réellement (client joignable par e-mail).
  */
 final readonly class InvoiceDocument
 {

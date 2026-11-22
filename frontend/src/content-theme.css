@@ -866,6 +866,11 @@
     }
     .workspace .heading-actions {
       margin-left: 93px;
+      /* Plusieurs actions (export Excel, création, tutoriel) : sur leur propre ligne si besoin,
+         puis à la ligne entre elles, sans jamais déborder de l'écran. */
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: calc(100% - 93px);
     }
     .workspace .topbar-date {
       display: none;

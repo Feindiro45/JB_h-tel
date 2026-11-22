@@ -20,13 +20,7 @@ import {
   paymentsKey,
   reservationPaymentsQuery,
 } from '../cashier'
-import {
-  CreditNoteDialog,
-  invoicePdfUrl,
-  invoicesKey,
-  issueInvoice,
-  reservationInvoicesQuery,
-} from '../invoices'
+import { CreditNoteDialog, invoicesKey, issueInvoice, reservationInvoicesQuery } from '../invoices'
 import {
   cancelReservation,
   checkIn,
@@ -527,17 +521,6 @@ function ReservationDetail({
                           </td>
                           <td className="num">{formatFcfa(invoice.net_fcfa)}</td>
                           <td className="num">
-                            {!isLocalId(invoice.id) && (
-                              <a
-                                className="text-button"
-                                href={invoicePdfUrl(invoice.id)}
-                                target="_blank"
-                                rel="noopener"
-                              >
-                                <Icon name="download" size={17} />
-                                PDF A4 ↗
-                              </a>
-                            )}
                             <Link
                               className="text-button"
                               to={`/documents/factures/${invoice.id}/ticket`}

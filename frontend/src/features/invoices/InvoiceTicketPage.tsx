@@ -24,7 +24,8 @@ import { isProvisionalInvoice } from './offlineInvoice'
  * Ticket 80 mm d'une facture ou d'un avoir (D-061), construit uniquement depuis l'instantané
  * figé : réimprimer donne toujours les montants de l'émission, jamais les tarifs actuels. Aucune
  * ligne de taxe n'est ajoutée : l'instantané n'en contient pas (règles fiscales en RCA à valider,
- * Q-09 et Q-16). Le PDF A4 avec QR de vérification reste le document de référence.
+ * Q-09 et Q-16). Le ticket est le seul format de la facture (D-065) : il porte le QR code de
+ * vérification publique, comme le ticket envoyé au client par e-mail.
  */
 export function InvoiceTicketPage() {
   const { id = '' } = useParams()
@@ -101,10 +102,19 @@ export function InvoiceTicketPage() {
                   foi.
                 </p>
               ) : (
-                <p className="ticket-note">
-                  Document de référence : {isCredit ? 'avoir' : 'facture'} A4 avec QR code de
-                  vérification.
-                </p>
+                inv.verification_qr && (
+                  <>
+                    <img
+                      className="ticket-qr"
+                      src={inv.verification_qr}
+                      alt={`QR code de vérification de ${isCredit ? 'l’avoir' : 'la facture'}`}
+                    />
+                    <p className="ticket-note">
+                      <strong>Vérifier ce document</strong> : scannez le QR code ou ouvrez
+                    </p>
+                    <p className="ticket-url">{inv.verification_url}</p>
+                  </>
+                )
               )}
               {!isCredit && <p>Merci pour votre séjour !</p>}
               <p className="ticket-note">Édité le {formatNumericDateTime(editedAt)}</p>

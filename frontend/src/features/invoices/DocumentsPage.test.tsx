@@ -103,10 +103,12 @@ describe('Factures et reçus', () => {
     const credit = screen.getByRole('row', { name: /AV-2026-000001/ })
     expect(normalize(credit.textContent)).toContain('annule la facture FAC-2026-000002')
     expect(normalize(credit.textContent)).toContain('− 30 000 FCFA')
-    expect(screen.getByRole('link', { name: /PDF de facture FAC-2026-000001/ })).toHaveAttribute(
-      'href',
-      'http://localhost:8000/api/v1/invoices/inv-1/pdf',
-    )
+    // D-065 : ni PDF A4 ni impression de page, le ticket 80 mm seulement.
+    expect(
+      screen.getByRole('link', { name: 'Ticket 80 mm de facture FAC-2026-000001' }),
+    ).toHaveAttribute('href', '/documents/factures/inv-1/ticket')
+    expect(screen.queryByRole('link', { name: /PDF/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Imprimer/ })).toBeNull()
     // La caissière ne peut pas émettre d'avoir.
     expect(screen.queryByRole('button', { name: /Émettre un avoir/ })).not.toBeInTheDocument()
   })
@@ -143,7 +145,9 @@ describe('Factures et reçus', () => {
     expect(receiptsTab).toHaveAttribute('aria-selected', 'true')
     expect(receiptsTab).toHaveFocus()
     expect(router.state.location.search).toBe('?onglet=recus')
-    expect(await screen.findByRole('link', { name: 'Reçu REC-2026-000001' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: 'Ticket 80 mm du reçu REC-2026-000001' }),
+    ).toBeInTheDocument()
     await waitFor(() => expect(calls.some((call) => call.path === '/api/v1/payments')).toBe(true))
   })
 })

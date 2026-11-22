@@ -112,8 +112,8 @@ final class StayMessageFactory
         }
 
         $lines = $document->isCreditNote
-            ? ["Veuillez trouver ci-joint l’avoir {$document->number}, qui annule la facture {$document->creditedNumber}."]
-            : ['Veuillez trouver ci-joint votre facture.'];
+            ? ["Veuillez trouver ci-joint le ticket de l’avoir {$document->number}, qui annule la facture {$document->creditedNumber}."]
+            : ['Veuillez trouver ci-joint le ticket de votre facture.'];
         $lines[] = 'Vous pouvez vérifier son authenticité à tout moment en scannant le QR code qui y figure.';
 
         return new StayMessage(
@@ -128,7 +128,7 @@ final class StayMessageFactory
             ],
             'Vérifier ce document',
             $document->verificationUrl,
-            [['name' => "{$document->number}.pdf", 'data' => $document->pdf(...), 'mime' => 'application/pdf']],
+            [['name' => "ticket-{$document->number}.pdf", 'data' => $document->pdf(...), 'mime' => 'application/pdf']],
         );
     }
 

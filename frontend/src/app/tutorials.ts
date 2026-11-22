@@ -206,9 +206,9 @@ export const TUTORIALS: Record<string, Tutorial> = {
         tip: 'Une avance de 20 000 sur 50 000 laisse un solde de 30 000.',
       },
       {
-        title: 'Reçu et ticket 80 mm',
+        title: 'Ticket 80 mm',
         icon: 'print',
-        body: 'Sur chaque ligne : « Reçu » (format A4) ou « Ticket » (imprimante thermique, 80 ou 58 mm). Réimprimer ne crée aucune opération.',
+        body: 'Sur chaque ligne, « Ticket » imprime le reçu sur l’imprimante thermique (80 ou 58 mm). Réimprimer ne crée aucune opération.',
       },
       {
         title: 'Corriger une saisie',
@@ -227,12 +227,10 @@ export const TUTORIALS: Record<string, Tutorial> = {
         body: 'Une facture est figée à son émission : numéro unique et montants enregistrés. Elle ne se modifie jamais.',
       },
       {
-        title: 'Imprimer ou vérifier',
+        title: 'Ticket et vérification',
         icon: 'print',
-        body: 'Ouvrez le PDF A4 avec son QR code de vérification, ou imprimez le ticket 80 mm.',
-        points: [
-          'Le lien « Vérification » permet au client de contrôler l’authenticité de la facture.',
-        ],
+        body: 'Imprimez le ticket 80 mm : il porte le QR code de vérification. Le client reçoit le même ticket par e-mail.',
+        points: ['En scannant le QR code, le client contrôle l’authenticité de la facture.'],
       },
       {
         title: 'Corriger par un avoir',
@@ -242,7 +240,7 @@ export const TUTORIALS: Record<string, Tutorial> = {
       {
         title: 'Reçus',
         icon: 'cash',
-        body: 'L’onglet « Reçus » liste chaque versement, avec son reçu A4 et son ticket.',
+        body: 'L’onglet « Reçus » liste chaque versement, avec son ticket 80 mm.',
       },
     ],
   },

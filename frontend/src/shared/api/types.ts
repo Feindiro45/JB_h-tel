@@ -377,6 +377,8 @@ export interface InvoiceSnapshot {
 
 export interface InvoiceDetail extends InvoiceSummary {
   snapshot: InvoiceSnapshot
+  /** QR code de vérification (PNG en `data:`), imprimé sur le ticket (D-065). */
+  verification_qr?: string
 }
 
 export interface InvoiceRow extends InvoiceSummary {

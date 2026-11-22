@@ -1,3 +1,6 @@
+import { invoicesOfflineWorkbook } from './exportOffline'
+import { exportQuery } from '../../shared/export/exportQuery'
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
 import { useQuery } from '@tanstack/react-query'
@@ -12,12 +15,12 @@ import { Pagination } from '../../shared/ui/Pagination'
 import { formatDay, formatFcfa, formatSignedFcfa, formatTime } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
 import { ReceiptsPanel } from '../cashier'
-import { invoicePdfUrl, invoicesListQuery, type InvoiceFilters } from './api'
+import { invoicesListQuery, type InvoiceFilters } from './api'
 import { CreditNoteDialog } from './CreditNoteDialog'
 
 type Tab = 'factures' | 'recus'
 
-/** Factures, avoirs et reçus : consultation, PDF A4, vérification et avoir motivé. */
+/** Factures, avoirs et reçus : consultation, ticket 80 mm avec QR de vérification (D-065) et avoir motivé. */
 export function DocumentsPage() {
   const { can } = useCurrentUser()
   const [params, setParams] = useSearchParams()
@@ -208,10 +211,12 @@ function InvoicesPanel({
         <Panel
           title={`Liste des factures et avoirs${list.data?.meta ? ` (${list.data.meta.total})` : ''}`}
           action={
-            <button type="button" className="secondary" onClick={() => window.print()}>
-              <Icon name="print" size={18} />
-              Imprimer
-            </button>
+            <ExportButton
+              path="/api/v1/invoices/export"
+              module="factures"
+              query={exportQuery(filters)}
+              offline={(client) => invoicesOfflineWorkbook(client, filters)}
+            />
           }
         >
           {list.isPending ? (
@@ -300,16 +305,6 @@ function InvoicesPanel({
                           {formatSignedFcfa(isCredit ? -invoice.net_fcfa : invoice.net_fcfa)}
                         </td>
                         <td className="num compact-actions">
-                          <a
-                            className="text-button"
-                            href={invoicePdfUrl(invoice.id)}
-                            target="_blank"
-                            rel="noopener"
-                            aria-label={`PDF de ${invoice.type_label.toLowerCase()} ${invoice.number} (nouvel onglet)`}
-                          >
-                            <Icon name="download" size={15} />
-                            PDF
-                          </a>
                           <Link
                             className="text-button"
                             to={`/documents/factures/${invoice.id}/ticket`}

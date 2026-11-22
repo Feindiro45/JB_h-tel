@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Customers\Http\Controllers\CustomerController;
+use App\Modules\Customers\Http\Controllers\CustomerExportController;
 use App\Modules\Identity\Domain\PermissionName;
 use Illuminate\Support\Facades\Route;
 
@@ -9,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('authenticated')->group(function (): void {
     Route::middleware('permission:'.PermissionName::CustomersView->value)->group(function (): void {
         Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+        Route::get('customers/export', CustomerExportController::class)->name('customers.export');
         Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
     });
 

@@ -1,3 +1,5 @@
+import { cashOfflineWorkbook } from './exportOffline'
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { Icon } from '../../shared/ui/Icon'
 import { useQuery } from '@tanstack/react-query'
@@ -87,10 +89,18 @@ export function CashierPage() {
         title="Caisse"
         description={`Mouvements de caisse ${periodLabel(appliedPeriod.from, appliedPeriod.to)}.`}
         actions={
-          <button type="button" className="secondary" onClick={() => window.print()}>
-            <Icon name="print" size={17} />
-            Imprimer le journal
-          </button>
+          <ExportButton
+            path="/api/v1/cash-journal/export"
+            module="caisse"
+            query={{ from: appliedPeriod.from, to: appliedPeriod.to, agent_id: agentId }}
+            offline={(client) =>
+              cashOfflineWorkbook(client, {
+                ...appliedPeriod,
+                agentId,
+                agentName: agents.data?.find((a) => a.id === agentId)?.name,
+              })
+            }
+          />
         }
       />
 

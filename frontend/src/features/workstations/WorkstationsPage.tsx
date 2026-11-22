@@ -1,3 +1,4 @@
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toUserError } from '../../shared/api/errors'
@@ -90,6 +91,7 @@ export function WorkstationsPage() {
         eyebrow="Administration"
         title="Postes de caisse"
         description="Un seul poste principal enregistre les réservations et les encaissements (D-062)."
+        actions={<ExportButton path="/api/v1/workstations/export" module="postes" />}
       />
       <PageOverview
         items={[

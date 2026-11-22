@@ -243,7 +243,7 @@ describe('Actions hors ligne, suite (lot 4, 4.13)', () => {
       await screen.findByText(/Facture provisoire FAC-LOC-.* gardée sur ce poste/),
     ).toBeVisible()
 
-    // Ni PDF A4 ni vérification pour une facture provisoire : le ticket 80 mm seulement.
+    // Ni PDF ni vérification pour une facture provisoire : le ticket 80 mm seulement.
     const invoices = screen.getByRole('region', { name: /Factures/ })
     expect(within(invoices).queryByText('PDF A4 ↗')).toBeNull()
     expect(within(invoices).queryByText('Vérification ↗')).toBeNull()
