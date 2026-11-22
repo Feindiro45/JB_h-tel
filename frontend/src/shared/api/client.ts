@@ -18,7 +18,8 @@ export interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
-  const url = new URL(path.startsWith('/') ? path : `/${path}`, `${config.apiUrl}/`)
+  // Un chemin commencant par / effacerait le dossier de deploiement de l'API.
+  const url = new URL(path.replace(/^\/+/, ''), `${config.apiUrl}/`)
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== null && value !== undefined && value !== '')
       url.searchParams.set(key, String(value))

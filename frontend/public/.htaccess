@@ -1,0 +1,20 @@
+# Frontend sur https://banguiweb-tech.com : a placer dans /htdocs/.htaccess.
+# Application React : les routes sont gerees par le navigateur.
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Laisser /backend et ses routes a Laravel, y compris les chemins absents du disque.
+    # [L] laisse le .htaccess du dossier backend s'executer ensuite.
+    RewriteRule ^backend(?:/|$) - [L]
+
+    # Le repli React ne concerne que le domaine du frontend, jamais le sous-domaine API.
+    RewriteCond %{HTTP_HOST} ^banguiweb-tech\.com(?::[0-9]+)?$ [NC]
+
+    # Conserver les vrais fichiers (assets, favicon...) et les dossiers existants.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ /index.html [END]
+</IfModule>
