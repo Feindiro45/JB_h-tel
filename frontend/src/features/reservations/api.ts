@@ -9,16 +9,21 @@ import {
 } from '../../shared/offline/essentials'
 import { isLocalId, localQuery } from '../../shared/offline/localRefs'
 import { runOrQueue } from '../../shared/offline/offlineWrite'
+import { OUTBOX_QUERY_KEY, type QueuedOperation } from '../../shared/offline/outbox'
 import { getQueryClientRef } from '../../shared/offline/queryClientRef'
 import { addDays, formatDay, todayIso } from '../../shared/utils/format'
 import { reservationPaymentsQuery } from '../cashier'
 import { roomsQuery } from '../catalog'
+import { reservationInvoicesQuery } from '../invoices'
 import {
+  belowCollectedError,
+  conflictsFor,
   emptySummary,
   hotelIso,
   keptCustomer,
   localExtensionPreview,
   localFreeRooms,
+  localModificationPreview,
   localQuote,
   PENDING_SUFFIX,
   provisionalStay,
@@ -26,6 +31,8 @@ import {
 } from './offlineBooking'
 import type {
   AccountSummary,
+  CurrentUser,
+  InvoiceSummary,
   Room,
   Envelope,
   ExtensionPreview,
@@ -241,10 +248,53 @@ export const createReservation = async (input: ReservationInput, idempotencyKey?
   })
 }
 
-const action = (path: string) => async (id: string, body?: unknown) =>
-  (await api.post<Envelope<Reservation>>(`/api/v1/reservations/${id}/${path}`, body)).data
-
-export const confirmReservation = action('confirm')
+/**
+ * Confirmation « comme en ligne » (lot 4, 4.13) : hors ligne, le poste revérifie que la chambre
+ * reste libre (la réservation elle-même exclue) ; le serveur refait la vérification à l'envoi.
+ */
+export const confirmReservation = (id: string) =>
+  runOrQueue<Reservation>({
+    kind: 'reservation.confirm',
+    label: `Confirmation — ${describeStay(id)}`,
+    path: `/api/v1/reservations/${id}/confirm`,
+    body: undefined,
+    validate: (client) => {
+      const stay = keptStay(client, id)
+      if (stay.status !== 'PENDING') {
+        throw new ApiError(
+          409,
+          'Opération impossible',
+          `La réservation est « ${stay.status_label} » : seule une réservation en attente peut être confirmée.`,
+          {},
+          'invalid_status',
+        )
+      }
+      const taken = stay.room
+        ? conflictsFor(
+            client,
+            stay.room.id,
+            Date.parse(stay.period.blocked_from),
+            Date.parse(stay.period.blocked_until),
+            stay.id,
+          )
+        : []
+      if (taken.length > 0) {
+        throw new ApiError(
+          409,
+          'Chambre indisponible',
+          `La chambre ${stay.room!.number} est déjà réservée sur cette période d’après les données de ce poste.`,
+          {},
+          'room_unavailable',
+        )
+      }
+    },
+    provisional: (_operation, client) =>
+      updateStay(client, id, (stay) => ({
+        ...stay,
+        status: 'CONFIRMED',
+        status_label: 'Confirmée',
+      })),
+  })
 
 /** « chambre 101 · NGUEMA Paul », d'après la fiche gardée sur le poste (libellé de la file d'attente). */
 export function describeStay(id: string): string {
@@ -360,11 +410,65 @@ export const cancelReservation = (id: string, input: CancellationInput) =>
     },
   })
 
-export const replaceOccupants = async (
-  id: string,
-  occupants: { name: string; is_primary?: boolean }[],
-) =>
-  (await api.put<Envelope<Reservation>>(`/api/v1/reservations/${id}/occupants`, { occupants })).data
+/** Occupants « comme en ligne » (lot 4, 4.13) : capacité de la chambre vérifiée sur le poste. */
+export const replaceOccupants = (id: string, occupants: { name: string; is_primary?: boolean }[]) =>
+  runOrQueue<Reservation>({
+    kind: 'reservation.occupants',
+    method: 'PUT',
+    label: `Occupants (${occupants.length}) — ${describeStay(id)}`,
+    path: `/api/v1/reservations/${id}/occupants`,
+    body: { occupants },
+    validate: (client) => {
+      const room = keptStay(client, id).room
+      if (room && occupants.length > room.capacity) {
+        throw new ApiError(
+          422,
+          'Capacité dépassée',
+          `La chambre ${room.number} accepte au maximum ${room.capacity} occupant(s) : ${occupants.length} ont été saisis.`,
+          {},
+          'capacity_exceeded',
+        )
+      }
+    },
+    provisional: (operation, client) =>
+      updateStay(client, id, (stay) => ({
+        ...stay,
+        occupants: occupants.map((occupant, index) => ({
+          id: `${operation.localId}-occupant-${index}`,
+          name: occupant.name,
+          is_primary: Boolean(occupant.is_primary),
+        })),
+      })),
+  })
+
+/** Situation de caisse après un changement du montant dû (même règle que le serveur). */
+function withAmountDue(summary: AccountSummary, due: number): AccountSummary {
+  const balance = due - summary.net_paid_fcfa
+  const status: AccountSummary['status'] =
+    balance < 0
+      ? 'TO_REFUND'
+      : due === 0
+        ? 'NOTHING_DUE'
+        : balance === 0
+          ? 'PAID'
+          : summary.net_paid_fcfa > 0
+            ? 'PARTIALLY_PAID'
+            : 'UNPAID'
+  const labels: Record<AccountSummary['status'], string> = {
+    TO_REFUND: 'À rembourser',
+    NOTHING_DUE: 'Rien à payer',
+    UNPAID: 'Non payé',
+    PARTIALLY_PAID: 'Partiellement payé',
+    PAID: 'Soldé',
+  }
+  return {
+    ...summary,
+    amount_due_fcfa: due,
+    balance_fcfa: balance,
+    status,
+    status_label: labels[status],
+  }
+}
 
 function keptStay(client: QueryClient, id: string): Reservation {
   const stay = client.getQueryData<Reservation>(reservationKeys.detail(id))
@@ -428,18 +532,7 @@ export async function extendReservation(id: string, input: ExtensionInput) {
     },
     provisional: (_operation, client) => {
       const next = preview!
-      updateSummary(client, id, (summary) => ({
-        ...summary,
-        amount_due_fcfa: summary.amount_due_fcfa + next.supplement_fcfa,
-        balance_fcfa: summary.balance_fcfa + next.supplement_fcfa,
-        status: summary.balance_fcfa + next.supplement_fcfa > 0 ? 'PARTIALLY_PAID' : summary.status,
-        status_label:
-          summary.balance_fcfa + next.supplement_fcfa > 0
-            ? summary.net_paid_fcfa > 0
-              ? 'Partiellement payé'
-              : 'Non payé'
-            : summary.status_label,
-      }))
+      updateSummary(client, id, (summary) => withAmountDue(summary, next.proposed_price.net_fcfa))
       const reservation = updateStay(client, id, (stay) => ({
         ...stay,
         period: {
@@ -472,22 +565,107 @@ export interface ModificationInput {
   reason?: string
 }
 
-export const previewModification = async (id: string, input: ModificationInput) =>
-  (
-    await api.post<Envelope<Quote & { current_net_fcfa: number }>>(
-      `/api/v1/reservations/${id}/modification/preview`,
-      input,
-    )
-  ).data
-
-export async function modifyReservation(id: string, input: ModificationInput) {
-  const response = await api.post<
-    Envelope<Reservation> & { meta?: { replacement_invoice_number: string | null } }
-  >(`/api/v1/reservations/${id}/modification`, input)
+/** Facture active, droit d'avoir, prolongation déjà faite : conditions de la modification (D-058). */
+function modificationContext(client: QueryClient, id: string) {
+  const invoices =
+    client.getQueryData<InvoiceSummary[]>(reservationInvoicesQuery(id).queryKey) ?? []
+  const me = client.getQueryData<CurrentUser | null>(['auth', 'me'])
+  const history = client.getQueryData<HistoryEntry[]>(reservationKeys.history(id)) ?? []
+  const outbox = client.getQueryData<QueuedOperation[]>(OUTBOX_QUERY_KEY) ?? []
   return {
-    reservation: response.data,
-    replacementInvoiceNumber: response.meta?.replacement_invoice_number ?? null,
+    invoiced: invoices.some((invoice) => invoice.type === 'INVOICE' && invoice.status === 'ISSUED'),
+    canCreditInvoices: Boolean(me?.permissions.includes('invoices.credit')),
+    extended:
+      history.some((entry) => entry.action === 'reservation.extended') ||
+      outbox.some(
+        (operation) =>
+          operation.kind === 'reservation.extend' &&
+          operation.status !== 'abandoned' &&
+          operation.path.includes(`/reservations/${id}/`),
+      ),
   }
+}
+
+export const previewModification = (id: string, input: ModificationInput) =>
+  serverOrLocal(
+    async () =>
+      (
+        await api.post<Envelope<Quote & { current_net_fcfa: number }>>(
+          `/api/v1/reservations/${id}/modification/preview`,
+          input,
+        )
+      ).data,
+    (client) =>
+      localModificationPreview(
+        client,
+        keptStay(client, id),
+        input,
+        modificationContext(client, id),
+      ),
+    isLocalId(id),
+  )
+
+/**
+ * Modification « comme en ligne » (D-058, lot 4, 4.13) : hors ligne, le poste recalcule le prix au
+ * tarif en vigueur (même remise), vérifie la chambre et le montant déjà encaissé. Si le séjour
+ * était facturé, le serveur remplace la facture à l'envoi.
+ */
+export async function modifyReservation(id: string, input: ModificationInput) {
+  let quote: (Quote & { current_net_fcfa: number }) | null = null
+  return runOrQueue<{ reservation: Reservation; replacementInvoiceNumber: string | null }>({
+    kind: 'reservation.modify',
+    label: `Modification — ${describeStay(id)}`,
+    path: `/api/v1/reservations/${id}/modification`,
+    body: input,
+    read: (response) => {
+      const body = response as Envelope<Reservation> & {
+        meta?: { replacement_invoice_number: string | null }
+      }
+      return {
+        reservation: body.data,
+        replacementInvoiceNumber: body.meta?.replacement_invoice_number ?? null,
+      }
+    },
+    validate: (client) => {
+      const preview = localModificationPreview(
+        client,
+        keptStay(client, id),
+        input,
+        modificationContext(client, id),
+      )
+      if (!preview.available) throw roomTakenError(preview)
+      const collected =
+        client.getQueryData<{ summary: AccountSummary }>(reservationPaymentsQuery(id).queryKey)
+          ?.summary.net_paid_fcfa ?? 0
+      if (preview.price.net_fcfa < collected) {
+        throw belowCollectedError(preview.price.net_fcfa, collected)
+      }
+      quote = preview
+    },
+    provisional: (_operation, client) => {
+      const next = quote!
+      const { billing_unit, billing_unit_label, rate_effective_from: _from, ...price } = next.price
+      updateSummary(client, id, (summary) => withAmountDue(summary, price.net_fcfa))
+      const reservation = updateStay(client, id, (stay) => ({
+        ...stay,
+        room: next.room,
+        period: {
+          start_date: input.start_date,
+          end_date: input.end_date,
+          start_time: input.start_time,
+          end_time: input.end_time,
+          ...next.period,
+        },
+        price: {
+          billing_unit: billing_unit as 'DAY' | 'HALF_DAY',
+          billing_unit_label,
+          amount_due_fcfa: price.net_fcfa,
+          ...price,
+        },
+      }))
+      return { reservation, replacementInvoiceNumber: null }
+    },
+  })
 }
 
 // Gardés pour le travail sans réseau (lot 2) : clés identiques à celles des écrans par défaut.

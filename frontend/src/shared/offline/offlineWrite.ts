@@ -25,6 +25,10 @@ export interface OfflineWrite<T> {
   idempotencyKey?: string
   /** Numéro provisoire à imprimer (encaissement hors ligne, N-03). */
   numbered?: boolean
+  /** Préfixe du numéro provisoire : `FAC-` pour une facture (FAC-LOC-…, décision du 22/11/2026). */
+  numberPrefix?: string
+  /** Méthode HTTP (POST par défaut ; PUT pour remplacer les occupants). */
+  method?: 'POST' | 'PUT'
   /** Réponse du serveur → résultat ; par défaut le contenu de l'enveloppe `data`. */
   read?: (response: unknown) => T
   /**
@@ -54,7 +58,7 @@ export async function runOrQueue<T>(write: OfflineWrite<T>): Promise<T> {
       try {
         return read(
           await apiRequest<unknown>(resolution.path, {
-            method: 'POST',
+            method: write.method ?? 'POST',
             body: resolution.body,
             idempotencyKey,
           }),
@@ -79,7 +83,7 @@ export async function runOrQueue<T>(write: OfflineWrite<T>): Promise<T> {
     id: idempotencyKey,
     kind: write.kind,
     label: write.label,
-    method: 'POST',
+    method: write.method ?? 'POST',
     path: write.path,
     body: write.body,
     createdAt: Date.now(),
@@ -89,7 +93,9 @@ export async function runOrQueue<T>(write: OfflineWrite<T>): Promise<T> {
     attempts: 0,
     lastAttemptAt: null,
     error: null,
-    provisionalNumber: write.numbered ? await nextProvisionalNumber(station?.name ?? null) : null,
+    provisionalNumber: write.numbered
+      ? `${write.numberPrefix ?? ''}${await nextProvisionalNumber(station?.name ?? null)}`
+      : null,
     definitiveNumber: null,
     localId: localIdFor(idempotencyKey),
     abandonReason: null,

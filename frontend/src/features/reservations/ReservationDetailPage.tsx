@@ -143,17 +143,19 @@ function ReservationDetail({
       if (kind === 'confirm') await confirmReservation(r.id)
       if (kind === 'check-in') await checkIn(r.id)
       if (kind === 'check-out') await checkOut(r.id)
-      if (kind === 'invoice') await issueInvoice(r.id)
-      return kind
+      const invoice = kind === 'invoice' ? await issueInvoice(r.id) : null
+      return { kind, invoice }
     },
-    onSuccess: (kind) =>
+    onSuccess: ({ kind, invoice }) =>
       done(
-        {
-          confirm: 'Réservation confirmée',
-          'check-in': 'Arrivée enregistrée',
-          'check-out': 'Départ enregistré',
-          invoice: 'Facture émise',
-        }[kind],
+        invoice && isLocalId(invoice.id)
+          ? `Facture provisoire ${invoice.number} gardée sur ce poste — numéro définitif au retour du réseau`
+          : {
+              confirm: 'Réservation confirmée',
+              'check-in': 'Arrivée enregistrée',
+              'check-out': 'Départ enregistré',
+              invoice: 'Facture émise',
+            }[kind],
       ),
   })
   const cancel = useMutation({
@@ -206,9 +208,8 @@ function ReservationDetail({
         <p className="notice notice--info departure-warning" role="status">
           <Icon name="upload" size={21} />
           <span>
-            <strong>Gardée sur ce poste, pas encore reçue par le serveur.</strong> Encaissement,
-            arrivée, départ, prolongation et annulation restent possibles ; tout part au retour du
-            réseau.
+            <strong>Gardée sur ce poste, pas encore reçue par le serveur.</strong> Toutes les
+            actions restent possibles, sauf la suppression ; tout part au retour du réseau.
           </span>
         </p>
       ) : null}
@@ -276,7 +277,7 @@ function ReservationDetail({
           <Icon name="back" size={17} />
           <span className="sr-only">←</span> Réservations
         </Link>
-        {r.status === 'PENDING' && can('reservations.update') && !local && (
+        {r.status === 'PENDING' && can('reservations.update') && (
           <button type="button" className="primary" onClick={() => setDialog('confirm')}>
             <Icon name="check" size={17} />
             Confirmer la réservation
@@ -307,15 +308,13 @@ function ReservationDetail({
               <Icon name="clock" size={17} />
               Prolonger
             </button>
-            {!local && (
-              <button type="button" className="secondary" onClick={() => setDialog('occupants')}>
-                <Icon name="edit" size={17} />
-                Modifier les occupants
-              </button>
-            )}
+            <button type="button" className="secondary" onClick={() => setDialog('occupants')}>
+              <Icon name="edit" size={17} />
+              Modifier les occupants
+            </button>
           </>
         )}
-        {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.update') && !local && (
+        {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.update') && (
           <button type="button" className="secondary" onClick={() => setDialog('modify')}>
             <Icon name="calendar" size={17} />
             Modifier la réservation
@@ -332,7 +331,6 @@ function ReservationDetail({
           )}
         {!['PENDING', 'CANCELLED'].includes(r.status) &&
           !hasActiveInvoice &&
-          !local &&
           can('invoices.issue') && (
             <button type="button" className="secondary" onClick={() => setDialog('invoice')}>
               <Icon name="document" size={17} />
@@ -529,15 +527,17 @@ function ReservationDetail({
                           </td>
                           <td className="num">{formatFcfa(invoice.net_fcfa)}</td>
                           <td className="num">
-                            <a
-                              className="text-button"
-                              href={invoicePdfUrl(invoice.id)}
-                              target="_blank"
-                              rel="noopener"
-                            >
-                              <Icon name="download" size={17} />
-                              PDF A4 ↗
-                            </a>
+                            {!isLocalId(invoice.id) && (
+                              <a
+                                className="text-button"
+                                href={invoicePdfUrl(invoice.id)}
+                                target="_blank"
+                                rel="noopener"
+                              >
+                                <Icon name="download" size={17} />
+                                PDF A4 ↗
+                              </a>
+                            )}
                             <Link
                               className="text-button"
                               to={`/documents/factures/${invoice.id}/ticket`}
@@ -546,16 +546,19 @@ function ReservationDetail({
                               <Icon name="print" size={17} />
                               Ticket
                             </Link>
-                            <a
-                              className="text-button"
-                              href={invoice.verification_url}
-                              target="_blank"
-                              rel="noopener"
-                            >
-                              <Icon name="shield" size={17} />
-                              Vérification ↗
-                            </a>
+                            {!isLocalId(invoice.id) && (
+                              <a
+                                className="text-button"
+                                href={invoice.verification_url}
+                                target="_blank"
+                                rel="noopener"
+                              >
+                                <Icon name="shield" size={17} />
+                                Vérification ↗
+                              </a>
+                            )}
                             {invoice.type === 'INVOICE' &&
+                              !isLocalId(invoice.id) &&
                               invoice.status === 'ISSUED' &&
                               can('invoices.credit') && (
                                 <button

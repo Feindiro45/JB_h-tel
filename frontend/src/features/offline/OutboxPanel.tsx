@@ -137,7 +137,7 @@ export function OutboxPanel() {
                         </small>
                         {o.provisionalNumber && (
                           <small>
-                            Reçu {o.provisionalNumber}
+                            {o.kind === 'invoice.issue' ? 'Facture' : 'Reçu'} {o.provisionalNumber}
                             {o.definitiveNumber ? ` → ${o.definitiveNumber}` : ' (provisoire)'}
                           </small>
                         )}

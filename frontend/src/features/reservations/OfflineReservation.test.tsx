@@ -111,9 +111,10 @@ describe('Réservation hors ligne (lot 4, 4.5)', () => {
       await screen.findByText('Gardée sur ce poste, pas encore reçue par le serveur.'),
     ).toBeVisible()
     expect(screen.getByRole('heading', { name: 'NGUEMA Paul', level: 1 })).toBeVisible()
-    // Actions que le serveur seul peut faire : masquées tant que la réservation est locale.
-    expect(screen.queryByRole('button', { name: 'Émettre une facture' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Modifier la réservation' })).toBeNull()
+    // Tout reste possible sur la réservation locale (4.13), sauf la suppression.
+    expect(screen.getByRole('button', { name: 'Émettre une facture' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Modifier la réservation' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Supprimer' })).toBeNull()
 
     const [operation] = await readOutbox()
     expect(operation).toMatchObject({

@@ -317,7 +317,13 @@ export interface BookingInput {
 }
 
 /** Devis calculé sur le poste, de même forme que celui du serveur. */
-export function localQuote(client: QueryClient, input: BookingInput, now = Date.now()): Quote {
+export function localQuote(
+  client: QueryClient,
+  input: BookingInput,
+  now = Date.now(),
+  /** Réservation corrigée elle-même, exclue des conflits (modification D-058). */
+  exceptId: string | null = null,
+): Quote {
   const room = keptRooms(client).find((item) => item.id === input.room_id)
   if (!room) throw new ApiError(404, 'Chambre introuvable', 'La chambre demandée n’existe pas.')
   const interval = stayInterval(
@@ -366,7 +372,7 @@ export function localQuote(client: QueryClient, input: BookingInput, now = Date.
   }
   assertDuration(input.billing_unit, input.quantity, interval, rate.amount_fcfa)
   const price = computePrice(rate.amount_fcfa, input.quantity, input.discount)
-  const conflicts = conflictsFor(client, room.id, interval.from, interval.until, null, now)
+  const conflicts = conflictsFor(client, room.id, interval.from, interval.until, exceptId, now)
   return {
     room: roomBrief(room),
     period: view(interval),
@@ -413,6 +419,82 @@ export function localFreeRooms(
       state_label: 'Libre',
       reservations: [] as ReservationBrief[],
     }))
+}
+
+export interface ModificationRequest {
+  room_id: string
+  start_date: string
+  end_date: string
+  start_time: string | null
+  end_time: string | null
+  billing_unit: Unit
+  quantity: number
+}
+
+/**
+ * Correction avant le séjour (D-058), calculée sur le poste : réservation en attente ou confirmée,
+ * jamais prolongée, facturée seulement par un administrateur ; tarif en vigueur et même remise ;
+ * la réservation elle-même est exclue des conflits.
+ */
+export function localModificationPreview(
+  client: QueryClient,
+  stay: Reservation,
+  input: ModificationRequest,
+  context: { invoiced: boolean; canCreditInvoices: boolean; extended: boolean },
+  now = Date.now(),
+): Quote & { current_net_fcfa: number } {
+  if (!['PENDING', 'CONFIRMED'].includes(stay.status)) {
+    throw new ApiError(
+      409,
+      'Modification impossible',
+      'Seule une réservation en attente ou confirmée, dont le séjour n’a pas commencé, peut être modifiée. Pour un séjour en cours, utilisez la prolongation.',
+      {},
+      'reservation_not_modifiable',
+    )
+  }
+  if (context.extended) {
+    throw new ApiError(
+      409,
+      'Modification impossible',
+      'Cette réservation a déjà été prolongée : pour la corriger, annulez-la puis créez-en une nouvelle.',
+      {},
+      'reservation_extended',
+    )
+  }
+  if (context.invoiced && !context.canCreditInvoices) {
+    throw new ApiError(
+      403,
+      'Modification réservée',
+      'Cette réservation est déjà facturée : seul un administrateur peut la modifier. La facture sera alors remplacée par un avoir et une nouvelle facture.',
+      {},
+      'modification_requires_admin',
+    )
+  }
+  const quote = localQuote(
+    client,
+    {
+      ...input,
+      occupants: (stay.occupants ?? []).map((o) => ({ name: o.name, is_primary: o.is_primary })),
+      discount: stay.price.discount,
+    },
+    now,
+    stay.id,
+  )
+  return { ...quote, current_net_fcfa: stay.price.net_fcfa }
+}
+
+/** Le nouveau montant ne descend jamais sous ce qui est déjà encaissé (D-058). */
+export function belowCollectedError(net: number, collected: number): ApiError {
+  return new ApiError(
+    422,
+    'Modification impossible',
+    `Le nouveau montant (${formatFcfa(net)}) serait inférieur à ce qui est déjà encaissé (${formatFcfa(collected)}).`,
+    {},
+    'modification_below_collected',
+    [
+      'Faites d’abord rembourser la différence par un administrateur, ou choisissez une période plus longue.',
+    ],
+  )
 }
 
 export interface ExtensionRequest {

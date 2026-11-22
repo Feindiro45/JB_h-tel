@@ -43,9 +43,11 @@ export function forgetSentLocalItems(client: QueryClient, operations: QueuedOper
 
 /** Numéro définitif renvoyé par le serveur (reçu d'un encaissement). */
 function definitiveNumberOf(operation: QueuedOperation, response: unknown): string | null {
-  if (operation.kind !== 'payment.record') return null
-  const data = (response as { data?: { receipt_number?: string } } | null)?.data
-  return data?.receipt_number ?? null
+  const data = (response as { data?: { receipt_number?: string; number?: string } } | null)?.data
+  if (operation.kind === 'payment.record') return data?.receipt_number ?? null
+  // Facture émise hors ligne : FAC-LOC-… devient le numéro FAC définitif.
+  if (operation.kind === 'invoice.issue') return data?.number ?? null
+  return null
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   hotelIso,
   localExtensionPreview,
   localFreeRooms,
+  localModificationPreview,
   localQuote,
   rateAt,
   rateGridQuery,
@@ -273,5 +274,45 @@ describe('Réservation calculée sur le poste (lot 4, 4.5)', () => {
         NOW,
       ),
     ).toThrow(/calculé entre les dates de départ est de 2/)
+  })
+})
+
+describe('Modification sur le poste (D-058, 4.13)', () => {
+  const current = stay('m', 'r101', '2026-12-02T00:00:00+01:00', '2026-12-04T00:00:00+01:00')
+  const change = {
+    room_id: 'r101',
+    start_date: '2026-12-02',
+    end_date: '2026-12-04',
+    start_time: null,
+    end_time: null,
+    billing_unit: 'DAY' as const,
+    quantity: 2,
+  }
+  const free = { invoiced: false, canCreditInvoices: false, extended: false }
+
+  it('reprend les règles du serveur avant de calculer le nouveau prix', () => {
+    expect(localModificationPreview(hotel([current]), current, change, free, NOW)).toMatchObject({
+      available: true,
+      current_net_fcfa: 100000,
+      price: { net_fcfa: 100000 },
+    })
+    expect(() =>
+      localModificationPreview(hotel(), { ...current, status: 'IN_PROGRESS' }, change, free, NOW),
+    ).toThrow(/utilisez la prolongation/)
+    expect(() =>
+      localModificationPreview(hotel(), current, change, { ...free, extended: true }, NOW),
+    ).toThrow(/déjà été prolongée/)
+    expect(() =>
+      localModificationPreview(hotel(), current, change, { ...free, invoiced: true }, NOW),
+    ).toThrow(/seul un administrateur/)
+    expect(
+      localModificationPreview(
+        hotel(),
+        current,
+        change,
+        { ...free, invoiced: true, canCreditInvoices: true },
+        NOW,
+      ).available,
+    ).toBe(true)
   })
 })

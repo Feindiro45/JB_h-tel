@@ -18,6 +18,7 @@ import {
   formatStayMoment,
 } from '../../shared/utils/format'
 import { invoiceQuery } from './api'
+import { isProvisionalInvoice } from './offlineInvoice'
 
 /**
  * Ticket 80 mm d'une facture ou d'un avoir (D-061), construit uniquement depuis l'instantané
@@ -50,6 +51,8 @@ export function InvoiceTicketPage() {
 
   const s = inv.snapshot
   const isCredit = inv.type === 'CREDIT_NOTE'
+  // Facture émise hors ligne (FAC-LOC-…) : numéro provisoire, remplacé au retour du réseau.
+  const provisional = isProvisionalInvoice(inv.number)
   const reservationId = s.stay.reservation_uuid
   const methods = [...new Set(s.payments.lines.map((line) => line.method))]
 
@@ -76,7 +79,13 @@ export function InvoiceTicketPage() {
           label={`Ticket ${s.document.label.toLowerCase()} ${s.document.number}`}
           hotel={s.hotel}
           title={s.document.label}
-          stamp={!isCredit && inv.status === 'CREDITED' ? 'Annulée par avoir' : null}
+          stamp={
+            provisional
+              ? 'Provisoire'
+              : !isCredit && inv.status === 'CREDITED'
+                ? 'Annulée par avoir'
+                : null
+          }
           width={width}
           footer={
             <>
@@ -85,10 +94,18 @@ export function InvoiceTicketPage() {
                   ? 'Cet avoir corrige le document référencé ci-dessus. Il ne constitue pas un remboursement.'
                   : 'Document figé à sa date d’émission ; toute correction fait l’objet d’un avoir.'}
               </p>
-              <p className="ticket-note">
-                Document de référence : {isCredit ? 'avoir' : 'facture'} A4 avec QR code de
-                vérification.
-              </p>
+              {provisional ? (
+                <p className="ticket-note" role="note">
+                  Facture provisoire émise sans réseau : le serveur l’émet avec son numéro définitif
+                  (FAC) au retour du réseau. Réimprimez-la alors ; seule la facture définitive fait
+                  foi.
+                </p>
+              ) : (
+                <p className="ticket-note">
+                  Document de référence : {isCredit ? 'avoir' : 'facture'} A4 avec QR code de
+                  vérification.
+                </p>
+              )}
               {!isCredit && <p>Merci pour votre séjour !</p>}
               <p className="ticket-note">Édité le {formatNumericDateTime(editedAt)}</p>
             </>

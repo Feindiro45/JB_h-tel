@@ -4,6 +4,11 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Tout fonctionne hors ligne, fin du lot 4 (4.13, N-08) — 22/11/2026
+- Hors ligne : **confirmer** une réservation en attente, **changer les occupants**, **modifier** une réservation (mêmes règles qu’en ligne) et **émettre une facture provisoire** `FAC-LOC-…`, imprimable en ticket 80 mm marqué « Provisoire » ; le serveur lui donne son numéro FAC définitif au retour du réseau (décision N-08).
+- Sur une réservation créée hors ligne, toutes les actions sont possibles, sauf la suppression.
+- Tests : 186 tests frontend ; recette de production : 5 opérations faites hors ligne acceptées par le serveur, facture `FAC-LOC-… → FAC-…`.
+
 ### Réservation hors ligne (lot 4, 4.5) — 22/11/2026
 - Hors ligne, **nouvelle réservation** comme en ligne : chambres libres et prix calculés sur le poste avec les règles du serveur ; **nouveau client** et recherche parmi les clients gardés ; **prolongation** et **annulation**.
 - Un élément créé hors ligne peut déjà servir : encaisser une avance sur une réservation qui n’est pas encore sur le serveur. Au retour du réseau, tout part dans l’ordre, chaque élément reçoit son identifiant définitif et la fiche s’ouvre d’elle-même sur la version du serveur.

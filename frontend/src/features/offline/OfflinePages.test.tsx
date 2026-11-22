@@ -13,6 +13,8 @@ import { cashier, EMPTY_DASHBOARD, mockApi, renderApp } from '../../test/renderA
 
 const ACTIVITY_KEY = 'jb-hotel.last-activity'
 const PAGE = { current_page: 1, last_page: 1, total: 0, per_page: 25 }
+/** Chiffrement ou déchiffrement d’une sauvegarde (PBKDF2, 600 000 itérations) sous charge. */
+const CRYPTO_WAIT = 15_000
 const USER = cashier()
 
 function serve() {
@@ -283,84 +285,107 @@ describe('Opérations en attente et sauvegardes (lot 4)', () => {
     expect(screen.queryByRole('region', { name: 'Opérations faites hors ligne' })).toBeNull()
   })
 
-  it('montre l’état du poste en repères et camemberts, puis exporte une sauvegarde chiffrée', async () => {
-    await writeOperations([pendingPayment()])
-    const created = vi.fn((_blob: Blob) => 'blob:sauvegarde')
-    Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() })
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-    serve()
-    renderApp('/synchronisation')
-    const user = userEvent.setup()
+  it(
+    'montre l’état du poste en repères et camemberts, puis exporte une sauvegarde chiffrée',
+    { timeout: 30_000 },
+    async () => {
+      await writeOperations([pendingPayment()])
+      const created = vi.fn((_blob: Blob) => 'blob:sauvegarde')
+      Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() })
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      serve()
+      renderApp('/synchronisation')
+      const user = userEvent.setup()
 
-    const tiles = await screen.findByRole('region', { name: 'Vue d’ensemble' })
-    const tile = (label: string) => within(tiles).getByText(label).closest('article')!
-    await waitFor(() => expect(tile('Opérations à envoyer')).toHaveTextContent('1'))
-    await waitFor(() =>
-      expect(tile('Dernière sauvegarde')).toHaveTextContent('Sauvegarde conseillée'),
-    )
-    const operations = screen.getByRole('figure', { name: 'Opérations faites hors ligne par état' })
-    expect(within(operations).getByText('En attente').closest('li')).toHaveTextContent('1')
-    // Sans IndexedDB (environnement de test, navigation privée) : la carte le dit clairement.
-    expect(await screen.findByRole('region', { name: 'Stockage de ce poste' })).toHaveTextContent(
-      'Base indisponible',
-    )
-    expect(
-      await screen.findByRole('figure', {
-        name: 'Données disponibles sur ce poste comparées au serveur',
-      }),
-    ).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Tout télécharger' })).toBeEnabled()
+      const tiles = await screen.findByRole('region', { name: 'Vue d’ensemble' })
+      const tile = (label: string) => within(tiles).getByText(label).closest('article')!
+      await waitFor(() => expect(tile('Opérations à envoyer')).toHaveTextContent('1'))
+      await waitFor(() =>
+        expect(tile('Dernière sauvegarde')).toHaveTextContent('Sauvegarde conseillée'),
+      )
+      const operations = screen.getByRole('figure', {
+        name: 'Opérations faites hors ligne par état',
+      })
+      expect(within(operations).getByText('En attente').closest('li')).toHaveTextContent('1')
+      // Sans IndexedDB (environnement de test, navigation privée) : la carte le dit clairement.
+      expect(await screen.findByRole('region', { name: 'Stockage de ce poste' })).toHaveTextContent(
+        'Base indisponible',
+      )
+      expect(
+        await screen.findByRole('figure', {
+          name: 'Données disponibles sur ce poste comparées au serveur',
+        }),
+      ).toBeVisible()
+      expect(screen.getByRole('button', { name: 'Tout télécharger' })).toBeEnabled()
 
-    await user.click(screen.getByRole('button', { name: 'Exporter une sauvegarde' }))
-    const dialog = screen.getByRole('dialog', { name: 'Exporter une sauvegarde chiffrée' })
-    await user.type(within(dialog).getByLabelText('Mot de passe de la sauvegarde'), 'Coffre-2026')
-    await user.type(within(dialog).getByLabelText('Confirmer le mot de passe'), 'Autre-2026')
-    await user.click(within(dialog).getByRole('button', { name: 'Exporter' }))
-    expect(within(dialog).getByText('Les deux mots de passe diffèrent.')).toBeVisible()
+      await user.click(screen.getByRole('button', { name: 'Exporter une sauvegarde' }))
+      const dialog = screen.getByRole('dialog', { name: 'Exporter une sauvegarde chiffrée' })
+      await user.type(within(dialog).getByLabelText('Mot de passe de la sauvegarde'), 'Coffre-2026')
+      await user.type(within(dialog).getByLabelText('Confirmer le mot de passe'), 'Autre-2026')
+      await user.click(within(dialog).getByRole('button', { name: 'Exporter' }))
+      expect(within(dialog).getByText('Les deux mots de passe diffèrent.')).toBeVisible()
 
-    await user.clear(within(dialog).getByLabelText('Confirmer le mot de passe'))
-    await user.type(within(dialog).getByLabelText('Confirmer le mot de passe'), 'Coffre-2026')
-    await user.click(within(dialog).getByRole('button', { name: 'Exporter' }))
-    expect(
-      await screen.findByText(/Sauvegarde exportée : 1 opération\(s\), jb-hotel-sauvegarde-/),
-    ).toBeVisible()
-    expect(click).toHaveBeenCalledOnce()
-    const file = await (created.mock.calls[0]![0] as Blob).text()
-    expect(file).toContain('"format":"jb-hotel-sauvegarde"')
-    expect(file).not.toContain('NGUEMA')
-    // L’opération est sauvegardée : le rappel cesse.
-    await waitFor(() => expect(tile('Dernière sauvegarde')).toHaveTextContent('1 opération(s)'))
-    click.mockRestore()
-  })
+      await user.clear(within(dialog).getByLabelText('Confirmer le mot de passe'))
+      await user.type(within(dialog).getByLabelText('Confirmer le mot de passe'), 'Coffre-2026')
+      await user.click(within(dialog).getByRole('button', { name: 'Exporter' }))
+      // Chiffrement PBKDF2 (600 000 itérations) : lent sous la charge de la suite complète.
+      expect(
+        await screen.findByText(
+          /Sauvegarde exportée : 1 opération\(s\), jb-hotel-sauvegarde-/,
+          {},
+          { timeout: CRYPTO_WAIT },
+        ),
+      ).toBeVisible()
+      expect(click).toHaveBeenCalledOnce()
+      const file = await (created.mock.calls[0]![0] as Blob).text()
+      expect(file).toContain('"format":"jb-hotel-sauvegarde"')
+      expect(file).not.toContain('NGUEMA')
+      // L’opération est sauvegardée : le rappel cesse.
+      await waitFor(() => expect(tile('Dernière sauvegarde')).toHaveTextContent('1 opération(s)'))
+      click.mockRestore()
+    },
+  )
 
-  it('restaure une sauvegarde sur un autre poste sans créer de doublon', async () => {
-    await writeOperations([pendingPayment()])
-    const { content } = await createBackup('Coffre-2026', 'Caisse 01')
-    await writeOperations([])
-    serve()
-    renderApp('/synchronisation')
-    const user = userEvent.setup()
+  it(
+    'restaure une sauvegarde sur un autre poste sans créer de doublon',
+    { timeout: 30_000 },
+    async () => {
+      await writeOperations([pendingPayment()])
+      const { content } = await createBackup('Coffre-2026', 'Caisse 01')
+      await writeOperations([])
+      serve()
+      renderApp('/synchronisation')
+      const user = userEvent.setup()
 
-    await user.click(await screen.findByRole('button', { name: 'Restaurer une sauvegarde' }))
-    const dialog = screen.getByRole('dialog', { name: 'Restaurer une sauvegarde' })
-    await user.upload(
-      within(dialog).getByLabelText('Fichier de sauvegarde'),
-      new File([content], 'jb-hotel-sauvegarde.json', { type: 'application/json' }),
-    )
-    await user.type(within(dialog).getByLabelText('Mot de passe de la sauvegarde'), 'mauvais-mdp')
-    await user.click(within(dialog).getByRole('button', { name: 'Restaurer' }))
-    expect(
-      await within(dialog).findByText(
-        'Mot de passe incorrect, ou fichier modifié depuis l’export.',
-      ),
-    ).toBeVisible()
+      await user.click(await screen.findByRole('button', { name: 'Restaurer une sauvegarde' }))
+      const dialog = screen.getByRole('dialog', { name: 'Restaurer une sauvegarde' })
+      await user.upload(
+        within(dialog).getByLabelText('Fichier de sauvegarde'),
+        new File([content], 'jb-hotel-sauvegarde.json', { type: 'application/json' }),
+      )
+      await user.type(within(dialog).getByLabelText('Mot de passe de la sauvegarde'), 'mauvais-mdp')
+      await user.click(within(dialog).getByRole('button', { name: 'Restaurer' }))
+      expect(
+        await within(dialog).findByText(
+          'Mot de passe incorrect, ou fichier modifié depuis l’export.',
+          {},
+          { timeout: CRYPTO_WAIT },
+        ),
+      ).toBeVisible()
 
-    await user.clear(within(dialog).getByLabelText('Mot de passe de la sauvegarde'))
-    await user.type(within(dialog).getByLabelText('Mot de passe de la sauvegarde'), 'Coffre-2026')
-    await user.click(within(dialog).getByRole('button', { name: 'Restaurer' }))
-    expect(await screen.findByText(/restaurée : 1 opération\(s\) ajoutée\(s\)/)).toBeVisible()
-    expect((await readOutbox()).map((o) => o.label)).toEqual([pendingPayment().label])
-    const outbox = screen.getByRole('region', { name: 'Mettre à jour en ligne' })
-    expect(await within(outbox).findByText(pendingPayment().label)).toBeVisible()
-  })
+      await user.clear(within(dialog).getByLabelText('Mot de passe de la sauvegarde'))
+      await user.type(within(dialog).getByLabelText('Mot de passe de la sauvegarde'), 'Coffre-2026')
+      await user.click(within(dialog).getByRole('button', { name: 'Restaurer' }))
+      expect(
+        await screen.findByText(
+          /restaurée : 1 opération\(s\) ajoutée\(s\)/,
+          {},
+          { timeout: CRYPTO_WAIT },
+        ),
+      ).toBeVisible()
+      expect((await readOutbox()).map((o) => o.label)).toEqual([pendingPayment().label])
+      const outbox = screen.getByRole('region', { name: 'Mettre à jour en ligne' })
+      expect(await within(outbox).findByText(pendingPayment().label)).toBeVisible()
+    },
+  )
 })

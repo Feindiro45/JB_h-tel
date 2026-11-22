@@ -14,6 +14,10 @@ export type OperationKind =
   | 'reservation.create'
   | 'reservation.cancel'
   | 'reservation.extend'
+  | 'reservation.confirm'
+  | 'reservation.occupants'
+  | 'reservation.modify'
+  | 'invoice.issue'
 
 export type OperationStatus = 'pending' | 'accepted' | 'rejected' | 'abandoned'
 
@@ -23,7 +27,7 @@ export interface QueuedOperation {
   kind: OperationKind
   /** Description lisible (« Encaissement de 20 000 FCFA — chambre 101 »). */
   label: string
-  method: 'POST'
+  method: 'POST' | 'PUT'
   path: string
   body: unknown
   createdAt: number

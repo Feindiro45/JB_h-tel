@@ -1,6 +1,10 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { api, apiUrl } from '../../shared/api/client'
+import { ApiError } from '../../shared/api/errors'
 import { isLocalId, localQuery } from '../../shared/offline/localRefs'
+import { runOrQueue } from '../../shared/offline/offlineWrite'
+import { getQueryClientRef } from '../../shared/offline/queryClientRef'
+import { assertInvoiceable, PROVISIONAL_INVOICE_PREFIX, provisionalInvoice } from './offlineInvoice'
 import {
   registerOfflineEssential,
   registerOfflineCoverage,
@@ -13,6 +17,7 @@ import type {
   InvoiceSummary,
   InvoiceTotals,
   Paginated,
+  Reservation,
 } from '../../shared/api/types'
 
 export const invoicesKey = (reservationId: string) => ['invoices', reservationId] as const
@@ -32,10 +37,57 @@ export const reservationInvoicesQuery = (reservationId: string) =>
       : {}),
   })
 
+function keptStay(client: QueryClient, reservationId: string): Reservation {
+  const stay = client.getQueryData<Reservation>(['reservations', reservationId])
+  if (!stay) {
+    throw new ApiError(
+      409,
+      'Réservation absente de ce poste',
+      'Cette réservation n’est pas gardée sur ce poste : ouvrez sa fiche en ligne, ou faites « Tout télécharger pour le hors ligne ».',
+      {},
+      'offline_data_missing',
+    )
+  }
+  return stay
+}
+
+/**
+ * Émission « comme en ligne » (lot 4, 4.13) : hors ligne, facture provisoire `FAC-LOC-…`
+ * imprimable en ticket 80 mm ; le serveur l'émet avec son numéro FAC définitif à l'envoi.
+ */
 export async function issueInvoice(reservationId: string): Promise<InvoiceSummary> {
-  return (
-    await api.post<Envelope<InvoiceSummary>>(`/api/v1/reservations/${reservationId}/invoices`)
-  ).data
+  return runOrQueue<InvoiceSummary>({
+    kind: 'invoice.issue',
+    label: `Facture — ${describeReservation(reservationId)}`,
+    path: `/api/v1/reservations/${reservationId}/invoices`,
+    body: undefined,
+    numbered: true,
+    numberPrefix: PROVISIONAL_INVOICE_PREFIX,
+    validate: (client) =>
+      assertInvoiceable(
+        keptStay(client, reservationId),
+        client.getQueryData<InvoiceSummary[]>(invoicesKey(reservationId)) ?? [],
+      ),
+    provisional: (operation, client) => {
+      const invoice = provisionalInvoice(client, keptStay(client, reservationId), operation)
+      client.setQueryData(['invoices', 'detail', invoice.id], invoice)
+      const { snapshot: _snapshot, ...summary } = invoice
+      client.setQueryData<InvoiceSummary[]>(invoicesKey(reservationId), (old) => [
+        summary,
+        ...(old ?? []),
+      ])
+      return summary
+    },
+  })
+}
+
+/** « chambre 101 · NGUEMA Paul », d'après la fiche gardée sur le poste. */
+function describeReservation(reservationId: string): string {
+  const stay = getQueryClientRef()?.getQueryData<Reservation>(['reservations', reservationId])
+  if (!stay) return 'réservation'
+  return [stay.room && `chambre ${stay.room.number}`, stay.customer?.full_name]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 /** Facture ou avoir avec son instantané figé (`snapshot_json`), base du ticket 80 mm (D-061). */
@@ -44,6 +96,7 @@ export const invoiceQuery = (invoiceId: string) =>
     queryKey: ['invoices', 'detail', invoiceId],
     queryFn: async ({ signal }) =>
       (await api.get<Envelope<InvoiceDetail>>(`/api/v1/invoices/${invoiceId}`, { signal })).data,
+    ...(isLocalId(invoiceId) ? localQuery<InvoiceDetail>(['invoices', 'detail', invoiceId]) : {}),
   })
 
 /** PDF A4 généré par le serveur (source de vérité), ouvert dans un nouvel onglet. */
