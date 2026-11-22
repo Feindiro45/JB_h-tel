@@ -30,11 +30,38 @@ final class WorkstationController
         ], 201);
     }
 
+    /** Signal de présence, avec l'état hors ligne déclaré par le poste (lot 4A, facultatif). */
     public function heartbeat(Request $request): JsonResponse
     {
         $workstation = $this->fromHeader($request);
+        $validated = $request->validate([
+            'report' => ['sometimes', 'nullable', 'array'],
+            'report.pending_operations' => ['required_with:report', 'integer', 'min:0', 'max:1000000'],
+            'report.rejected_operations' => ['required_with:report', 'integer', 'min:0', 'max:1000000'],
+            'report.oldest_pending_at' => ['nullable', 'date'],
+            'report.last_sync_at' => ['nullable', 'date'],
+            'report.last_sync_status' => ['nullable', 'in:success,partial,failure'],
+            'report.last_backup_at' => ['nullable', 'date'],
+            'report.storage_persisted' => ['nullable', 'boolean'],
+        ], [], ['report' => 'état du poste']);
+        /** @var array<string, mixed>|null $raw */
+        $raw = $validated['report'] ?? null;
+        $report = $raw === null ? null : [
+            'pending_operations' => (int) $raw['pending_operations'],
+            'rejected_operations' => (int) $raw['rejected_operations'],
+            'oldest_pending_at' => self::nullableString($raw['oldest_pending_at'] ?? null),
+            'last_sync_at' => self::nullableString($raw['last_sync_at'] ?? null),
+            'last_sync_status' => self::nullableString($raw['last_sync_status'] ?? null),
+            'last_backup_at' => self::nullableString($raw['last_backup_at'] ?? null),
+            'storage_persisted' => isset($raw['storage_persisted']) ? (bool) $raw['storage_persisted'] : null,
+        ];
 
-        return new JsonResponse(['data' => $this->presenter->self($this->service->heartbeat($workstation, $this->actor($request)))]);
+        return new JsonResponse(['data' => $this->presenter->self($this->service->heartbeat($workstation, $this->actor($request), $report))]);
+    }
+
+    private static function nullableString(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     public function index(Request $request): JsonResponse

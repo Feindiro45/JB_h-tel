@@ -30,6 +30,26 @@ final class WorkstationPresenter
             'revoked' => $workstation->isRevoked(),
             'main' => $main === null ? null : ['name' => $main->name, 'silent' => $this->service->isSilent($main)],
             'enforce_main_post' => $this->service->enforcesMainPost(),
+            'offline_rules' => $this->service->offlineRules(),
+        ];
+    }
+
+    /**
+     * État déclaré par un poste avec son signal de présence (lot 4A).
+     *
+     * @return array<string, mixed>
+     */
+    public function report(Workstation $workstation): array
+    {
+        return [
+            'pending_operations' => $workstation->pending_operations,
+            'rejected_operations' => $workstation->rejected_operations,
+            'oldest_pending_at' => $workstation->oldest_pending_at?->toIso8601String(),
+            'last_sync_at' => $workstation->last_sync_at?->toIso8601String(),
+            'last_sync_status' => $workstation->last_sync_status,
+            'last_backup_at' => $workstation->last_backup_at?->toIso8601String(),
+            'storage_persisted' => $workstation->storage_persisted,
+            'reported_at' => $workstation->reported_at?->toIso8601String(),
         ];
     }
 

@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { useConnectivity } from '../../shared/offline/connectivity'
 import { outboxQuery } from '../../shared/offline/outbox'
+import { offlineRules, reminderDelayLabel } from '../../shared/offline/rules'
 import { Icon } from '../../shared/ui/Icon'
 import { formatTime } from '../../shared/utils/format'
 import { useBackupReminder } from './useBackupReminder'
@@ -33,13 +34,15 @@ export function OfflineBanner() {
   const { online, since } = useConnectivity()
   const outbox = useQuery(outboxQuery)
   const reminder = useBackupReminder()
+  const client = useQueryClient()
   const pending = (outbox.data ?? []).filter((o) => o.status === 'pending').length
   if (online && pending === 0) return null
   // Rappel N-06 : une opération attend depuis plus d'une heure sans figurer dans une sauvegarde.
   const backup = reminder && (
     <>
       {' '}
-      Des opérations attendent depuis plus d’une heure :{' '}
+      Des opérations attendent depuis{' '}
+      {reminderDelayLabel(offlineRules(client).backup_reminder_minutes)} :{' '}
       <Link to="/synchronisation#sauvegarde">exportez une sauvegarde chiffrée</Link>.
     </>
   )

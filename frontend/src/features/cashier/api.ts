@@ -155,6 +155,9 @@ export async function refundPayment(
 
 // Journal de caisse du jour, gardé pour le travail sans réseau (lot 2).
 registerOfflineEssential('payments.view', () => cashJournalQuery(todayIso(), todayIso(), ''))
+// Soldes à encaisser (page Caisse) et liste des reçus (Factures et reçus → Reçus), filtres par défaut.
+registerOfflineEssential('payments.view', () => receivablesQuery)
+registerOfflineEssential('payments.view', () => paymentsListQuery({ page: 1, per_page: 25 }))
 
 registerOfflinePreparation({
   order: 20,

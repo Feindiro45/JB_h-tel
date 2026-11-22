@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { lastBackupQuery, needsBackupReminder } from '../../shared/offline/backup'
 import { outboxQuery } from '../../shared/offline/outbox'
+import { offlineRules } from '../../shared/offline/rules'
 
 /** Heure courante, rafraîchie chaque minute : le rappel apparaît sans recharger la page. */
 function useMinuteClock(): number {
@@ -21,5 +22,6 @@ export function useBackupReminder(): boolean {
   const now = useMinuteClock()
   const outbox = useQuery(outboxQuery)
   const last = useQuery(lastBackupQuery)
-  return needsBackupReminder(outbox.data ?? [], last.data, now)
+  const delay = offlineRules(useQueryClient()).backup_reminder_minutes * 60_000
+  return needsBackupReminder(outbox.data ?? [], last.data, now, delay)
 }

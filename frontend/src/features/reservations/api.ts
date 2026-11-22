@@ -23,6 +23,8 @@ import {
   keptCustomer,
   localExtensionPreview,
   localFreeRooms,
+  localOccupancy,
+  localPlanning,
   localModificationPreview,
   localQuote,
   PENDING_SUFFIX,
@@ -125,11 +127,19 @@ export const historyQuery = (id: string) =>
 export const planningQuery = (from: string, days: number, roomTypeId: string) =>
   queryOptions({
     queryKey: ['planning', from, days, roomTypeId],
+    // Hors ligne : calculé sur le poste, pour n'importe quelle période (réservations hors ligne comprises).
     queryFn: ({ signal }) =>
-      api.get<Planning>('/api/v1/planning', {
-        query: { from, days, room_type_id: roomTypeId },
-        signal,
-      }),
+      serverOrLocal(
+        () =>
+          api.get<Planning>('/api/v1/planning', {
+            query: { from, days, room_type_id: roomTypeId },
+            signal,
+          }),
+        keptOr(['planning', from, days, roomTypeId], (client) =>
+          localPlanning(client, from, days, roomTypeId),
+        ),
+      ),
+    networkMode: 'always',
     placeholderData: (previous) => previous,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
@@ -138,7 +148,11 @@ export const planningQuery = (from: string, days: number, roomTypeId: string) =>
 export const occupancyQuery = queryOptions({
   queryKey: ['occupancy'],
   queryFn: ({ signal }) =>
-    api.get<{ at: string; data: OccupancyRow[] }>('/api/v1/occupancy', { signal }),
+    serverOrLocal(
+      () => api.get<{ at: string; data: OccupancyRow[] }>('/api/v1/occupancy', { signal }),
+      keptOr(['occupancy'], (client) => localOccupancy(client)),
+    ),
+  networkMode: 'always',
   refetchInterval: 30_000,
   refetchOnWindowFocus: true,
 })
@@ -147,6 +161,19 @@ export const occupancyQuery = queryOptions({
  * Serveur d'abord ; sans lui (hors ligne ou coupure pendant l'appel), calcul sur le poste avec les
  * données gardées (lot 4, 4.5). Le serveur revérifie tout à l'envoi de l'opération.
  */
+/** Calcul sur le poste ; s'il manque des données (chambres jamais téléchargées), la copie gardée. */
+function keptOr<T>(key: readonly unknown[], compute: (client: QueryClient) => T) {
+  return (client: QueryClient): T => {
+    try {
+      return compute(client)
+    } catch (error) {
+      const kept = client.getQueryData<T>(key)
+      if (kept !== undefined) return kept
+      throw error
+    }
+  }
+}
+
 async function serverOrLocal<T>(
   server: () => Promise<T>,
   local: (client: QueryClient) => T,

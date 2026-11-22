@@ -95,6 +95,11 @@ describe('Synchronisation et sauvegardes', () => {
       'GET /api/v1/auth/me': { body: { data: USER } },
       'GET /api/v1/rooms': { body: { data: [] } },
       'GET /api/v1/room-rates/grid': { body: { data: [] } },
+      'GET /api/v1/room-rates': { body: { data: [] } },
+      'GET /api/v1/receivables': { body: { data: [], meta: PAGE } },
+      'GET /api/v1/payments': { body: { data: [], meta: PAGE } },
+      'GET /api/v1/reports/financial': { body: { data: { totals: {} } } },
+      'GET /api/v1/report-agents': { body: { data: [] } },
       'GET /api/v1/dashboard': { body: EMPTY_DASHBOARD },
       'GET /api/v1/occupancy': { body: { at: '2026-12-01T10:00:00+01:00', data: [] } },
       'GET /api/v1/planning': {
@@ -143,6 +148,9 @@ describe('Synchronisation et sauvegardes', () => {
       '/api/v1/occupancy',
       '/api/v1/planning',
       '/api/v1/room-rates/grid',
+      '/api/v1/receivables',
+      '/api/v1/payments',
+      '/api/v1/reports/financial',
     ])
       expect(paths).toContain(path)
   })

@@ -99,6 +99,12 @@ export const NAVIGATION: { group: string; items: NavItem[] }[] = [
         permission: 'workstations.manage',
       },
       {
+        path: '/admin/hors-ligne',
+        label: 'Mode hors ligne',
+        icon: 'cloudOff',
+        permission: 'offline.manage',
+      },
+      {
         path: '/admin/parametres',
         label: 'Paramètres',
         icon: 'settings',

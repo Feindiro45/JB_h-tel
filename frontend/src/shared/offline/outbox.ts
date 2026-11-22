@@ -91,7 +91,10 @@ export async function updateOperation(
 }
 
 /** Numéro provisoire `LOC-<poste>-<séquence>` (N-03), unique sur ce poste. */
-export async function nextProvisionalNumber(workstationName: string | null): Promise<string> {
+export async function nextProvisionalNumber(
+  workstationName: string | null,
+  prefix = 'LOC',
+): Promise<string> {
   const sequence = ((await storageGet<number>(SEQUENCE_KEY)) ?? 0) + 1
   await storageSet(SEQUENCE_KEY, sequence)
   const station =
@@ -100,7 +103,7 @@ export async function nextProvisionalNumber(workstationName: string | null): Pro
       .replace(/[^A-Za-z0-9]/g, '')
       .toUpperCase()
       .slice(0, 12) || 'POSTE'
-  return `LOC-${station}-${String(sequence).padStart(6, '0')}`
+  return `${prefix}-${station}-${String(sequence).padStart(6, '0')}`
 }
 
 /** Les écrans qui affichent la file d'attente sont rafraîchis. */

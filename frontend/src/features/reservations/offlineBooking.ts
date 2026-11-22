@@ -6,11 +6,14 @@ import type {
   Customer,
   ExtensionPreview,
   PriceView,
+  OccupancyRow,
+  Planning,
   Quote,
   Reservation,
   ReservationBrief,
   Room,
   RoomBrief,
+  RoomState,
   RoomType,
 } from '../../shared/api/types'
 import { config } from '../../shared/config'
@@ -660,5 +663,107 @@ export function provisionalStay(
     cancelled_at: null,
     cancellation_reason: null,
     created_at: hotelIso(createdAt),
+  }
+}
+
+// ---------- Planning et occupation calculés sur le poste (toute période, réservations hors ligne comprises)
+
+/** Libellés des états (mêmes que `RoomOccupancy::LABELS` du serveur). */
+const STATE_LABELS: Record<RoomState, string> = {
+  FREE: 'Libre',
+  RESERVED: 'Réservée',
+  OCCUPIED: 'Occupée',
+  MAINTENANCE: 'En maintenance',
+}
+
+/** Même règle que `RoomOccupancy::state()` : séjour en cours, puis maintenance, puis réservé. */
+function stateOf(room: Room, stays: Reservation[]): RoomState {
+  if (stays.some((stay) => stay.status === 'IN_PROGRESS')) return 'OCCUPIED'
+  if (room.maintenance_status === 'MAINTENANCE') return 'MAINTENANCE'
+  return stays.length > 0 ? 'RESERVED' : 'FREE'
+}
+
+const byNumber = (a: Room, b: Room) => a.number.localeCompare(b.number, 'fr', { numeric: true })
+
+/** Planning : état de chaque chambre pour chaque jour `[jour 00:00, lendemain 00:00[`. */
+export function localPlanning(
+  client: QueryClient,
+  from: string,
+  days: number,
+  roomTypeId: string,
+  now = Date.now(),
+): Planning {
+  const dates = Array.from({ length: days }).reduce<string[]>(
+    (list) => [...list, list.length === 0 ? from : nextDay(list.at(-1)!)],
+    [],
+  )
+  const rooms = keptRooms(client)
+    .filter((room) => !roomTypeId || room.room_type.id === roomTypeId)
+    .sort(byNumber)
+  return {
+    from,
+    days: dates,
+    labels: STATE_LABELS,
+    data: rooms.map((room) => ({
+      room: roomBrief(room),
+      days: Object.fromEntries(
+        dates.map((date) => {
+          const stays = conflictsFor(
+            client,
+            room.id,
+            hotelTime(date, '00:00'),
+            hotelTime(nextDay(date), '00:00'),
+            null,
+            now,
+          )
+          return [date, stateOf(room, stays)]
+        }),
+      ),
+    })),
+  }
+}
+
+/** Occupation à l'instant (même règle que `RoomOccupancy::at()`). */
+export function localOccupancy(
+  client: QueryClient,
+  now = Date.now(),
+): { at: string; data: OccupancyRow[] } {
+  const open = knownStays(client)
+    .filter(
+      (stay) =>
+        BLOCKING.includes(stay.status) &&
+        (Date.parse(stay.period.blocked_until) > now || stay.status === 'IN_PROGRESS'),
+    )
+    .sort((a, b) => Date.parse(a.period.blocked_from) - Date.parse(b.period.blocked_from))
+  return {
+    at: hotelIso(now),
+    data: keptRooms(client)
+      .sort(byNumber)
+      .map((room) => {
+        const mine = open.filter((stay) => stay.room?.id === room.id)
+        const current =
+          mine.find((stay) => stay.status === 'IN_PROGRESS') ??
+          mine.find(
+            (stay) =>
+              Date.parse(stay.period.blocked_from) <= now &&
+              Date.parse(stay.period.blocked_until) > now,
+          ) ??
+          null
+        const next =
+          mine.find(
+            (stay) => Date.parse(stay.period.blocked_from) > now && stay.id !== current?.id,
+          ) ?? null
+        const state = stateOf(room, current ? [current] : [])
+        return {
+          room: roomBrief(room),
+          state,
+          state_label: STATE_LABELS[state],
+          current: current
+            ? { ...brief(current), expected_departure: current.period.blocked_until }
+            : null,
+          next: next ? brief(next) : null,
+          reserved_later: next !== null,
+        }
+      }),
   }
 }

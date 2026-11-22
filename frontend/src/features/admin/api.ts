@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
+import { registerOfflineEssential } from '../../shared/offline/essentials'
 import type {
   CurrentUser,
   Envelope,
@@ -14,6 +15,12 @@ export const adminQuery = <T>(path: string, filters: Filters = {}) =>
     queryKey: ['admin', path, filters],
     queryFn: ({ signal }) => api.get<T>(`/api/v1/${path}`, { query: filters, signal }),
   })
+// Tarifs consultables hors ligne (page Tarifs, filtres par défaut).
+registerOfflineEssential('rates.view', () =>
+  adminQuery('room-rates', { room_type_id: '', billing_unit: '' }),
+)
+registerOfflineEssential('rates.view', () => adminQuery('room-rates/grid'))
+
 export interface Rate {
   id: string
   room_type: RoomType

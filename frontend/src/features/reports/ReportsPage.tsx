@@ -2,14 +2,14 @@ import { LocalTable } from '../../shared/ui/LocalTable'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
 import { Icon } from '../../shared/ui/Icon'
-import { queryOptions, useQuery } from '@tanstack/react-query'
-import { api, apiUrl } from '../../shared/api/client'
-import type { Envelope } from '../../shared/api/types'
+import { useQuery } from '@tanstack/react-query'
+import { apiUrl } from '../../shared/api/client'
 import { SelectField, TextField } from '../../shared/ui/fields'
 import { LoadingBlock, Metric, PageHeading, Panel } from '../../shared/ui/layout'
 import { formatFcfa, todayIso } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
 import { roomsQuery, roomTypesQuery } from '../catalog'
+import { defaultReportFilters, reportAgentsQuery, reportQuery } from './api'
 
 interface Report {
   totals: {
@@ -37,33 +37,14 @@ interface Report {
 export function ReportsPage() {
   const today = todayIso()
   const { can } = useCurrentUser()
-  const { filters, draft, change, pending, valid } = useAutoFilters(
-    {
-      from: `${today.slice(0, 8)}01`,
-      to: today,
-      room_id: '',
-      room_type_id: '',
-      agent_id: '',
-    },
-    { requiredPeriod: true, maxDays: 366 },
-  )
+  const { filters, draft, change, pending, valid } = useAutoFilters(defaultReportFilters(today), {
+    requiredPeriod: true,
+    maxDays: 366,
+  })
   const rooms = useQuery(roomsQuery)
   const types = useQuery(roomTypesQuery)
-  const agents = useQuery(
-    queryOptions({
-      queryKey: ['report-agents'],
-      queryFn: ({ signal }) =>
-        api.get<Envelope<{ id: string; name: string }[]>>('/api/v1/report-agents', { signal }),
-    }),
-  )
-  const report = useQuery(
-    queryOptions({
-      queryKey: ['reports', filters],
-      queryFn: async ({ signal }) =>
-        (await api.get<Envelope<Report>>('/api/v1/reports/financial', { query: filters, signal }))
-          .data,
-    }),
-  )
+  const agents = useQuery(reportAgentsQuery)
+  const report = useQuery(reportQuery<Report>(filters))
   const data = report.data
   const exportUrl = (format: string) =>
     apiUrl(`/api/v1/reports/financial?${new URLSearchParams({ ...filters, format })}`)

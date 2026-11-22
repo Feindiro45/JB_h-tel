@@ -10,6 +10,23 @@ import { appendRun, statusOf, type SyncFailure, type SyncRun, type SyncTrigger }
 
 let sending = false
 
+/**
+ * En-tête `X-Offline-Replay` (lot 4A.4) : opération, libellé et date sur le poste, en base64
+ * (les en-têtes HTTP ne portent pas d'accents). Le serveur note ainsi chaque rejeu dans le journal
+ * que l'administrateur consulte dans « Mode hors ligne ».
+ */
+export function replayHeader(operation: QueuedOperation): string {
+  const json = JSON.stringify({
+    kind: operation.kind,
+    label: operation.label,
+    created_at: new Date(operation.createdAt).toISOString(),
+  })
+  const bytes = new TextEncoder().encode(json)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
 /** Identifiant de l'élément créé par le serveur (client, réservation…). */
 function resultIdOf(response: unknown): string | null {
   const id = (response as { data?: { id?: unknown } } | null)?.data?.id
@@ -93,6 +110,7 @@ export async function sendPendingOperations(
             method: operation.method,
             body,
             idempotencyKey: operation.id,
+            headers: { 'X-Offline-Replay': replayHeader(operation) },
           }),
         )
       } catch (error) {

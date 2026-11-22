@@ -58,6 +58,22 @@ class SettingsSeeder extends Seeder
             'value' => 5,
             'description' => 'PROVISOIRE (D-062) : délai sans signal après lequel le poste principal est considéré hors ligne ; un transfert devient alors forcé.',
         ],
+        'offline.allowed_operations' => [
+            'value' => ['payment.record', 'reservation.create', 'customer.create', 'reservation.confirm', 'reservation.check-in', 'reservation.check-out', 'reservation.extend', 'reservation.cancel', 'reservation.modify', 'reservation.occupants', 'invoice.issue'],
+            'description' => 'PROVISOIRE (N-02, D-064) : opérations permises sans Internet, toutes par défaut.',
+        ],
+        'offline.lock_after_minutes' => [
+            'value' => 15,
+            'description' => 'PROVISOIRE (N-05, D-064) : verrouillage de l’écran après ce délai d’inactivité hors ligne.',
+        ],
+        'offline.backup_reminder_minutes' => [
+            'value' => 60,
+            'description' => 'PROVISOIRE (N-06, D-064) : rappel d’exporter une sauvegarde quand une opération attend depuis ce délai.',
+        ],
+        'offline.provisional_prefix' => [
+            'value' => 'LOC',
+            'description' => 'PROVISOIRE (N-03, D-064) : préfixe des numéros provisoires (LOC-<poste>-<séquence>).',
+        ],
     ];
 
     public function run(): void

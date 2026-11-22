@@ -9,6 +9,8 @@ import {
   localExtensionPreview,
   localFreeRooms,
   localModificationPreview,
+  localOccupancy,
+  localPlanning,
   localQuote,
   rateAt,
   rateGridQuery,
@@ -314,5 +316,37 @@ describe('Modification sur le poste (D-058, 4.13)', () => {
         NOW,
       ).available,
     ).toBe(true)
+  })
+})
+
+describe('Planning et occupation sur le poste (lot 4)', () => {
+  it('donne l’état de chaque chambre pour chaque jour, comme le serveur', () => {
+    const client = hotel([
+      stay('a', 'r101', '2026-12-02T00:00:00+01:00', '2026-12-04T00:00:00+01:00'),
+      stay('b', 'r102', '2026-11-30T00:00:00+01:00', '2026-12-02T00:00:00+01:00', 'IN_PROGRESS'),
+    ])
+    const planning = localPlanning(client, '2026-12-01', 4, '', NOW)
+    expect(planning.days).toEqual(['2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04'])
+    const byRoom = Object.fromEntries(planning.data.map((row) => [row.room.number, row.days]))
+    expect(byRoom['101']).toEqual({
+      '2026-12-01': 'FREE',
+      '2026-12-02': 'RESERVED',
+      '2026-12-03': 'RESERVED',
+      '2026-12-04': 'FREE',
+    })
+    // Séjour en cours : occupée, et au-delà du départ prévu tant que le départ n’est pas fait (D-056).
+    expect(byRoom['102']!['2026-12-01']).toBe('OCCUPIED')
+    expect(byRoom['103']!['2026-12-01']).toBe('MAINTENANCE')
+    expect(localPlanning(client, '2026-12-01', 1, 'type-std', NOW).data).toHaveLength(1)
+
+    const occupancy = localOccupancy(client, NOW)
+    const now = Object.fromEntries(occupancy.data.map((row) => [row.room.number, row]))
+    expect(now['101']).toMatchObject({ state: 'FREE', next: { id: 'a' }, reserved_later: true })
+    expect(now['102']).toMatchObject({
+      state: 'OCCUPIED',
+      state_label: 'Occupée',
+      current: { id: 'b' },
+    })
+    expect(now['103']).toMatchObject({ state: 'MAINTENANCE', state_label: 'En maintenance' })
   })
 })

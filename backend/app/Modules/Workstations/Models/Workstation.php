@@ -23,6 +23,14 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $revoked_at
  * @property int|null $revoked_by
  * @property string|null $revocation_reason
+ * @property int $pending_operations
+ * @property int $rejected_operations
+ * @property Carbon|null $oldest_pending_at
+ * @property Carbon|null $last_sync_at
+ * @property string|null $last_sync_status
+ * @property Carbon|null $last_backup_at
+ * @property bool|null $storage_persisted
+ * @property Carbon|null $reported_at
  * @property Carbon $created_at
  */
 class Workstation extends Model
@@ -46,6 +54,14 @@ class Workstation extends Model
         'revoked_at' => null,
         'revoked_by' => null,
         'revocation_reason' => null,
+        'pending_operations' => 0,
+        'rejected_operations' => 0,
+        'oldest_pending_at' => null,
+        'last_sync_at' => null,
+        'last_sync_status' => null,
+        'last_backup_at' => null,
+        'storage_persisted' => null,
+        'reported_at' => null,
     ];
 
     /** @return array<string, string> */
@@ -54,6 +70,13 @@ class Workstation extends Model
         return [
             'last_seen_at' => 'datetime',
             'revoked_at' => 'datetime',
+            'pending_operations' => 'integer',
+            'rejected_operations' => 'integer',
+            'oldest_pending_at' => 'datetime',
+            'last_sync_at' => 'datetime',
+            'last_backup_at' => 'datetime',
+            'storage_persisted' => 'boolean',
+            'reported_at' => 'datetime',
         ];
     }
 

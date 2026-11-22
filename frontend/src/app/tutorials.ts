@@ -326,6 +326,36 @@ export const TUTORIALS: Record<string, Tutorial> = {
       },
     ],
   },
+  '/admin/hors-ligne': {
+    section: 'Mode hors ligne',
+    steps: [
+      {
+        title: 'Suivre le poste principal',
+        icon: 'cloudOff',
+        body: 'Le poste principal envoie son état toutes les 30 s : en ligne, ou silencieux depuis… ; opérations en attente, dernière synchronisation, dernière sauvegarde.',
+        tip: 'Silencieux pendant une coupure, c’est normal : le poste continue de travailler hors ligne.',
+      },
+      {
+        title: 'Centre de synchronisation',
+        icon: 'refresh',
+        body: 'Chaque opération faite hors ligne et reçue par le serveur est notée : acceptée, doublon évité ou refusée, avec sa cause.',
+        points: [
+          'Refus « À examiner » : ressaisissez si besoin, puis notez « Ressaisie » ou « Rejet confirmé », avec un motif.',
+          'Chaque examen est inscrit au journal d’audit.',
+        ],
+      },
+      {
+        title: 'Règles hors ligne',
+        icon: 'settings',
+        body: 'Dans Paramètres → Hors ligne : opérations permises sans Internet, verrouillage, rappel de sauvegarde, préfixe des numéros provisoires.',
+      },
+      {
+        title: 'Comment gérer',
+        icon: 'help',
+        body: 'Le guide donne, pour chaque situation (coupure, retour du réseau, changement de poste, panne ou vol, conflit, sauvegarde), la marche à suivre de la caissière et de l’administrateur.',
+      },
+    ],
+  },
   '/admin/postes': {
     section: 'Postes de caisse',
     steps: [

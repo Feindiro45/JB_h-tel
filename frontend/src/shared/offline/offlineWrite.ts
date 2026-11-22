@@ -15,6 +15,7 @@ import {
 } from './outbox'
 import { saveQueryCache } from './persistence'
 import { getQueryClientRef } from './queryClientRef'
+import { isAllowedOffline, OPERATION_LABELS, offlineRules } from './rules'
 
 export interface OfflineWrite<T> {
   kind: OperationKind
@@ -76,6 +77,16 @@ export async function runOrQueue<T>(write: OfflineWrite<T>): Promise<T> {
   if (!client) throw new Error('Application non initialisée.')
   const user = client.getQueryData<CurrentUser | null>(['auth', 'me'])
   if (!user) throw new ApiError(401, 'Session requise', 'Reconnectez-vous pour enregistrer.')
+  const rules = offlineRules(client)
+  if (!isAllowedOffline(write.kind, rules)) {
+    throw new ApiError(
+      403,
+      'Opération non permise hors ligne',
+      `« ${OPERATION_LABELS[write.kind]} » n’est pas permis sans Internet sur ce poste (Paramètres → Hors ligne). Réessayez au retour du réseau.`,
+      {},
+      'offline_operation_not_allowed',
+    )
+  }
   write.validate?.(client)
   const station = client.getQueryData<{ name: string } | null>(['workstation', 'self'])
 
@@ -94,7 +105,7 @@ export async function runOrQueue<T>(write: OfflineWrite<T>): Promise<T> {
     lastAttemptAt: null,
     error: null,
     provisionalNumber: write.numbered
-      ? `${write.numberPrefix ?? ''}${await nextProvisionalNumber(station?.name ?? null)}`
+      ? `${write.numberPrefix ?? ''}${await nextProvisionalNumber(station?.name ?? null, rules.provisional_prefix)}`
       : null,
     definitiveNumber: null,
     localId: localIdFor(idempotencyKey),

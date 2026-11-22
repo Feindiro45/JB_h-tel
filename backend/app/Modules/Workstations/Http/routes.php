@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Identity\Domain\PermissionName;
+use App\Modules\Workstations\Http\Controllers\OfflineController;
 use App\Modules\Workstations\Http\Controllers\WorkstationController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,5 +20,12 @@ Route::middleware('authenticated')->group(function (): void {
         Route::post('workstations/{workstation}/designate', [WorkstationController::class, 'designate'])->name('workstations.designate');
         Route::post('workstations/{workstation}/revoke', [WorkstationController::class, 'revoke'])->name('workstations.revoke');
         Route::post('workstations/{workstation}/reactivate', [WorkstationController::class, 'reactivate'])->name('workstations.reactivate');
+    });
+
+    // Module administrateur « Mode hors ligne » (lot 4A) : état des postes et centre de synchronisation.
+    Route::middleware('permission:'.PermissionName::OfflineManage->value)->group(function (): void {
+        Route::get('offline/overview', [OfflineController::class, 'overview'])->name('offline.overview');
+        Route::get('offline/operations', [OfflineController::class, 'operations'])->name('offline.operations');
+        Route::post('offline/operations/{offlineOperation}/review', [OfflineController::class, 'review'])->name('offline.operations.review');
     });
 });

@@ -21,7 +21,7 @@ import { StatusPage } from '../features/system'
 import { RoomsPage, RatesPage, UsersPage, SettingsPage, AuditPage } from '../features/admin'
 import { ReportsPage } from '../features/reports'
 import { WorkstationsPage } from '../features/workstations'
-import { SyncPage } from '../features/offline'
+import { OfflineAdminPage, SyncPage } from '../features/offline'
 import { AppShell } from './AppShell'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RouteErrorPage } from './pages/RouteErrorPage'
@@ -95,6 +95,7 @@ export const routes: RouteObject[] = [
       { path: 'admin/audit', element: guarded('audit.view', <AuditPage />) },
       { path: 'admin/etat', element: guarded('settings.manage', <StatusPage />) },
       { path: 'admin/postes', element: guarded('workstations.manage', <WorkstationsPage />) },
+      { path: 'admin/hors-ligne', element: guarded('offline.manage', <OfflineAdminPage />) },
       { path: 'sans-acces', element: <NoAccessPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],

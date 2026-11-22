@@ -205,5 +205,14 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await page.goto(reservationUrl)
   await expect(page.getByText(/^REC-\d{4}-\d+$/).first()).toBeVisible()
   await expect(page.getByText('En attente d’envoi')).toHaveCount(0)
+
+  // Le serveur a noté chaque opération reçue (lot 4A) : Administration → Mode hors ligne.
+  await page.goto('/admin/hors-ligne')
+  await expect(page.getByRole('heading', { name: 'Mode hors ligne', level: 1 })).toBeVisible()
+  const center = page.getByRole('region', { name: 'Centre de synchronisation' })
+  await center.getByLabel('Examen').selectOption('')
+  await expect(center.getByText('Acceptée', { exact: true })).toHaveCount(5)
+  await expect(center).toContainText('Facture provisoire')
+  await expect(center.getByText('Refusée', { exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
 })

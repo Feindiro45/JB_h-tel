@@ -11,6 +11,16 @@ const CACHE_KEY = 'query-cache'
 const SAVE_DELAY_MS = 500
 /** Écrans d'administration non utiles hors ligne. */
 const NOT_KEPT = new Set(['workstations', 'settings', 'audit', 'users', 'mail', 'offline'])
+/** Écrans d’administration (`['admin', chemin, …]`) : seuls les tarifs sont gardés (consultation). */
+const ADMIN_KEPT = new Set(['room-rates', 'room-rates/grid'])
+
+function keptKey(queryKey: readonly unknown[]): boolean {
+  const root = String(queryKey[0])
+  if (NOT_KEPT.has(root)) return false
+  // Utilisateurs, journal d’audit, paramètres, rôles : jamais copiés sur le poste.
+  if (root === 'admin') return ADMIN_KEPT.has(String(queryKey[1]))
+  return true
+}
 
 export interface StoredCache {
   userId: string | null
@@ -28,8 +38,7 @@ export function snapshot(client: QueryClient, now = Date.now()): StoredCache {
     userId: userIdOf(client),
     savedAt: now,
     state: dehydrate(client, {
-      shouldDehydrateQuery: (query) =>
-        query.state.status === 'success' && !NOT_KEPT.has(String(query.queryKey[0])),
+      shouldDehydrateQuery: (query) => query.state.status === 'success' && keptKey(query.queryKey),
     }),
   }
 }
@@ -68,7 +77,7 @@ export async function saveQueryCache(client: QueryClient): Promise<StoredCache |
 
 /** Données gardées hors ligne : lectures réussies, hors écrans d’administration. */
 export function isKept(queryKey: readonly unknown[]): boolean {
-  return !NOT_KEPT.has(String(queryKey[0]))
+  return keptKey(queryKey)
 }
 
 export function clearQueryCache(): Promise<void> {

@@ -37,6 +37,12 @@ const GROUPS: { prefix: string; title: string; description: string }[] = [
     description: 'Forfaits, numérotation des pièces et trop-perçu.',
   },
   {
+    prefix: 'offline',
+    title: 'Hors ligne',
+    description:
+      'Opérations permises sans Internet, verrouillage, sauvegardes et numéros provisoires (D-064).',
+  },
+  {
     prefix: 'workstations',
     title: 'Postes de caisse',
     description: 'Poste principal unique (D-062) et délai avant de le considérer hors ligne.',
@@ -191,7 +197,7 @@ export function SettingsPage() {
       )}
       <MailPanel />
       {editing &&
-        (editing.type === 'methods' ? (
+        (editing.type === 'methods' || editing.type === 'choices' ? (
           <MethodsDialog setting={editing} onClose={() => setEditing(null)} />
         ) : (
           <EditDialog
@@ -210,20 +216,24 @@ export function SettingsPage() {
                       { value: 'false', label: 'Non' },
                     ],
                   }
-                : {
-                    name: 'value',
-                    label: editing.label,
-                    type: 'number',
-                    required: true,
-                    min: editing.min ?? 0,
-                    max: editing.max ?? 100,
-                  },
+                : editing.type === 'text'
+                  ? { name: 'value', label: editing.label, required: true, hint: editing.help }
+                  : {
+                      name: 'value',
+                      label: editing.label,
+                      type: 'number',
+                      required: true,
+                      min: editing.min ?? 0,
+                      max: editing.max ?? 100,
+                    },
             ]}
             initial={{ value: String(editing.value) }}
             transform={(v) =>
               editing.type === 'boolean'
                 ? { value: v.value === 'true' }
-                : { value: Number(v.value) }
+                : editing.type === 'text'
+                  ? { value: v.value.trim() }
+                  : { value: Number(v.value) }
             }
             onClose={() => setEditing(null)}
           />
@@ -241,7 +251,7 @@ function MethodsDialog({ setting, onClose }: { setting: Setting; onClose: () => 
     mutationFn: () => api.put(`/api/v1/settings/${setting.key}`, { value: selected }),
     onSuccess: () => {
       void cache.invalidateQueries()
-      notify('Moyens de paiement mis à jour')
+      notify(`${setting.label} : mis à jour`)
       onClose()
     },
   })
@@ -251,7 +261,8 @@ function MethodsDialog({ setting, onClose }: { setting: Setting; onClose: () => 
       onClose={onClose}
       onSubmit={() => save.mutate()}
       submitting={save.isPending}
-      submitDisabled={selected.length === 0}
+      // Les moyens de paiement en exigent au moins un ; les opérations hors ligne peuvent être toutes décochées.
+      submitDisabled={setting.type === 'methods' && selected.length === 0}
     >
       <div className="fields">
         {Object.entries(setting.options ?? {}).map(([value, label]) => (

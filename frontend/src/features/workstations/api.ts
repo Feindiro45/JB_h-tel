@@ -3,6 +3,8 @@ import { api } from '../../shared/api/client'
 import { ApiError } from '../../shared/api/errors'
 import type { Envelope } from '../../shared/api/types'
 import { readWorkstationToken, saveWorkstationToken } from '../../shared/api/workstationToken'
+import type { OfflineRules } from '../../shared/offline/rules'
+import { stationReport } from '../../shared/offline/stationReport'
 
 /** État du poste courant, renvoyé à l'enregistrement et à chaque signal de présence. */
 export interface WorkstationSelf {
@@ -12,6 +14,8 @@ export interface WorkstationSelf {
   revoked: boolean
   main: { name: string; silent: boolean } | null
   enforce_main_post: boolean
+  /** Règles hors ligne (lot 4A.5), gardées sur le poste. */
+  offline_rules?: OfflineRules
 }
 
 export interface WorkstationRow {
@@ -75,7 +79,13 @@ async function register(): Promise<WorkstationSelf> {
 export async function announceWorkstation(): Promise<WorkstationSelf> {
   if (!readWorkstationToken()) return register()
   try {
-    return (await api.post<Envelope<WorkstationSelf>>('/api/v1/workstations/heartbeat')).data
+    const report = await stationReport().catch(() => null)
+    return (
+      await api.post<Envelope<WorkstationSelf>>(
+        '/api/v1/workstations/heartbeat',
+        report ? { report } : undefined,
+      )
+    ).data
   } catch (error) {
     if (error instanceof ApiError && error.code === 'workstation_unknown') {
       saveWorkstationToken(null)

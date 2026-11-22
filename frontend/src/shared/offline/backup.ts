@@ -48,9 +48,13 @@ export class BackupError extends Error {
   }
 }
 
+export async function readLastBackup(): Promise<BackupRecord | null> {
+  return (await storageGet<BackupRecord>(LAST_BACKUP_KEY)) ?? null
+}
+
 export const lastBackupQuery = queryOptions({
   queryKey: ['offline', 'last-backup'] as const,
-  queryFn: async () => (await storageGet<BackupRecord>(LAST_BACKUP_KEY)) ?? null,
+  queryFn: () => readLastBackup(),
   networkMode: 'always',
   staleTime: 0,
 })
@@ -65,10 +69,11 @@ export function needsBackupReminder(
   operations: QueuedOperation[],
   last: BackupRecord | null | undefined,
   now = Date.now(),
+  delay = BACKUP_REMINDER_MS,
 ): boolean {
   const saved = new Set(last?.ids ?? [])
   return operations.some(
-    (o) => o.status === 'pending' && now - o.createdAt >= BACKUP_REMINDER_MS && !saved.has(o.id),
+    (o) => o.status === 'pending' && now - o.createdAt >= delay && !saved.has(o.id),
   )
 }
 

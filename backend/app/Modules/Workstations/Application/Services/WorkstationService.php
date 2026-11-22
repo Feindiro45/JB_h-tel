@@ -58,10 +58,29 @@ final class WorkstationService
         return ['workstation' => $workstation, 'token' => $token];
     }
 
-    /** Signal de présence : dernier contact et dernier utilisateur du poste. */
-    public function heartbeat(Workstation $workstation, User $user): Workstation
+    /**
+     * Signal de présence : dernier contact et dernier utilisateur du poste ; avec l'état déclaré
+     * par le poste (lot 4A) : opérations en attente et refusées, dernière synchronisation,
+     * dernière sauvegarde, stockage protégé. L'administrateur le voit dans « Mode hors ligne ».
+     *
+     * @param  array{pending_operations: int, rejected_operations: int, oldest_pending_at: ?string, last_sync_at: ?string, last_sync_status: ?string, last_backup_at: ?string, storage_persisted: ?bool}|null  $report
+     */
+    public function heartbeat(Workstation $workstation, User $user, ?array $report = null): Workstation
     {
-        $workstation->forceFill(['last_seen_at' => now(), 'last_seen_by' => $user->id])->save();
+        $workstation->forceFill(['last_seen_at' => now(), 'last_seen_by' => $user->id]);
+        if ($report !== null) {
+            $workstation->forceFill([
+                'pending_operations' => $report['pending_operations'],
+                'rejected_operations' => $report['rejected_operations'],
+                'oldest_pending_at' => self::date($report['oldest_pending_at']),
+                'last_sync_at' => self::date($report['last_sync_at']),
+                'last_sync_status' => $report['last_sync_status'],
+                'last_backup_at' => self::date($report['last_backup_at']),
+                'storage_persisted' => $report['storage_persisted'],
+                'reported_at' => now(),
+            ]);
+        }
+        $workstation->save();
 
         return $workstation;
     }
@@ -203,6 +222,31 @@ final class WorkstationService
     public function silentAfterMinutes(): int
     {
         return max(1, $this->settings->int('workstations.silent_after_minutes', 5));
+    }
+
+    /**
+     * Règles hors ligne (lot 4A.5, provisoires) envoyées au poste avec son signal de présence :
+     * gardées sur le poste, elles s'appliquent aussi sans réseau.
+     *
+     * `allowed_operations` à null : paramètre absent, toutes les opérations sont permises (N-02).
+     *
+     * @return array{allowed_operations: list<string>|null, lock_after_minutes: int, backup_reminder_minutes: int, provisional_prefix: string}
+     */
+    public function offlineRules(): array
+    {
+        $allowed = $this->settings->get('offline.allowed_operations');
+
+        return [
+            'allowed_operations' => is_array($allowed) ? array_values(array_filter($allowed, 'is_string')) : null,
+            'lock_after_minutes' => max(1, $this->settings->int('offline.lock_after_minutes', 15)),
+            'backup_reminder_minutes' => max(15, $this->settings->int('offline.backup_reminder_minutes', 60)),
+            'provisional_prefix' => $this->settings->string('offline.provisional_prefix', 'LOC'),
+        ];
+    }
+
+    private static function date(?string $value): ?Carbon
+    {
+        return $value === null ? null : Carbon::parse($value)->setTimezone((string) config('app.timezone'));
     }
 
     public function enforcesMainPost(): bool

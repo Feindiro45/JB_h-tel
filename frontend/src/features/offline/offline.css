@@ -434,3 +434,55 @@
     transition: none;
   }
 }
+
+/* Guide « Comment gérer » (lot 4A.7) */
+.offline-guide {
+  display: grid;
+  gap: 10px;
+}
+
+.offline-guide__item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.offline-guide__item summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.offline-guide__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #e8f4ee;
+  color: var(--primary);
+}
+
+.offline-guide__sheets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 16px;
+  padding: 0 14px 14px;
+}
+
+.offline-guide__sheets h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+}
+
+.offline-guide__sheets ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.5;
+}

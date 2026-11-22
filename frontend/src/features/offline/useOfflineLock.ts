@@ -1,7 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { offlineRules } from '../../shared/offline/rules'
 import { getConnectivity, useConnectivity } from '../../shared/offline/connectivity'
 import {
-  LOCK_AFTER_MS,
   readLastActivity,
   readSession,
   recordActivity,
@@ -20,6 +21,7 @@ const ACTIVITY_THROTTLE_MS = 15_000
  */
 export function useOfflineLock() {
   const { online } = useConnectivity()
+  const client = useQueryClient()
   const [session, setSession] = useState<OfflineSession | undefined | null>(null)
   const [locked, setLocked] = useState(false)
 
@@ -46,7 +48,8 @@ export function useOfflineLock() {
     let active = true
     void readSession().then((value) => active && setSession(value))
     const check = () => {
-      if (Date.now() - readLastActivity() > LOCK_AFTER_MS) setLocked(true)
+      const lockAfter = offlineRules(client).lock_after_minutes * 60_000
+      if (Date.now() - readLastActivity() > lockAfter) setLocked(true)
     }
     check()
     const timer = setInterval(check, CHECK_EVERY_MS)
@@ -54,7 +57,7 @@ export function useOfflineLock() {
       active = false
       clearInterval(timer)
     }
-  }, [online])
+  }, [online, client])
 
   const expired = !online && session !== null && sessionMissing(session)
   return {

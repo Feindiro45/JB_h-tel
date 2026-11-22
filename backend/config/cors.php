@@ -20,7 +20,7 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-XSRF-TOKEN', 'X-Workstation-Token', 'Idempotency-Key'],
+    'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-XSRF-TOKEN', 'X-Workstation-Token', 'Idempotency-Key', 'X-Offline-Replay'],
 
     'exposed_headers' => ['Retry-After', 'Idempotent-Replayed'],
 

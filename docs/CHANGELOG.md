@@ -4,6 +4,15 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Module administrateur « Mode hors ligne » (lot 4A) et hors ligne vérifié écran par écran — 22/11/2026
+- **Administration → Mode hors ligne** : état du poste principal (en ligne, silencieux depuis…), opérations en attente, dernière synchronisation et sauvegarde, tous les postes ; chiffres du jour ; **centre de synchronisation** (acceptées, doublons évités, refus avec leur cause) et examen des refus, inscrit au journal d’audit ; **guide « Comment gérer »** ; encart sur le tableau de bord de l’administrateur.
+- Paramètres → **Hors ligne** : opérations permises sans Internet, verrouillage, rappel de sauvegarde, préfixe des numéros provisoires (valeurs provisoires), appliqués aussi sans réseau.
+- Hors ligne, **tous les écrans métier** s’ouvrent après « Tout télécharger » : soldes de la caisse, reçus, rapports et tarifs ajoutés ; planning et occupation calculés sur le poste pour toute période.
+- `npm run hors-ligne` : version de production sur ce PC (http://localhost:4173) pour essayer le vrai mode hors ligne.
+- Utilisateurs, journal d’audit et paramètres ne sont jamais copiés sur le poste.
+- Corrigé : en-tête de rejeu hors ligne autorisé par la configuration CORS (sans lui, le poste se croyait hors ligne au retour du réseau).
+- Tests : 253 tests backend, 192 tests frontend.
+
 ### Tout fonctionne hors ligne, fin du lot 4 (4.13, N-08) — 22/11/2026
 - Hors ligne : **confirmer** une réservation en attente, **changer les occupants**, **modifier** une réservation (mêmes règles qu’en ligne) et **émettre une facture provisoire** `FAC-LOC-…`, imprimable en ticket 80 mm marqué « Provisoire » ; le serveur lui donne son numéro FAC définitif au retour du réseau (décision N-08).
 - Sur une réservation créée hors ligne, toutes les actions sont possibles, sauf la suppression.

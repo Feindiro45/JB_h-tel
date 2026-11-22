@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { outboxQuery, type QueuedOperation } from '../../shared/offline/outbox'
+import { offlineRules, reminderDelayLabel } from '../../shared/offline/rules'
 import { Badge } from '../../shared/ui/Badge'
 import { Icon } from '../../shared/ui/Icon'
 import { Panel } from '../../shared/ui/layout'
@@ -25,6 +26,7 @@ function pendingCash(operations: QueuedOperation[]): number {
 export function PendingOperationsPanel() {
   const outbox = useQuery(outboxQuery)
   const reminder = useBackupReminder()
+  const client = useQueryClient()
   const waiting = (outbox.data ?? [])
     .filter((o) => o.status === 'pending' || o.status === 'rejected')
     .sort((a, b) => a.createdAt - b.createdAt)
@@ -57,7 +59,8 @@ export function PendingOperationsPanel() {
         </div>
         {reminder && (
           <p className="notice" role="alert">
-            Des opérations attendent depuis plus d’une heure sans sauvegarde :{' '}
+            Des opérations attendent depuis{' '}
+            {reminderDelayLabel(offlineRules(client).backup_reminder_minutes)} sans sauvegarde :{' '}
             <Link to="/synchronisation#sauvegarde">exportez une sauvegarde chiffrée</Link>.
           </p>
         )}

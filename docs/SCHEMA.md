@@ -58,7 +58,8 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 ### Workstations (postes de caisse, D-062)
 | Table | Colonnes notables |
 |---|---|
-| `workstations` | `uuid`, `name` unique (≤ 40), `token_hash` unique (SHA-256 du jeton du navigateur, jamais le jeton), `user_agent`, `registered_by`, `last_seen_at/by` (signal de présence), `revoked_at/by`, `revocation_reason`. Jamais supprimé : révoqué. |
+| `workstations` | `uuid`, `name` unique (≤ 40), `token_hash` unique (SHA-256 du jeton du navigateur, jamais le jeton), `user_agent`, `registered_by`, `last_seen_at/by` (signal de présence), `revoked_at/by`, `revocation_reason`. État hors ligne déclaré avec le signal (lot 4A, migration `2026_11_22_100000`) : `pending_operations`, `rejected_operations`, `oldest_pending_at`, `last_sync_at`, `last_sync_status`, `last_backup_at`, `storage_persisted`, `reported_at`. Jamais supprimé : révoqué. |
+| `offline_operations` | `uuid`, `idempotency_key`, `user_id`, `workstation_id`, `kind`, `label`, `method`, `path`, `created_offline_at`, `received_at`, `attempts`, `outcome` (ACCEPTED, DUPLICATE, REJECTED, contrainte CHECK), `http_status`, `reason_title`, `reason`, `reason_code`, `review_status` (TO_REVIEW, REENTERED, REJECTED), `reviewed_by/at`, `review_reason` : opérations faites hors ligne reçues par le serveur (lot 4A.4). Unique (`user_id`, `idempotency_key`). Jamais supprimées. |
 | `workstation_assignments` | `uuid`, `number` unique (≥ 1, croissant), `workstation_id`, `previous_workstation_id`, `mode` ∈ {`FIRST`, `PLANNED`, `FORCED`}, `reason`, `previous_last_seen_at`, `assigned_by`, `assigned_at`. Le poste principal courant est la dernière attribution ; lignes figées (ni modifiées ni supprimées). Migration `2026_11_21_100000`. |
 
 ### Transverse
@@ -66,7 +67,7 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 |---|---|
 | `idempotency_keys` | `user_id`, `idempotency_key` (UUID), `method`, `path`, `request_hash` (SHA-256), `response_status`, `response_body` : réponse réussie d’une écriture, rejouée à l’identique (D-063). Unique (`user_id`, `idempotency_key`) ; purge après 30 jours. Migration `2026_11_21_110000`. |
 | `audit_logs` | `actor_id`, `action`, `entity_type`, `entity_id`, `before_json`, `after_json`, `ip_address`, `occurred_at`. Append-only. **Sert aussi de journal des modifications des réservations** (D-022). |
-| `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (11 valeurs par défaut, dont plusieurs provisoires ; `workstations.*` ajoutés par la migration `2026_11_21_100100`, D-062). |
+| `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (11 valeurs par défaut, dont plusieurs provisoires ; `workstations.*` ajoutés par la migration `2026_11_21_100100`, D-062 ; `offline.*` par la migration `2026_11_22_100000`, lot 4A). |
 | `cache`, `jobs`, `password_reset_tokens` | Tables techniques de Laravel (`password_reset_tokens` : liens « mot de passe oublié », 60 min) |
 | `invitation_tokens` | Liens d’invitation d’un nouveau compte (72 h), séparés des liens « mot de passe oublié » pour qu’aucun ne puisse servir à la place de l’autre (D-059, migration `2026_11_20_110000`) |
 
@@ -83,7 +84,7 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | Factures | — | `type`, `credited_invoice_id`, `issued_by` | Avoirs, sous réserve de Q-09 |
 | Auteurs | Clés étrangères nullables | `NOT NULL` pour `reservations.created_by`, `payments.cashier_id`, `refunds.processed_by` et `invoices.issued_by` | Chaque opération financière a un auteur |
 | Horodatages | Absents | `created_at`, `updated_at` (`DATETIME`) | Traçabilité |
-| Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions`, `workstations`, `workstation_assignments`, `idempotency_keys` | Paramètres, numérotation, droits, sessions, poste principal unique (D-062), écritures idempotentes (D-063) |
+| Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions`, `workstations`, `workstation_assignments`, `idempotency_keys`, `offline_operations` | Paramètres, numérotation, droits, sessions, poste principal unique (D-062), écritures idempotentes (D-063), journal des opérations hors ligne (lot 4A) |
 | Maintenance | `maintenance_status` | Statut courant seulement | Périodes planifiées en attente de Q-12 (D-019) |
 | Identifiants publics | Absents | Colonne `uuid` sur 11 tables | Les routes et les liens n’exposent jamais la clé entière (D-026) |
 | Prolongations | Absentes (historique dans l’audit seulement) | Table `reservation_extensions` (migration `190000`) | Facture détaillée séjour initial + prolongation (D-053, demande du 19/11/2026) |

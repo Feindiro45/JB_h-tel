@@ -223,3 +223,52 @@ describe('Éléments créés hors ligne (4.5)', () => {
     void c
   })
 })
+
+describe('Règles hors ligne et journal du serveur (lot 4A)', () => {
+  it('signale chaque rejeu au serveur avec l’opération, son libellé et sa date', async () => {
+    const c = client()
+    reportUnreachable()
+    await write()
+    reportReachable()
+    fetchMock.mockResolvedValueOnce(json({ data: { receipt_number: 'REC-2026-000077' } }, 201))
+
+    await sendPendingOperations(c, 'reconnect', USER)
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const header = (init.headers as Record<string, string>)['X-Offline-Replay']!
+    const base64 = header.replace(/-/g, '+').replace(/_/g, '/')
+    const bytes = Uint8Array.from(atob(base64), (ch) => ch.charCodeAt(0))
+    const meta = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, string>
+    expect(meta).toMatchObject({
+      kind: 'payment.record',
+      label: 'Encaissement de 20 000 FCFA — chambre 101',
+    })
+    expect(Date.parse(meta.created_at!)).not.toBeNaN()
+  })
+
+  it('applique les règles reçues du serveur : opérations permises et préfixe des numéros', async () => {
+    const c = client()
+    c.setQueryData(['workstation', 'self'], {
+      name: 'Caisse 01',
+      offline_rules: {
+        allowed_operations: ['payment.record'],
+        lock_after_minutes: 15,
+        backup_reminder_minutes: 60,
+        provisional_prefix: 'HL',
+      },
+    })
+    reportUnreachable()
+
+    expect(await write()).toBe('provisoire HL-CAISSE01-000001')
+    await expect(
+      runOrQueue({
+        kind: 'reservation.cancel',
+        label: 'Annulation',
+        path: '/api/v1/reservations/r-1/cancel',
+        body: {},
+        provisional: () => 'jamais',
+      }),
+    ).rejects.toThrow(/« Annulation » n’est pas permis sans Internet sur ce poste/)
+    expect((await readOutbox()).map((o) => o.kind)).toEqual(['payment.record'])
+  })
+})

@@ -16,7 +16,7 @@ import {
   todayIso,
 } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
-import { PendingOperationsPanel } from '../offline'
+import { OfflineAdminCard, PendingOperationsPanel } from '../offline'
 import { NewReservationDialog, occupancyQuery } from '../reservations'
 import { dashboardQuery } from './api'
 
@@ -94,6 +94,7 @@ export function DashboardPage() {
       ) : null}
 
       <PendingOperationsPanel />
+      {can('offline.manage') && <OfflineAdminCard />}
 
       <div className="dashboard-grid">
         <Panel title="Encaissements par jour" subtitle="Encaissé net des 7 derniers jours, en FCFA">

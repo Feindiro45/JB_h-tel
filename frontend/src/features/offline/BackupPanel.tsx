@@ -14,6 +14,7 @@ import {
   type BackupFile,
 } from '../../shared/offline/backup'
 import { notifyOutboxChanged, outboxQuery, type QueuedOperation } from '../../shared/offline/outbox'
+import { offlineRules, reminderDelayLabel } from '../../shared/offline/rules'
 import { Badge } from '../../shared/ui/Badge'
 import { TextField } from '../../shared/ui/fields'
 import { Icon } from '../../shared/ui/Icon'
@@ -45,6 +46,7 @@ export function BackupPanel() {
   const outbox = useQuery(outboxQuery)
   const last = useQuery(lastBackupQuery)
   const reminder = useBackupReminder()
+  const client = useQueryClient()
   const unsaved = unsavedOperations(outbox.data ?? [])
   const [dialog, setDialog] = useState<'export' | 'restore' | null>(null)
   const anchor = useRef<HTMLDivElement>(null)
@@ -75,8 +77,8 @@ export function BackupPanel() {
           <div className="backup-body">
             {reminder && (
               <p className="notice" role="alert">
-                <strong>Sauvegarde conseillée :</strong> des opérations attendent depuis plus d’une
-                heure sans sauvegarde.
+                <strong>Sauvegarde conseillée :</strong> des opérations attendent depuis{' '}
+                {reminderDelayLabel(offlineRules(client).backup_reminder_minutes)} sans sauvegarde.
               </p>
             )}
             <p>
