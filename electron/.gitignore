@@ -1,0 +1,8 @@
+node_modules/
+# Sorties de construction (régénérées par npm run build / npm run dist)
+build/
+renderer/
+release/
+# Données d'essai des tests de bout en bout
+.e2e-data/
+test-results/

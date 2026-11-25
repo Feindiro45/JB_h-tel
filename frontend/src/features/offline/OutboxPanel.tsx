@@ -137,7 +137,10 @@ export function OutboxPanel() {
                         </small>
                         {o.provisionalNumber && (
                           <small>
-                            {o.kind === 'invoice.issue' ? 'Facture' : 'Reçu'} {o.provisionalNumber}
+                            {o.kind === 'invoice.issue' || o.provisionalNumber.startsWith('FAC-')
+                              ? 'Facture'
+                              : 'Reçu'}{' '}
+                            {o.provisionalNumber}
                             {o.definitiveNumber ? ` → ${o.definitiveNumber}` : ' (provisoire)'}
                           </small>
                         )}

@@ -64,6 +64,10 @@ function definitiveNumberOf(operation: QueuedOperation, response: unknown): stri
   if (operation.kind === 'payment.record') return data?.receipt_number ?? null
   // Facture émise hors ligne : FAC-LOC-… devient le numéro FAC définitif.
   if (operation.kind === 'invoice.issue') return data?.number ?? null
+  const automatic = (response as { meta?: { automatic_invoice?: { number?: string } } })?.meta
+    ?.automatic_invoice
+  if (operation.kind === 'reservation.create' || operation.kind === 'reservation.confirm')
+    return automatic?.number ?? null
   return null
 }
 
@@ -82,6 +86,26 @@ export async function sendPendingOperations(
   options: { perMinute?: number; retryDelayMs?: number } = {},
 ): Promise<SyncRun | null> {
   if (sending || !user) return null
+  sending = true
+  try {
+    const run = () => sendPendingRun(client, trigger, user, options)
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      return await navigator.locks.request('jb-hotel-outbox-sync', { ifAvailable: true }, (lock) =>
+        lock ? run() : null,
+      )
+    }
+    return await run()
+  } finally {
+    sending = false
+  }
+}
+
+async function sendPendingRun(
+  client: QueryClient,
+  trigger: SyncTrigger,
+  user: { id: string; name: string },
+  options: { perMinute?: number; retryDelayMs?: number },
+): Promise<SyncRun | null> {
   // Toute la file (tous auteurs) : un élément créé hors ligne peut l'avoir été par un collègue.
   const known = await readOutbox()
   forgetSentLocalItems(client, known)
@@ -90,7 +114,6 @@ export async function sendPendingOperations(
     .sort((a, b) => a.createdAt - b.createdAt)
   if (pending.length === 0) return null
 
-  sending = true
   const startedAt = Date.now()
   const failures: SyncFailure[] = []
   let accepted = 0
@@ -119,72 +142,68 @@ export async function sendPendingOperations(
       }
     }
   }
-  try {
-    for (const operation of pending) {
-      if (!getConnectivity().online) {
+  for (const operation of pending) {
+    if (!getConnectivity().online) {
+      failures.push({
+        dataset: operation.label,
+        cause:
+          'Connexion impossible : le serveur n’est pas joignable. Réessayez au retour du réseau.',
+      })
+      break
+    }
+    // Élément créé hors ligne (`local-…`) : remplacé par l'identifiant donné par le serveur.
+    const resolution = resolveLocalRefs(operation.path, operation.body, known)
+    if (!resolution.ok) {
+      if (resolution.refused) {
+        const error = dependencyRefusal(resolution.waitingFor)
+        failures.push({ dataset: operation.label, cause: error.message })
+        remember(
+          await updateOperation(operation.id, {
+            status: 'rejected',
+            error: { title: error.title, message: error.message, code: error.code },
+          }),
+        )
+      } else {
+        const origin = resolution.waitingFor
         failures.push({
           dataset: operation.label,
-          cause:
-            'Connexion impossible : le serveur n’est pas joignable. Réessayez au retour du réseau.',
+          cause: `En attente de l’envoi de « ${origin.label} » (${origin.userName}).`,
         })
-        break
       }
-      // Élément créé hors ligne (`local-…`) : remplacé par l'identifiant donné par le serveur.
-      const resolution = resolveLocalRefs(operation.path, operation.body, known)
-      if (!resolution.ok) {
-        if (resolution.refused) {
-          const error = dependencyRefusal(resolution.waitingFor)
-          failures.push({ dataset: operation.label, cause: error.message })
-          remember(
-            await updateOperation(operation.id, {
-              status: 'rejected',
-              error: { title: error.title, message: error.message, code: error.code },
-            }),
-          )
-        } else {
-          const origin = resolution.waitingFor
-          failures.push({
-            dataset: operation.label,
-            cause: `En attente de l’envoi de « ${origin.label} » (${origin.userName}).`,
-          })
-        }
-        continue
-      }
-      const attempt = { attempts: operation.attempts + 1, lastAttemptAt: Date.now() }
-      try {
-        const response = await send(operation, resolution.path, resolution.body)
-        remember(
-          await updateOperation(operation.id, {
-            ...attempt,
-            status: 'accepted',
-            error: null,
-            definitiveNumber: definitiveNumberOf(operation, response),
-            resultId: resultIdOf(response),
-          }),
-        )
-        accepted++
-      } catch (cause) {
-        const error = toUserError(cause)
-        const detail = { title: error.title, message: error.message, code: error.code }
-        failures.push({ dataset: operation.label, cause: error.message })
-        const temporary =
-          error.isNetworkError ||
-          error.status === 401 ||
-          error.status === 429 ||
-          error.status >= 500
-        remember(
-          await updateOperation(operation.id, {
-            ...attempt,
-            status: temporary ? 'pending' : 'rejected',
-            error: detail,
-          }),
-        )
-        // Coupure, session expirée ou serveur indisponible : la suite attendra le prochain passage.
-        if (temporary) break
-      }
+      continue
     }
-  } finally {
-    sending = false
+    const attempt = { attempts: operation.attempts + 1, lastAttemptAt: Date.now() }
+    try {
+      const response = await send(operation, resolution.path, resolution.body)
+      remember(
+        await updateOperation(operation.id, {
+          ...attempt,
+          status: 'accepted',
+          error: null,
+          definitiveNumber: definitiveNumberOf(operation, response),
+          resultId: resultIdOf(response),
+          automaticInvoiceId:
+            (response as { meta?: { automatic_invoice?: { id?: string } } })?.meta
+              ?.automatic_invoice?.id ?? null,
+        }),
+      )
+      accepted++
+    } catch (cause) {
+      const error = toUserError(cause)
+      const detail = { title: error.title, message: error.message, code: error.code }
+      failures.push({ dataset: operation.label, cause: error.message })
+      const temporary =
+        error.isNetworkError || error.status === 401 || error.status === 429 || error.status >= 500
+      remember(
+        await updateOperation(operation.id, {
+          ...attempt,
+          status: temporary ? 'pending' : 'rejected',
+          error: detail,
+        }),
+      )
+      // Coupure, session expirée ou serveur indisponible : la suite attendra le prochain passage.
+      if (temporary) break
+    }
   }
 
   const run: SyncRun = {

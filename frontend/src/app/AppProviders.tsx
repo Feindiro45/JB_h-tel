@@ -1,6 +1,6 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
-import { ME_KEY } from '../features/auth'
+import { ME_KEY, meQueryOptions } from '../features/auth'
 import { ApiError } from '../shared/api/errors'
 import type { CurrentUser } from '../shared/api/types'
 import {
@@ -15,6 +15,9 @@ import {
   restoreQueryCache,
 } from '../shared/offline/persistence'
 import { sendPendingOperations } from '../shared/offline/outboxSync'
+import { pullServerChanges } from '../shared/offline/serverChanges'
+import { runAutoLocalUpdate } from '../shared/offline/autoLocalUpdate'
+import { desktopBridge } from '../shared/desktop/bridge'
 import { setQueryClientRef } from '../shared/offline/queryClientRef'
 import { confirmSessionOnline, forgetSession } from '../shared/offline/session'
 import { requestPersistentStorage } from '../shared/offline/storage'
@@ -26,7 +29,7 @@ import { ToastProvider } from '../shared/ui/ToastProvider'
 import { createQueryClient } from './queryClient'
 
 /**
- * Synchronisation dans les deux sens : d’abord l’envoi des opérations faites hors ligne (lot 4),
+ * Droits actualisés avant l’envoi des opérations faites hors ligne (lot 4),
  * puis la mise à jour de la copie du poste, pour que le serveur n’écrase pas une opération qui
  * n’est pas encore partie.
  */
@@ -35,9 +38,24 @@ async function synchronize(
   trigger: 'reconnect' | 'auto',
   user: CurrentUser,
 ): Promise<void> {
+  // Un autre poste peut avoir changé les droits pendant que cet onglet restait ouvert.
+  // Une panne conserve la copie hors ligne ; elle ne déclenche aucun envoi avec des droits périmés.
+  let currentUser: CurrentUser | null
+  try {
+    currentUser = await client.fetchQuery({ ...meQueryOptions, staleTime: 0 })
+  } catch {
+    return
+  }
+  if (!currentUser || currentUser.id !== user.id) return
+  user = currentUser
   await sendPendingOperations(client, trigger, user)
+  // Changements faits ailleurs (autre poste, web) : seuls les écrans concernés sont actualisés
+  // (D-069). Une panne passagère est rattrapée au passage suivant, sans message.
+  const changes = await pullServerChanges(client, user).catch(() => null)
   if (trigger === 'reconnect') await updateLocalCopy(client, trigger, user.name)
   await client.invalidateQueries({ queryKey: SYNC_LOG_KEY })
+  // Copie du poste tenue à jour sans clic (D-070) : en arrière-plan, sans bloquer les envois.
+  void runAutoLocalUpdate(client, user, { changes }).catch(() => undefined)
 }
 
 /**
@@ -48,6 +66,7 @@ async function synchronize(
 let persistenceAsked: Promise<boolean | null> | null = null
 
 function useOfflineCopy(client: QueryClient): boolean {
+  const { showError } = useErrorModal()
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -58,13 +77,34 @@ function useOfflineCopy(client: QueryClient): boolean {
       // en ligne, les opérations restées en attente d’une session précédente partent aussitôt.
       void checkConnectivity().then((reachable) => {
         const user = client.getQueryData<CurrentUser | null>(ME_KEY)
-        if (active && reachable && user) void synchronize(client, 'auto', user)
+        if (active && reachable && user) void synchronize(client, 'auto', user).catch(showError)
       })
     })
     return () => {
       active = false
     }
-  }, [client])
+  }, [client, showError])
+
+  useEffect(() => {
+    const retry = () => {
+      const user = client.getQueryData<CurrentUser | null>(ME_KEY)
+      if (user && getConnectivity().online && document.visibilityState !== 'hidden') {
+        void synchronize(client, 'auto', user).catch(showError)
+      }
+    }
+    const timer = setInterval(retry, 30_000)
+    window.addEventListener('focus', retry)
+    // Logiciel Windows (D-069) : au réveil du poste, l'accès au serveur est vérifié aussitôt
+    // (le retour du réseau déclenche alors l'envoi) puis la synchronisation reprend.
+    const stopResume = desktopBridge()?.system.onResume(() => {
+      void checkConnectivity().then((reachable) => reachable && retry())
+    })
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('focus', retry)
+      stopResume?.()
+    }
+  }, [client, showError])
 
   useEffect(
     () =>
@@ -96,10 +136,10 @@ function useOfflineCopy(client: QueryClient): boolean {
     return subscribeConnectivity(() => {
       const online = getConnectivity().online
       const user = client.getQueryData<CurrentUser | null>(ME_KEY)
-      if (online && !wasOnline && user) void synchronize(client, 'reconnect', user)
+      if (online && !wasOnline && user) void synchronize(client, 'reconnect', user).catch(showError)
       wasOnline = online
     })
-  }, [client])
+  }, [client, showError])
 
   return ready
 }

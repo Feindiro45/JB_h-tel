@@ -20,12 +20,13 @@ final class ModifyReservationRequest extends FormRequest
     {
         return [
             'room_id' => ['required', 'uuid', Rule::exists('rooms', 'uuid')],
-            'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.(OfflineReplay::fromRequest($this)?->pricedAt()?->toDateString() ?? 'today')],
             'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
             'billing_unit' => ['required', Rule::enum(BillingUnit::class)],
             'quantity' => ['required', 'integer', 'min:1', 'max:365'],
+            'expected_unit_price_fcfa' => ['sometimes', 'integer', 'min:0'],
             'reason' => [$this->routeIs('*.preview') ? 'nullable' : 'required', 'string', 'max:255'],
         ];
     }
@@ -82,6 +83,7 @@ final class ModifyReservationRequest extends FormRequest
             quantity: $this->integer('quantity'),
             reason: $this->string('reason')->trim()->toString(),
             pricedAt: OfflineReplay::fromRequest($this)?->pricedAt(),
+            expectedUnitPriceFcfa: $this->has('expected_unit_price_fcfa') ? $this->integer('expected_unit_price_fcfa') : null,
         );
     }
 }

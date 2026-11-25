@@ -48,7 +48,7 @@ final class InvoiceController
 
     public function store(Request $request, string $reservation): JsonResponse
     {
-        $invoice = $this->invoices->issue($this->reservation($reservation), $this->actor($request));
+        $invoice = $this->invoices->ensureIssued($this->reservation($reservation), $this->actor($request));
 
         return new JsonResponse(['data' => InvoicePresenter::invoice($invoice)], 201);
     }

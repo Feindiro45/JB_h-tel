@@ -14,7 +14,7 @@ import { getQueryClientRef } from '../../shared/offline/queryClientRef'
 import { addDays, formatDay, todayIso } from '../../shared/utils/format'
 import { reservationPaymentsQuery } from '../cashier'
 import { roomsQuery } from '../catalog'
-import { reservationInvoicesQuery } from '../invoices'
+import { cacheAutomaticInvoice, reservationInvoicesQuery } from '../invoices'
 import {
   belowCollectedError,
   conflictsFor,
@@ -75,6 +75,7 @@ export interface ReservationInput {
   discount?: { type: 'PERCENT' | 'FIXED'; value: string | number; reason: string } | null
   notes?: string | null
   confirm?: boolean
+  expected_unit_price_fcfa?: number
 }
 
 export interface ExtensionInput {
@@ -250,6 +251,7 @@ function prependToLists(client: QueryClient, stay: Reservation): void {
  * (`local-…`), à laquelle on peut déjà encaisser une avance.
  */
 export const createReservation = async (input: ReservationInput, idempotencyKey?: string) => {
+  input = { ...input, confirm: input.confirm ?? true }
   let quote: Quote | null = null
   return runOrQueue<Reservation>({
     kind: 'reservation.create',
@@ -257,9 +259,12 @@ export const createReservation = async (input: ReservationInput, idempotencyKey?
     path: '/api/v1/reservations',
     body: input,
     idempotencyKey,
+    numbered: input.confirm,
+    numberPrefix: 'FAC-',
     validate: (client) => {
       quote = localQuote(client, input)
       if (!quote.available) throw roomTakenError(quote)
+      input.expected_unit_price_fcfa = quote.price.unit_price_fcfa
     },
     provisional: (operation, client) => {
       const stay = provisionalStay(client, operation.localId!, input, quote!, operation.createdAt)
@@ -270,6 +275,7 @@ export const createReservation = async (input: ReservationInput, idempotencyKey?
         summary: emptySummary(stay.price.amount_due_fcfa),
       })
       prependToLists(client, stay)
+      cacheAutomaticInvoice(client, stay, operation)
       return stay
     },
   })
@@ -279,14 +285,18 @@ export const createReservation = async (input: ReservationInput, idempotencyKey?
  * Confirmation « comme en ligne » (lot 4, 4.13) : hors ligne, le poste revérifie que la chambre
  * reste libre (la réservation elle-même exclue) ; le serveur refait la vérification à l'envoi.
  */
-export const confirmReservation = (id: string) =>
-  runOrQueue<Reservation>({
+export const confirmReservation = (id: string) => {
+  const body: { expected_unit_price_fcfa?: number } = {}
+  return runOrQueue<Reservation>({
     kind: 'reservation.confirm',
     label: `Confirmation — ${describeStay(id)}`,
     path: `/api/v1/reservations/${id}/confirm`,
-    body: undefined,
+    body,
+    numbered: true,
+    numberPrefix: 'FAC-',
     validate: (client) => {
       const stay = keptStay(client, id)
+      body.expected_unit_price_fcfa = stay.price.unit_price_fcfa
       if (stay.status !== 'PENDING') {
         throw new ApiError(
           409,
@@ -315,13 +325,17 @@ export const confirmReservation = (id: string) =>
         )
       }
     },
-    provisional: (_operation, client) =>
-      updateStay(client, id, (stay) => ({
+    provisional: (operation, client) => {
+      const stay = updateStay(client, id, (stay) => ({
         ...stay,
         status: 'CONFIRMED',
         status_label: 'Confirmée',
-      })),
+      }))
+      cacheAutomaticInvoice(client, stay, operation)
+      return stay
+    },
   })
+}
 
 /** « chambre 101 · NGUEMA Paul », d'après la fiche gardée sur le poste (libellé de la file d'attente). */
 export function describeStay(id: string): string {
@@ -590,6 +604,7 @@ export interface ModificationInput {
   billing_unit: 'DAY' | 'HALF_DAY'
   quantity: number
   reason?: string
+  expected_unit_price_fcfa?: number
 }
 
 /** Facture active, droit d'avoir, prolongation déjà faite : conditions de la modification (D-058). */
@@ -668,6 +683,7 @@ export async function modifyReservation(id: string, input: ModificationInput) {
         throw belowCollectedError(preview.price.net_fcfa, collected)
       }
       quote = preview
+      input.expected_unit_price_fcfa = preview.price.unit_price_fcfa
     },
     provisional: (_operation, client) => {
       const next = quote!

@@ -214,6 +214,78 @@ describe('Administration', () => {
     expect(screen.getAllByRole('button', { name: 'Modifier' })).toHaveLength(1)
   })
 
+  it('range les paramètres par domaine, avec recherche et filtre « Afficher »', async () => {
+    mockApi({
+      ...defaults,
+      'GET /api/v1/settings': {
+        body: {
+          data: [
+            {
+              key: 'discounts.cashier_max_percent',
+              label: 'Plafond de remise',
+              value: 10,
+              unit: '%',
+              type: 'integer',
+              editable: true,
+              status: 'PROVISIONAL',
+              help: 'Au-delà, droit de dépasser le plafond.',
+              reference: 'D-016',
+            },
+            {
+              key: 'billing.half_day_max_hours',
+              label: 'Durée maximale du forfait demi-journée',
+              value: 12,
+              unit: 'h',
+              type: 'integer',
+              editable: false,
+              status: 'VALIDATED',
+              help: 'Jusqu’à 12 h incluses.',
+              reference: 'D-007',
+            },
+            {
+              key: 'offline.allowed_operations',
+              label: 'Opérations permises sans Internet',
+              value: ['payment.record', 'checkin'],
+              options: { 'payment.record': 'Encaissement', checkin: 'Arrivée' },
+              type: 'choices',
+              editable: true,
+              status: 'PROVISIONAL',
+              help: 'Les autres sont refusées hors ligne.',
+              reference: 'D-064',
+            },
+          ],
+        },
+      },
+    })
+    renderApp('/admin/parametres')
+    const user = userEvent.setup()
+
+    await screen.findByRole('article', { name: 'Plafond de remise' })
+    const nav = screen.getByRole('navigation', { name: 'Domaines des paramètres' })
+    expect(
+      within(nav).getByRole('link', { name: 'Remises : 1 règle, dont 1 à valider' }),
+    ).toHaveAttribute('href', '#parametres-discounts')
+    expect(
+      within(nav).getByRole('link', { name: 'Facturation et caisse : 1 règle' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Hors ligne' })).toHaveTextContent(
+      'EncaissementArrivée',
+    )
+    expect(screen.getByRole('article', { name: 'Plafond de remise' })).toHaveTextContent('10 %')
+
+    await user.type(screen.getByLabelText('Rechercher une règle'), 'd-007')
+    expect(screen.getAllByRole('article', { name: /.+/ })).toHaveLength(1)
+    expect(screen.getByRole('article', { name: /demi-journée/ })).toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText('Rechercher une règle'))
+    await user.selectOptions(screen.getByLabelText('Afficher'), 'PROVISIONAL')
+    expect(screen.queryByRole('article', { name: /demi-journée/ })).toBeNull()
+    expect(screen.getAllByRole('article', { name: /.+/ })).toHaveLength(2)
+
+    await user.type(screen.getByLabelText('Rechercher une règle'), 'introuvable')
+    expect(screen.getByText('Aucune règle ne correspond')).toBeInTheDocument()
+  })
+
   it('affiche le détail avant et après dans le journal d’audit', async () => {
     mockApi({
       ...defaults,

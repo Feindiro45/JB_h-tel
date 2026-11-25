@@ -1,12 +1,12 @@
 import { PageOverview } from '../../shared/ui/PageOverview'
-import { Icon } from '../../shared/ui/Icon'
+import { Icon, type IconName } from '../../shared/ui/Icon'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import { api } from '../../shared/api/client'
 import type { Envelope } from '../../shared/api/types'
 import { Badge } from '../../shared/ui/Badge'
-import { TextField } from '../../shared/ui/fields'
-import { LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
+import { SelectField, TextField } from '../../shared/ui/fields'
+import { EmptyState, LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
 import { Modal } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/toastContext'
 import { adminQuery, type Setting } from './api'
@@ -14,61 +14,117 @@ import { useCurrentUser } from '../auth'
 import { EditDialog } from './EditDialog'
 import './settings.css'
 
-/** Domaines des paramètres (D-060), d'après le préfixe de leur clé. */
-const GROUPS: { prefix: string; title: string; description: string }[] = [
+/** Domaines des paramètres (D-060), d'après le préfixe de leur clé ; une couleur par domaine. */
+const GROUPS: {
+  prefix: string
+  title: string
+  description: string
+  icon: IconName
+  tone: string
+}[] = [
   {
     prefix: 'discounts',
     title: 'Remises',
     description: 'Plafonds et arrondis appliqués aux réductions.',
+    icon: 'percent',
+    tone: 'green',
   },
   {
     prefix: 'payments',
     title: 'Encaissements',
     description: 'Moyens de paiement proposés à la caisse.',
+    icon: 'wallet',
+    tone: 'blue',
   },
   {
     prefix: 'reservations',
     title: 'Réservations',
     description: 'Blocage des chambres quand l’heure n’est pas saisie.',
+    icon: 'calendar',
+    tone: 'violet',
   },
   {
     prefix: 'billing',
     title: 'Facturation et caisse',
     description: 'Forfaits, numérotation des pièces et trop-perçu.',
+    icon: 'document',
+    tone: 'gold',
   },
   {
     prefix: 'offline',
     title: 'Hors ligne',
     description:
       'Opérations permises sans Internet, verrouillage, sauvegardes et numéros provisoires (D-064).',
+    icon: 'cloudOff',
+    tone: 'slate',
   },
   {
     prefix: 'workstations',
     title: 'Postes de caisse',
     description: 'Poste principal unique (D-062) et délai avant de le considérer hors ligne.',
+    icon: 'monitor',
+    tone: 'teal',
   },
 ]
 
-function settingGroups(settings: Setting[]) {
+type Show = '' | 'PROVISIONAL' | 'VALIDATED' | 'EDITABLE'
+
+interface SettingGroup {
+  key: string
+  title: string
+  description: string
+  icon: IconName
+  tone: string
+  items: Setting[]
+}
+
+function settingGroups(settings: Setting[]): SettingGroup[] {
   const known = GROUPS.map((group) => ({
     key: group.prefix,
     title: group.title,
     description: group.description,
+    icon: group.icon,
+    tone: group.tone,
     items: settings.filter((s) => s.key.startsWith(`${group.prefix}.`)),
   }))
   const others = settings.filter((s) => !GROUPS.some((g) => s.key.startsWith(`${g.prefix}.`)))
   return [
     ...known,
-    { key: 'others', title: 'Autres règles', description: 'Règles générales.', items: others },
+    {
+      key: 'others',
+      title: 'Autres règles',
+      description: 'Règles générales.',
+      icon: 'settings' as IconName,
+      tone: 'green',
+      items: others,
+    },
   ].filter((group) => group.items.length > 0)
+}
+
+const normalize = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+
+/** Recherche (libellé, explication, référence) et filtre « Afficher ». */
+function matches(s: Setting, search: string, show: Show): boolean {
+  if (show === 'PROVISIONAL' && s.status === 'VALIDATED') return false
+  if (show === 'VALIDATED' && s.status !== 'VALIDATED') return false
+  if (show === 'EDITABLE' && !s.editable) return false
+  const needle = normalize(search.trim())
+  return !needle || normalize(`${s.label} ${s.help} ${s.reference} ${s.key}`).includes(needle)
 }
 
 function displayValue(s: Setting): ReactNode {
   if (Array.isArray(s.value))
-    return (
+    return s.value.length === 0 ? (
+      'Aucune'
+    ) : (
       <span className="setting-chips">
         {s.value.map((v) => (
           <span key={v} className="setting-chip">
+            <Icon name="check" size={13} />
             {s.options?.[v] ?? v}
           </span>
         ))}
@@ -80,6 +136,15 @@ function displayValue(s: Setting): ReactNode {
   return s.unit ? `${text} ${s.unit}` : text
 }
 
+/** Taille de la valeur : grande pour un nombre court, normale pour une phrase ou une liste. */
+function valueKind(s: Setting): string {
+  if (Array.isArray(s.value)) return 'list'
+  if (s.type === 'text' && !s.options) return 'code'
+  if (typeof s.value === 'boolean') return s.value ? 'yes' : 'no'
+  const text = String(displayValue(s))
+  return text.length > 16 ? 'long' : 'short'
+}
+
 /** « 2026-11-20 09:15:00 » (heure de l'hôtel, renvoyée par le serveur) → « 20/11/2026 à 09:15 ». */
 function displayUpdatedAt(value: string): string {
   const [date = '', time = ''] = value.split(' ')
@@ -87,50 +152,106 @@ function displayUpdatedAt(value: string): string {
   return d && m && y ? `${d}/${m}/${y} à ${time.slice(0, 5)}` : value
 }
 
-function SettingRow({ setting: s, onEdit }: { setting: Setting; onEdit: () => void }) {
+function SettingCard({ setting: s, onEdit }: { setting: Setting; onEdit: () => void }) {
   const titleId = useId()
+  const validated = s.status === 'VALIDATED'
+  const kind = valueKind(s)
   return (
-    <article className="setting" aria-labelledby={titleId}>
-      <div className="setting__main">
+    <article
+      className={`setting-card${validated ? ' setting-card--validated' : ''}`}
+      aria-labelledby={titleId}
+    >
+      <header className="setting-card__head">
         <h3 id={titleId}>{s.label}</h3>
-        <p>{s.help}</p>
-        <p className="setting__meta">
-          <span className="setting__ref">Réf. {s.reference}</span>
+        <Badge tone={validated ? 'green' : 'amber'} label={validated ? 'Validé' : 'Provisoire'} />
+      </header>
+      <div className={`setting-card__value setting-card__value--${kind}`}>
+        {kind === 'yes' || kind === 'no' ? (
+          <span className="setting-card__bool">
+            <Icon name={kind === 'yes' ? 'check' : 'close'} size={16} />
+            {displayValue(s)}
+          </span>
+        ) : (
+          displayValue(s)
+        )}
+      </div>
+      <p className="setting-card__help">{s.help}</p>
+      <footer className="setting-card__foot">
+        <div className="setting-card__meta">
+          <span className="setting-card__ref">Réf. {s.reference}</span>
           {s.updated_at && (
             <span>
               Modifié le {displayUpdatedAt(s.updated_at)}
               {s.updated_by ? ` par ${s.updated_by}` : ''}
             </span>
           )}
-        </p>
-      </div>
-      <div className="setting__side">
-        <Badge
-          tone={s.status === 'VALIDATED' ? 'green' : 'amber'}
-          label={s.status === 'VALIDATED' ? 'Validé' : 'Provisoire'}
-        />
-        <strong className={`setting__value${s.type === 'text' ? ' setting__value--code' : ''}`}>
-          {displayValue(s)}
-        </strong>
+        </div>
         {s.editable ? (
           <button type="button" className="secondary" onClick={onEdit} aria-describedby={titleId}>
-            <Icon name="edit" size={17} />
+            <Icon name="edit" size={16} />
             Modifier
           </button>
         ) : (
-          <span className="setting__locked">
+          <span className="setting-card__locked">
             <Icon name="key" size={14} />
             Fixé par décision
           </span>
         )}
-      </div>
+      </footer>
     </article>
+  )
+}
+
+function SettingSection({
+  group,
+  onEdit,
+}: {
+  group: SettingGroup
+  onEdit: (setting: Setting) => void
+}) {
+  const titleId = useId()
+  const provisional = group.items.filter((s) => s.status !== 'VALIDATED').length
+  return (
+    <section
+      className={`settings-section settings-tone--${group.tone}`}
+      id={`parametres-${group.key}`}
+      aria-labelledby={titleId}
+    >
+      <header className="settings-section__head">
+        <span className="settings-section__icon" aria-hidden="true">
+          <Icon name={group.icon} size={22} />
+        </span>
+        <div>
+          <h2 id={titleId}>{group.title}</h2>
+          <p>{group.description}</p>
+        </div>
+        <span className="settings-section__count">
+          {group.items.length} règle{group.items.length > 1 ? 's' : ''}
+          {provisional > 0 && <> · {provisional} à valider</>}
+        </span>
+      </header>
+      <div className="settings-grid">
+        {group.items.map((s) => (
+          <SettingCard key={s.key} setting={s} onEdit={() => onEdit(s)} />
+        ))}
+      </div>
+    </section>
   )
 }
 
 export function SettingsPage() {
   const settings = useQuery(adminQuery<Envelope<Setting[]>>('settings'))
   const [editing, setEditing] = useState<Setting | null>(null)
+  const [search, setSearch] = useState('')
+  const [show, setShow] = useState<Show>('')
+  const all = useMemo(() => settings.data?.data ?? [], [settings.data])
+  const groups = useMemo(
+    () => settingGroups(all.filter((s) => matches(s, search, show))),
+    [all, search, show],
+  )
+  const count = (test: (s: Setting) => boolean) =>
+    settings.data ? all.filter(test).length : undefined
+
   return (
     <>
       <PageHeading
@@ -143,59 +264,131 @@ export function SettingsPage() {
         items={[
           {
             label: 'Paramètres',
-            value: settings.data?.data.length,
+            value: count(() => true),
             hint: 'Règles de configuration',
             icon: 'settings',
           },
           {
             label: 'Validés',
-            value: settings.data
-              ? settings.data.data.filter((s) => s.status === 'VALIDATED').length
-              : undefined,
+            value: count((s) => s.status === 'VALIDATED'),
             hint: 'Règles déjà confirmées',
             icon: 'check',
           },
           {
             label: 'Provisoires',
-            value: settings.data
-              ? settings.data.data.filter((s) => s.status !== 'VALIDATED').length
-              : undefined,
+            value: count((s) => s.status !== 'VALIDATED'),
             hint: 'À faire valider par l’hôtel',
             icon: 'clock',
           },
           {
             label: 'Modifiables',
-            value: settings.data ? settings.data.data.filter((s) => s.editable).length : undefined,
+            value: count((s) => s.editable),
             hint: 'Réglages autorisés dans l’interface',
             icon: 'edit',
           },
         ]}
       />
-      <div className="settings-legend" role="note">
-        <span>
-          <Badge tone="green" label="Validé" /> règle confirmée par l’hôtel
-        </span>
-        <span>
-          <Badge tone="amber" label="Provisoire" /> valeur par défaut, en attente de validation
-        </span>
-        <span>
-          <Icon name="key" size={15} /> fixée par une décision : modifiable seulement après accord
-        </span>
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Domaines des paramètres">
+          <p className="settings-nav__title">Domaines</p>
+          <ul>
+            {groups.map((group) => {
+              const provisional = group.items.filter((s) => s.status !== 'VALIDATED').length
+              return (
+                <li key={group.key}>
+                  <a
+                    href={`#parametres-${group.key}`}
+                    className={`settings-tone--${group.tone}`}
+                    aria-label={`${group.title} : ${group.items.length} règle${group.items.length > 1 ? 's' : ''}${provisional > 0 ? `, dont ${provisional} à valider` : ''}`}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      document
+                        .getElementById(`parametres-${group.key}`)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                  >
+                    <span className="settings-nav__icon" aria-hidden="true">
+                      <Icon name={group.icon} size={17} />
+                    </span>
+                    <span className="settings-nav__label">{group.title}</span>
+                    <span className="settings-nav__count">{group.items.length}</span>
+                    {provisional > 0 && (
+                      <span className="settings-nav__pending" aria-hidden="true" />
+                    )}
+                  </a>
+                </li>
+              )
+            })}
+            <li>
+              <a
+                href="#parametres-e-mails"
+                className="settings-tone--blue"
+                onClick={(event) => {
+                  event.preventDefault()
+                  document
+                    .getElementById('parametres-e-mails')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }}
+              >
+                <span className="settings-nav__icon" aria-hidden="true">
+                  <Icon name="mail" size={17} />
+                </span>
+                <span className="settings-nav__label">Envoi des e-mails</span>
+              </a>
+            </li>
+          </ul>
+          <div className="settings-legend" role="note">
+            <span>
+              <Badge tone="green" label="Validé" /> confirmé par l’hôtel
+            </span>
+            <span>
+              <Badge tone="amber" label="Provisoire" /> en attente de validation
+            </span>
+            <span>
+              <Icon name="key" size={15} /> fixé par une décision
+            </span>
+          </div>
+        </nav>
+        <div className="settings-content">
+          <form
+            className="filterbar settings-filters"
+            aria-label="Filtrer les paramètres"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <TextField
+              label="Rechercher une règle"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Remise, préfixe, D-016…"
+            />
+            <SelectField
+              label="Afficher"
+              icon="filter"
+              value={show}
+              onChange={(event) => setShow(event.target.value as Show)}
+            >
+              <option value="">Toutes les règles</option>
+              <option value="PROVISIONAL">À valider (provisoires)</option>
+              <option value="VALIDATED">Validées</option>
+              <option value="EDITABLE">Modifiables ici</option>
+            </SelectField>
+          </form>
+          {settings.isPending ? (
+            <LoadingBlock />
+          ) : groups.length === 0 ? (
+            <EmptyState title="Aucune règle ne correspond">
+              Modifiez la recherche ou choisissez « Toutes les règles ».
+            </EmptyState>
+          ) : (
+            groups.map((group) => (
+              <SettingSection key={group.key} group={group} onEdit={setEditing} />
+            ))
+          )}
+          <div id="parametres-e-mails" className="settings-mail">
+            <MailPanel />
+          </div>
+        </div>
       </div>
-      {settings.isPending ? (
-        <LoadingBlock />
-      ) : (
-        settingGroups(settings.data?.data ?? []).map((group) => (
-          <Panel key={group.key} title={group.title} subtitle={group.description}>
-            <div className="settings-list">
-              {group.items.map((s) => (
-                <SettingRow key={s.key} setting={s} onEdit={() => setEditing(s)} />
-              ))}
-            </div>
-          </Panel>
-        ))
-      )}
-      <MailPanel />
       {editing &&
         (editing.type === 'methods' || editing.type === 'choices' ? (
           <MethodsDialog setting={editing} onClose={() => setEditing(null)} />

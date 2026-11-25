@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Link } from 'react-router'
+import { ApiError } from '../api/errors'
+import { desktopBridge } from '../desktop/bridge'
 import { formatFcfa } from '../utils/format'
 import { SelectField } from './fields'
 import { Icon } from './Icon'
+import { useErrorModal } from './errorModalContext'
 import { PageHeading } from './layout'
+import { useToast } from './toastContext'
 import './thermalTicket.css'
 
 /** Largeur du rouleau en millimètres : 80 mm par défaut, 58 mm si l'imprimante l'exige (N-07). */
@@ -135,13 +139,15 @@ export function TicketLines({ lines }: { lines: TicketLine[] }) {
  * la règle est retirée en quittant la page, les autres impressions restent en A4.
  */
 function usePageSize(stage: RefObject<HTMLDivElement | null>, width: TicketWidth) {
-  const update = useCallback(() => {
+  /** Rend la longueur de la bande (mm) donnée à l'imprimante. */
+  const update = useCallback((): number | null => {
     const style = document.getElementById(PAGE_STYLE_ID)
-    if (!style) return
+    if (!style) return null
     const height = stage.current?.querySelector('.thermal-ticket')?.getBoundingClientRect().height
     const heightMm = height ? Math.ceil(height * MM_PER_CSS_PX) + TEAR_MARGIN_MM : 297
     const page = `size: ${width}mm ${heightMm}mm; margin: 0;`
     style.textContent = `@media print { @page { ${page} } @page :first { ${page} } }`
+    return heightMm
   }, [stage, width])
 
   useEffect(() => {
@@ -185,10 +191,38 @@ export function TicketPrintLayout({
   const [width, setWidth] = useState<TicketWidth>(readWidth)
   const stage = useRef<HTMLDivElement>(null)
   const updatePageSize = usePageSize(stage, width)
+  const { showError } = useErrorModal()
+  const { notify } = useToast()
+  const [printing, setPrinting] = useState(false)
 
   const print = () => {
-    updatePageSize()
-    window.print()
+    const heightMm = updatePageSize()
+    const desktop = desktopBridge()
+    if (!desktop) return window.print()
+    // Logiciel Windows (D-069) : imprimante du poste, sans Internet ; chaque impression est notée.
+    setPrinting(true)
+    desktop.printing
+      .printTicket({
+        document: typeof description === 'string' ? description : title,
+        widthMm: width,
+        heightMm,
+      })
+      .then((outcome) => {
+        if (outcome.ok)
+          notify(outcome.reprint ? 'Ticket réimprimé.' : 'Ticket envoyé à l’imprimante.')
+        else if (outcome.reason !== 'cancelled')
+          showError(new ApiError(503, 'Impression impossible', outcome.message))
+      })
+      .catch(() =>
+        showError(
+          new ApiError(
+            503,
+            'Impression impossible',
+            'L’imprimante du poste n’a pas répondu. Vérifiez qu’elle est allumée, puis réessayez.',
+          ),
+        ),
+      )
+      .finally(() => setPrinting(false))
   }
 
   return (
@@ -199,7 +233,7 @@ export function TicketPrintLayout({
         title={title}
         description={description}
         actions={
-          <button type="button" className="primary" onClick={print}>
+          <button type="button" className="primary" onClick={print} disabled={printing}>
             <Icon name="print" size={17} />
             Imprimer le ticket
           </button>

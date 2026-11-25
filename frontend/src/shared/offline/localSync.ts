@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query'
+import { hashKey, type QueryClient } from '@tanstack/react-query'
 import { ApiError, toUserError } from '../api/errors'
 import { newIdempotencyKey } from '../api/idempotency'
 import { getConnectivity } from './connectivity'
@@ -79,11 +79,24 @@ export function sizeOf(cache: StoredCache | null): number | null {
   return cache ? new Blob([JSON.stringify(cache)]).size : null
 }
 
-let syncing = false
+let activeRuns = 0
+const runQueries = new Map<string, number>()
+let queue: Promise<unknown> = Promise.resolve()
 
-/** Pendant une mise à jour, les échecs vont au journal, pas dans des fenêtres d'erreur. */
-export function isSyncing(): boolean {
-  return syncing
+/**
+ * Sans argument : une mise à jour est en cours. Avec l'empreinte d'une requête : cette donnée
+ * est téléchargée par la mise à jour ; ses échecs vont au journal, pas dans des fenêtres
+ * d'erreur. Les autres écrans gardent leurs messages, même pendant une mise à jour automatique
+ * de plusieurs minutes (D-070).
+ */
+export function isSyncing(queryHash?: string): boolean {
+  return queryHash === undefined ? activeRuns > 0 : runQueries.has(queryHash)
+}
+
+function markQuery(hash: string, delta: 1 | -1): void {
+  const count = (runQueries.get(hash) ?? 0) + delta
+  if (count > 0) runQueries.set(hash, count)
+  else runQueries.delete(hash)
 }
 
 const OFFLINE_CAUSE =
@@ -106,19 +119,33 @@ export interface DownloadOptions {
   concurrency?: number
   /** Attente avant de réessayer après un « trop de requêtes » (429). */
   retryDelayMs?: number
+  /** Mise à jour automatique : une réussite remplace la précédente dans l'historique. */
+  collapseHistory?: boolean
 }
 
 /**
  * « Mettre à jour en local » : recharge depuis le serveur chaque jeu de données gardé sur le
  * poste et les écrans essentiels ; avec `full`, télécharge aussi les fiches de détail déclarées
  * par chaque feature (« Tout télécharger pour le hors ligne »). La copie est enregistrée, et une
- * ligne ajoutée au journal (succès, partiel ou échec et causes).
+ * ligne ajoutée au journal (succès, partiel ou échec et causes). Deux mises à jour ne se
+ * chevauchent jamais : la seconde attend la fin de la première.
  */
-export async function updateLocalCopy(
+export function updateLocalCopy(
   client: QueryClient,
   trigger: SyncTrigger,
   user: string | null,
   options: DownloadOptions = {},
+): Promise<SyncRun> {
+  const run = queue.then(() => runLocalUpdate(client, trigger, user, options))
+  queue = run.catch(() => undefined)
+  return run
+}
+
+async function runLocalUpdate(
+  client: QueryClient,
+  trigger: SyncTrigger,
+  user: string | null,
+  options: DownloadOptions,
 ): Promise<SyncRun> {
   const startedAt = Date.now()
   const failures: SyncFailure[] = []
@@ -143,37 +170,43 @@ export async function updateLocalCopy(
   ): Promise<T | undefined> {
     progress.planned++
     report()
-    for (let attempt = 0; ; attempt++) {
-      if (!getConnectivity().online) {
-        progress.failed++
-        fail(datasetLabel(key), OFFLINE_CAUSE)
-        report()
-        return undefined
-      }
-      try {
-        const data = await limit(load)
-        succeeded++
-        records += countRecords(data)
-        progress.done++
-        report()
-        return data
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 429 && attempt < 3) {
-          await sleep(retryDelay)
-          continue
+    const hash = hashKey(key)
+    markQuery(hash, 1)
+    try {
+      for (let attempt = 0; ; attempt++) {
+        if (!getConnectivity().online) {
+          progress.failed++
+          fail(datasetLabel(key), OFFLINE_CAUSE)
+          report()
+          return undefined
         }
-        progress.failed++
-        fail(datasetLabel(key), toUserError(error).message)
-        report()
-        return undefined
+        try {
+          const data = await limit(load)
+          succeeded++
+          records += countRecords(data)
+          progress.done++
+          report()
+          return data
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 429 && attempt < 3) {
+            await sleep(retryDelay)
+            continue
+          }
+          progress.failed++
+          fail(datasetLabel(key), toUserError(error).message)
+          report()
+          return undefined
+        }
       }
+    } finally {
+      markQuery(hash, -1)
     }
   }
 
   if (!getConnectivity().online) {
     failures.push({ dataset: 'Serveur', cause: OFFLINE_CAUSE })
   } else {
-    syncing = true
+    activeRuns++
     try {
       const kept = client
         .getQueryCache()
@@ -234,7 +267,7 @@ export async function updateLocalCopy(
         }
       }
     } finally {
-      syncing = false
+      activeRuns--
     }
     progress.step = 'Enregistrement sur le poste'
     report()
@@ -262,7 +295,7 @@ export async function updateLocalCopy(
     failures,
     user,
   }
-  await appendRun(run)
+  await appendRun(run, { collapse: options.collapseHistory })
   return run
 }
 

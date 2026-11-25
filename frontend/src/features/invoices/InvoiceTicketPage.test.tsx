@@ -110,7 +110,7 @@ describe('Ticket 80 mm d’une facture', () => {
     expect(text).toContain('Net à payer45 000 FCFA')
     expect(text).toContain('REC-2026-000042 · 01/12/2026')
     expect(text).toContain('Déjà réglé (net)20 000 FCFA')
-    expect(text).toContain('Reste dû25 000 FCFA')
+    expect(text).toContain('Solde à l’émission25 000 FCFA')
     expect(text).toContain('Mode de paiementEspèces')
     expect(text).not.toContain('60 000')
     expect(text).not.toMatch(/tax|TVA/i)

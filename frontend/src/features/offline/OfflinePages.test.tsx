@@ -76,7 +76,7 @@ describe('Synchronisation et sauvegardes', () => {
       await screen.findByRole('heading', { name: 'Synchronisation et sauvegardes', level: 1 }),
     ).toBeVisible()
     const history = await screen.findByRole('region', { name: 'Historique des synchronisations' })
-    const row = within(history).getAllByRole('row')[1]!
+    const row = (await within(history).findAllByRole('row'))[1]!
     expect(row).toHaveTextContent('Vers ce poste')
     expect(row).toHaveTextContent('Échec')
     expect(row).toHaveTextContent('Retour du réseau')
@@ -179,7 +179,7 @@ describe('Consultation hors ligne', () => {
     const user = userEvent.setup()
 
     const lock = await screen.findByRole('dialog', { name: 'Session verrouillée' })
-    expect(lock).toHaveTextContent(`mot de passe de ${USER.name}`)
+    await waitFor(() => expect(lock).toHaveTextContent(`mot de passe de ${USER.name}`))
     await user.type(within(lock).getByLabelText('Mot de passe'), 'mauvais')
     await user.click(within(lock).getByRole('button', { name: 'Déverrouiller' }))
     expect(await within(lock).findByText('Mot de passe incorrect.')).toBeVisible()
@@ -315,9 +315,9 @@ describe('Opérations en attente et sauvegardes (lot 4)', () => {
         name: 'Opérations faites hors ligne par état',
       })
       expect(within(operations).getByText('En attente').closest('li')).toHaveTextContent('1')
-      // Sans IndexedDB (environnement de test, navigation privée) : la carte le dit clairement.
+      // Les tests utilisent désormais IndexedDB et les mêmes transactions que le navigateur.
       expect(await screen.findByRole('region', { name: 'Stockage de ce poste' })).toHaveTextContent(
-        'Base indisponible',
+        'Copie automatique',
       )
       expect(
         await screen.findByRole('figure', {

@@ -34,12 +34,35 @@ function userIdOf(client: QueryClient): string | null {
 }
 
 export function snapshot(client: QueryClient, now = Date.now()): StoredCache {
+  const state = dehydrate(client, {
+    // Une relecture échouée (serveur injoignable alors que le réseau local répond, D-069) garde
+    // les données déjà reçues : elles restent dans la copie, sinon le redémarrage suivant sans
+    // serveur perdrait la session et les écrans.
+    shouldDehydrateQuery: (query) =>
+      keptKey(query.queryKey) &&
+      (query.state.status === 'success' ||
+        (query.state.status === 'error' && query.state.data !== undefined)),
+  })
   return {
     userId: userIdOf(client),
     savedAt: now,
-    state: dehydrate(client, {
-      shouldDehydrateQuery: (query) => query.state.status === 'success' && keptKey(query.queryKey),
-    }),
+    state: {
+      ...state,
+      queries: state.queries.map((query) =>
+        query.state.status === 'success'
+          ? query
+          : {
+              ...query,
+              state: {
+                ...query.state,
+                status: 'success',
+                error: null,
+                fetchFailureCount: 0,
+                fetchFailureReason: null,
+              },
+            },
+      ),
+    },
   }
 }
 

@@ -191,7 +191,7 @@ export function NewReservationDialog({ onClose }: { onClose: () => void }) {
         notify('Réservation enregistrée')
       }
       onClose()
-      navigate(`/reservations/${reservation.id}`)
+      navigate(`/reservations/${reservation.id}`, { state: { reservationCreated: true } })
     },
   })
 

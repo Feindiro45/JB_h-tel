@@ -120,6 +120,20 @@ function serve(r: Reservation, permissions?: string[], extra: Parameters<typeof 
 }
 
 describe('Fiche réservation', () => {
+  it('guide les opérations suivantes et donne accès à la facture automatique sans émission manuelle', async () => {
+    serve(reservation(), undefined, {
+      [`GET /api/v1/reservations/${ID}/invoices`]: { body: { data: [INVOICE] } },
+    })
+    renderApp(`/reservations/${ID}`)
+    const guide = await screen.findByRole('region', { name: 'Les étapes du séjour' })
+    expect(within(guide).getAllByRole('listitem')).toHaveLength(5)
+    expect(
+      await within(guide).findByRole('link', { name: 'Ouvrir le ticket de facture' }),
+    ).toHaveAttribute('href', `/documents/factures/${INVOICE.id}/ticket`)
+    expect(within(guide).getByText('Prochaine opération')).toBeVisible()
+    expect(within(guide).getByRole('button', { name: 'Enregistrer l’arrivée' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Émettre une facture' })).toBeNull()
+  })
   it('affiche le solde calculé par le serveur et les actions permises', async () => {
     serve(reservation())
     renderApp(`/reservations/${ID}`)
@@ -137,7 +151,9 @@ describe('Fiche réservation', () => {
     serve(reservation({}, addDays(todayIso(), 30)))
     renderApp(`/reservations/${ID}`)
 
-    expect(await screen.findByText(/Arrivée enregistrable à partir du/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/L’arrivée pourra être enregistrée à partir du/),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enregistrer l’arrivée' })).not.toBeInTheDocument()
   })
 

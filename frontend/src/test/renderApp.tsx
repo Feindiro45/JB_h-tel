@@ -78,6 +78,20 @@ export const TEST_WORKSTATION = {
 }
 
 const WORKSTATION_PRESENCE: Record<string, Reply> = {
+  // Journal des changements du serveur (D-069), lu à chaque synchronisation en tâche de fond.
+  'GET /api/v1/sync/status': {
+    body: {
+      data: {
+        protocol: 1,
+        server_time: '2026-12-01T10:00:00+01:00',
+        cursor: 'v1.0',
+        poll_seconds: 30,
+      },
+    },
+  },
+  'GET /api/v1/sync/changes': {
+    body: { data: [], meta: { cursor: 'v1.0', has_more: false, protocol: 1 } },
+  },
   'POST /api/v1/workstations/register': {
     status: 201,
     body: { data: TEST_WORKSTATION, token: 'jeton-de-test' },

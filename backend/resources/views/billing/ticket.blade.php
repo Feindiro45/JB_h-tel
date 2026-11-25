@@ -106,7 +106,7 @@
                 <tr><td colspan="2" class="note">Aucun versement.</td></tr>
             @endforelse
             <tr><td>Déjà réglé (net)</td><td class="value">{{ Format::fcfa((int) $doc['payments']['net_paid_fcfa']) }}</td></tr>
-            <tr class="strong"><td>Reste dû</td><td class="value">{{ Format::fcfa(max(0, (int) $doc['payments']['balance_fcfa'])) }}</td></tr>
+            <tr class="strong"><td>Solde à l’émission</td><td class="value">{{ Format::fcfa(max(0, (int) $doc['payments']['balance_fcfa'])) }}</td></tr>
             @if ($methods !== [])<tr><td>Mode de paiement</td><td class="value">{{ implode(', ', $methods) }}</td></tr>@endif
         </table>
     @endif

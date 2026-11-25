@@ -1,5 +1,19 @@
 # Recette du mode hors ligne et du ticket 80 mm (lot 5)
 
+## Révision D-067 / D-068 — 22/11/2026
+
+Cette révision prime sur les anciennes étapes d'émission manuelle et sur N-09 ci-dessous.
+
+- Après création d'un séjour confirmé ou confirmation d'un séjour en attente, la facture apparaît automatiquement. Sans réseau, ouvrir directement son ticket provisoire ; aucun clic d'émission supplémentaire.
+- Le guide de fiche montre les cinq étapes et la prochaine opération. Vérifier confirmation, arrivée le jour prévu, encaissement/avance ou paiement différé, ticket et départ ; un compte sans droit ne reçoit pas d'action supplémentaire.
+- Deux saisies simultanées, puis deux onglets : toutes les opérations restent gardées, numéros différents (test IndexedDB réel `docs/audit-securite-2026-11-22/frontend.storage-browser.mjs`).
+- Restauration pendant un ajout ou un accusé : aucune perte ; compteur repris au-delà des numéros importés. Sauvegarde malformée ou URL extérieure : refus.
+- Clé serveur rejouée après 45 jours et tentative de purge : même reçu, un paiement unique. Stockage durable indisponible : écriture hors ligne refusée explicitement.
+- Retour réseau et réouverture : reprise automatique ; erreur temporaire : attente puis nouvel essai ; session expirée : reconnexion de l'auteur, sans effacement de la file.
+- Tarif divergent : refus `offline_rate_review`, opération et cause conservées à examiner. Une date déclarée par le navigateur ne permet pas d'obtenir librement un ancien tarif.
+- Coupure de plusieurs jours : le serveur accepte la période historique du rejeu borné, avec les mêmes contrôles de prix, disponibilité et droits.
+- Imprimante réelle, restauration sur un autre poste, transfert forcé de caisse et validation métier restent à signer à l'hôtel.
+
 **Pour :** la direction de l’hôtel, la caissière principale et l’administrateur qui valident l’application avant sa mise en service.
 **État au 22/11/2026 :** tous les scénarios des deux spécifications (`new/`) sont prouvés par des essais automatiques, sauf ce qui demande le matériel de l’hôtel (imprimante, poste réel) : la fiche de la partie 3 sert à ces essais sur place.
 
@@ -13,6 +27,10 @@ Légende : ✅ prouvé par un essai automatique · 🏨 à vérifier à l’hôt
 | `npm test` (`frontend`) | Écrans, calculs du poste, file d’attente, sauvegarde chiffrée, règles hors ligne | ✅ 194 essais |
 | `npm run test:e2e` (`frontend`) | 10 parcours réels dans le navigateur, dont le ticket 80 et 58 mm | ✅ 10/10 |
 | `npm run test:e2e:offline` (`frontend`) | Version de production coupée du réseau : parcours complet et conflit entre deux postes | ✅ 2/2 |
+| `npm test` (`electron`) | Base SQLite du poste Windows : transactions, chiffrement, 100 opérations, redémarrage, sauvegarde, restauration, reprise après corruption ; relais de l'API ; réglages (D-069) | ✅ 27 essais (23/11/2026) |
+| `npm run test:e2e` (`electron`) | Logiciel Windows réel (sources, version empaquetée et version installée par l'installateur) : connexion par le relais, copie SQLite, deux redémarrages sans serveur, encaissement en file locale, envoi unique au retour, journal des changements (D-069) | ✅ 1/1 ×3 (23/11/2026) |
+| `npx vitest run src/shared/offline/autoLocalUpdate.test.ts` (`frontend`) | Mise à jour automatique de la copie du poste : moments, logiciel Windows seulement, fiches changées relues, jamais hors ligne ni avec une opération en attente, historique regroupé (D-070) | ✅ 8 essais (23/11/2026) |
+| `php artisan test --filter=ChangeFeedTest` (`backend`) | Journal des changements : transaction, curseur sûr, droits, pagination, curseur expiré, purge (D-069) | ✅ 8 essais (23/11/2026) |
 
 Pour essayer soi-même sur ce PC : `npm run hors-ligne` (dossier `frontend`), puis http://localhost:4173 ; couper le réseau avec F12 → Réseau → « Hors connexion ».
 

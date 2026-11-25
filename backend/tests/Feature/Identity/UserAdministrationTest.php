@@ -12,6 +12,19 @@ use Tests\TestCase;
 
 class UserAdministrationTest extends TestCase
 {
+    public function test_a_delegated_user_manager_cannot_promote_themselves_or_create_an_administrator(): void
+    {
+        $cashier = User::factory()->cashier()->create();
+        Role::findByName('caissiere', 'web')->givePermissionTo(['users.view', 'users.manage']);
+        $this->actingAs($cashier)->patchJson('/api/v1/users/'.$cashier->uuid, ['role' => 'admin'])
+            ->assertStatus(403)->assertJsonPath('code', 'admin_role_required');
+        $this->actingAs($cashier)->postJson('/api/v1/users', [
+            'name' => 'Compte refusé', 'email' => 'forbidden@exemple.cf', 'role' => 'admin',
+        ])->assertStatus(403)->assertJsonPath('code', 'admin_role_required');
+        $this->assertDatabaseMissing('users', ['email' => 'forbidden@exemple.cf']);
+        $this->assertFalse($cashier->fresh()->isAdmin());
+    }
+
     use RefreshDatabase;
 
     private User $admin;
@@ -88,6 +101,34 @@ class UserAdministrationTest extends TestCase
         $this->assertSame($this->admin->id, $audit->actor_id);
         $this->assertSame('caissiere', $audit->after_json['role'] ?? null);
         $this->assertArrayNotHasKey('password', $audit->after_json ?? []);
+    }
+
+    public function test_new_cashiers_share_the_same_role_permissions_including_reservation_creation(): void
+    {
+        $permissions = [];
+        foreach (['awa@jbhotel.local', 'bruno@jbhotel.local'] as $email) {
+            $response = $this->actingAs($this->admin)
+                ->postJson('/api/v1/users', $this->newCashierPayload(['email' => $email]))
+                ->assertCreated()
+                ->assertJsonPath('data.role', 'caissiere');
+            $permissions[] = $response->json('data.permissions');
+        }
+
+        $this->assertSame($permissions[0], $permissions[1]);
+        $this->assertContains('reservations.create', $permissions[0]);
+        $this->assertNotContains('roles.manage', $permissions[0]);
+
+        // La modification du rôle est commune aux comptes existants et aux futurs comptes.
+        Role::findByName('caissiere', 'web')->revokePermissionTo('discounts.apply');
+        $third = $this->actingAs($this->admin)
+            ->postJson('/api/v1/users', $this->newCashierPayload(['email' => 'claire@jbhotel.local']))
+            ->assertCreated();
+        $this->assertNotContains('discounts.apply', $third->json('data.permissions'));
+        foreach (['awa@jbhotel.local', 'bruno@jbhotel.local'] as $email) {
+            $cashier = User::query()->where('email', $email)->firstOrFail();
+            $this->actingAs($cashier)->getJson('/api/v1/auth/me')
+                ->assertOk()->assertJsonPath('data.permissions', $third->json('data.permissions'));
+        }
     }
 
     public function test_user_creation_validation_messages_are_in_french(): void
@@ -190,13 +231,13 @@ class UserAdministrationTest extends TestCase
 
         $this->actingAs($delegate)
             ->patchJson("/api/v1/users/{$this->admin->uuid}", ['active' => false])
-            ->assertStatus(409)
-            ->assertJsonPath('code', 'last_active_admin');
+            ->assertStatus(403)
+            ->assertJsonPath('code', 'admin_role_required');
 
         $this->actingAs($delegate)
             ->patchJson("/api/v1/users/{$this->admin->uuid}", ['role' => 'caissiere'])
-            ->assertStatus(409)
-            ->assertJsonPath('code', 'last_active_admin');
+            ->assertStatus(403)
+            ->assertJsonPath('code', 'admin_role_required');
 
         $this->admin->refresh();
         $this->assertTrue($this->admin->active);

@@ -4,6 +4,73 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Canal des mises à jour du logiciel Windows, version 1.0.3 — 25/11/2026
+- Correctif : le canal est déclaré dans `electron/package.json` (`build.publish`, `generic`, `https://app.jb-hotel.com/desktop`). Sans cette déclaration, la construction ne produisait ni `latest.yml` ni `resources/app-update.yml`, et electron-updater échouait à chaque téléchargement : les versions 1.0.0 à 1.0.2 ne peuvent pas se mettre à jour seules. Nouvelle version **1.0.3**, à installer à la main une fois.
+- `npm run update-channel` (`electron/scripts/update-channel.mjs`) prépare `deploiement/desktop/` : installateur, `.blockmap` (gardés pour le téléchargement partiel), `latest.yml`, `.htaccess` (pas de renvoi vers React, pas de cache sur `latest.yml`) et `SHA256SUMS.txt`. Il refuse un canal incohérent (version, taille ou empreinte différente de `latest.yml`, `app-update.yml` absent ou mal dirigé).
+- Recette : exécutable 1.0.3 empaqueté pointé sur le dossier servi en local, « à jour » avec le vrai `latest.yml`, puis téléchargement complet et vérifié d'une version annoncée 9.9.9 ; arrêt forcé sans installation, fichiers de l'essai retirés.
+
+### Logiciel Windows 1.0.2 sur les vrais domaines — 25/11/2026
+- `electron/release/JB-Hotel-Setup-1.0.2.exe` : le poste parle à l'API `https://api.jb-hotel.com` (racine du sous-domaine, sans `/backend`) avec l'origine `https://app.jb-hotel.com`, et cherche ses mises à jour dans `https://app.jb-hotel.com/desktop`. Ces trois adresses sont désormais les valeurs par défaut du code (`PRODUCTION`, `electron/src/main/config.ts`) au lieu de `banguiweb-tech.com/backend`.
+- Les postes déjà installés n'ont que l'imprimante dans `config.json` : la nouvelle adresse s'applique en installant par-dessus. Reconnexion en ligne nécessaire (nouveau domaine des cookies).
+- Contrôles : 28 tests Electron (dont les adresses de production), types OK, aucune trace de l'ancien domaine dans l'exécutable, exécutable empaqueté lancé sans réglage contre la production (santé 200, CSRF 204, cookies `.jb-hotel.com`).
+
+### Dossier de déploiement « deux sous-domaines » — 25/11/2026
+- Nouveau dossier `deploiement/` : les deux applications préparées et vérifiées pour `https://app.jb-hotel.com` (contenu du build React) et `https://api.jb-hotel.com` (dossier `public` du projet Laravel), d'après `PROMPT_CONFIGURATION_JB_HOTEL.md`. Aucun déploiement effectué, aucun code applicatif modifié.
+- `deploiement/preparer.py` construit et contrôle la livraison : adresse d'API passée en variable d'environnement (priorité sur `frontend/.env.production.local`, qui vise la livraison mono-domaine), `.htaccess` React propre au sous-domaine, `composer install --no-dev`, vendor comparé au verrou, absence de `.env`, de `tests` et de journaux, démarrage de Laravel dans la livraison, archives et empreintes SHA-256. Le backend local, son `.env` et son `vendor` de travail ne sont jamais touchés.
+- Audit : CORS, Sanctum en mode SPA et appels HTTP centralisés étaient déjà corrects ; rien à corriger. Deux écarts documentés par rapport au prompt : `VITE_API_URL` est la racine de Laravel **sans** `/api` (le client ajoute `api/v1/...` et appelle `/sanctum/csrf-cookie` hors de ce préfixe) et `supports_credentials` reste à `true` (cookies de session, pas de jeton Bearer).
+- Point critique de l'architecture à deux sous-domaines : `SESSION_DOMAIN=.jb-hotel.com`. Sans le point initial, le frontend ne peut pas lire le cookie CSRF et toutes les écritures échouent en 419 alors que les lectures fonctionnent.
+- Documents `docs/deployment/01_CONFIGURATION_LOCALE.md`, `02_CONFIGURATION_CORS.md`, `03_DEPLOIEMENT_PRODUCTION.md`, `04_RAPPORT_IMPLEMENTATION.md`.
+- Contrôles réels : préparation complète réussie (105 routes applicatives chargées dans la livraison, extensions PHP toutes `success`), santé `200`, préflight CORS accepté sur origine autorisée et **sans aucun en-tête `Access-Control-*`** sur origine refusée, `XSRF-TOKEN` lisible par JavaScript et session en `HttpOnly` ; 280 tests backend et 227 tests frontend passés. Non exécutés : validation CORS en navigateur, démarrage hors ligne après redémarrage machine, routes React sur le serveur en ligne, migrations de production.
+
+### Copie locale mise à jour automatiquement — 23/11/2026 (D-070)
+- Logiciel Windows et PWA installée : téléchargement complet au démarrage, au retour d'Internet et toutes les 3 h ; écrans toutes les 15 min et 2 min après un changement du serveur ; fiches changées ailleurs relues aussitôt. Jamais hors ligne ni avec une opération en attente d'envoi ; 40 requêtes/min ; une mise à jour à la fois.
+- Les erreurs d'une mise à jour ne masquent plus celles des écrans de la caissière (seules les données téléchargées par la mise à jour sont silencieuses). Historique : passages automatiques réussis regroupés. Carte « Tout télécharger » : état, progression et dernière mise à jour automatiques.
+
+### Livraison LWS avec le module Sync — 23/11/2026
+- Archives `output/lws/livraison-2026-11-23-e9a16141/` (remplace `livraison-2026-11-23-7cb665ea`) reconstruites par `python infra/build_lws.py --date 2026-11-23` : public pour `htdocs` (application web qui lit le journal des changements et garde la session après une relecture échouée) et backend privé pour `home` (module Sync, migration `2026_11_23_100000`). Guide `LIVRAISON_LWS_HOME.md` complété (migration, vérification `sync/status`, purge planifiée). Contrôles : `output/lws/verify-livraison-2026-11-23.py`. Aucun déploiement distant.
+
+### Logiciel Windows Electron, hors ligne d'abord — 23/11/2026 (D-069)
+- Nouveau dossier `electron/` : même application React servie depuis les fichiers installés, base locale SQLite (file des opérations, copie des écrans, numérotation, journal, impressions) chiffrée par une clé protégée par Windows, sauvegardes quotidiennes vérifiées, restauration et reprise après corruption, relais de l'API avec cookies Sanctum, impression 80 mm par l'imprimante du poste, mises à jour par canal HTTPS, installateur NSIS `JB-Hotel-Setup-1.0.0.exe`.
+- Serveur : module `Sync` en lecture seule (`sync_changes`, `GET /sync/status`, `GET /sync/changes`) ; la PWA et le poste actualisent les écrans touchés toutes les 30 s.
+- Interface : adaptateur de stockage SQLite/IndexedDB, écran « Poste Windows » dans Synchronisation, impression par le poste, réveil de Windows. Correctif : la copie locale garde la session après une relecture échouée (serveur injoignable, réseau local actif).
+- Documents : audit, architecture, schéma SQLite, protocole de synchronisation, sécurité, build/installation, rapport de tests, guide d'exploitation.
+
+### Ressources PWA en ligne — 23/11/2026
+- Manifeste et service worker présents et identiques à la livraison ; quatre icônes servies en 404. Correctif public minimal assemblé depuis le ZIP existant, sans changement applicatif, à extraire dans `htdocs`.
+- Guide PWA et preuves de contrôle HTTP, intégrité ZIP et dimensions PNG. Aucun déploiement ni installation effectués sur le poste de l'utilisateur.
+
+### Diagnostic du menu en ligne — 23/11/2026
+- Chrome connecté : « Postes de caisse » et « Mode hors ligne » absents pour l'administrateur. Comparaison SHA-256 : le frontend public correspond exactement au ZIP actuel et inclut ces écrans.
+- Les deux routes API correspondantes renvoient 404, tandis que la session publique renvoie bien 401 ; diagnostic et procédure backend privé/caches/migrations ajoutés au guide de livraison. Aucun contournement de permissions ni changement distant.
+
+### Archives LWS avec backend privé dans home — 22/11/2026
+- Assemblage reproductible via `python infra/build_lws.py --date 2026-11-22` : build frontend pour `/backend`, ZIP public pour `htdocs` et ZIP du backend privé pour `/home/jb-hotel-backend`.
+- Installation Composer de production dans un dossier isolé, sans modifier le vendor de travail ; contrôle du verrouillage, intégrité ZIP et empreintes SHA-256. Aucun `.env`, stockage métier ou export SQL inclus.
+- Guide `LIVRAISON_LWS_HOME.md` : chemins distincts, conservation des secrets/données, commandes de mise à jour et reprise des postes hors ligne. Aucun déplacement ou déploiement distant.
+
+### Droits communs aux caissières — 22/11/2026
+- Confirmation par tests API que les nouveaux comptes Caissière reçoivent les mêmes permissions, dont `reservations.create`, et partagent les modifications du rôle commun.
+- Actualisation des droits au retour sur la fenêtre, au retour réseau et toutes les 30 secondes avant la synchronisation. Une panne conserve les derniers droits connus ; le serveur continue de contrôler les autorisations.
+- Administration : précision explicite que le rôle est commun à toutes les caissières. Aucun rétablissement forcé des permissions personnalisées et aucune modification de droits sur le site en ligne.
+
+### Hors ligne fiable, facture automatique et réservation guidée — 22/11/2026 (D-067, D-068)
+- Plan `PLAN_CORRECTIONS_OFFLINE_RESERVATIONS.md`, puis corrections prioritaires : transactions locales atomiques, refus des écritures volatiles, restauration validée, origine API imposée et registre serveur sans purge à 30 jours.
+- Reprise périodique et sur retour de fenêtre, coordination entre onglets ; tarifs divergents à examiner ; promotion administrateur protégée après délégation.
+- Facture dans la transaction de création/confirmation ; document provisoire enregistré avec l'opération hors ligne et rapproché du définitif. Guide en cinq étapes, prochaine action et accès direct au ticket.
+- Anciennes réservations sans facture et anciennes files compatibles ; instantanés figés, « Solde à l'émission », avoirs/remplacements conservés. Correction des séjours facturés par un compte autorisé.
+- CI étendue aux parcours hors ligne et audits de dépendances ; résultats et limites dans `RAPPORT.md`.
+
+### Vérification de préparation à la production — 22/11/2026
+- Rapport `AUDIT_PRODUCTION_2026-11-22.md` : verdict défavorable en l'état, constats priorisés sur l'intégrité et la sécurité du mode hors ligne, la délégation des rôles et la configuration de livraison.
+- Reproductions d'audit isolées dans `docs/audit-securite-2026-11-22/`, dont rejeu après purge de l'idempotence et disparition du stockage mémoire lors d'un rechargement simulé. Ces tests réussissent lorsque la faiblesse est reproduite.
+- Vérifications locales et contrôles publics distants sans correction applicative ni déploiement. Résultats détaillés et limites dans le rapport ; suivi de production mis à jour.
+
+### Page Paramètres redessinée — 22/11/2026
+- Colonne **Domaines** pour aller directement à une famille de règles (compteurs, point orange pour les règles à valider), **recherche** et filtre **Afficher** (à valider, validées, modifiables).
+- Règles en **cartes** : valeur en grand dans un cadre de la couleur du domaine, statut, référence, dernière modification, « Modifier » ou « Fixé par décision ».
+- Corrigé : la liste « Opérations permises sans Internet » écrasait le texte de la règle sur une colonne d’un mot.
+- Affichage tablette et mobile : domaines en bande défilante, filtres l’un sous l’autre.
+
 ### Exports Excel sur chaque module (D-066) — 22/11/2026
 - Bouton **« Exporter (Excel) »** sur Réservations, Clients, Caisse, Factures, Rapports, Chambres, Tarifs, Utilisateurs, Journal d’audit, Postes de caisse et Mode hors ligne, avec les filtres de l’écran.
 - Chaque classeur : une feuille **Tableau de bord** (indicateurs, tableaux de synthèse, graphiques) et des feuilles de données mises en forme (montants FCFA, dates, filtres, totaux, en-tête figé, impression paysage).

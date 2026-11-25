@@ -195,7 +195,7 @@ describe('Actions hors ligne, suite (lot 4, 4.13)', () => {
         totals: { net_fcfa: 100000 },
       },
     })
-    await expect(issueInvoice(CONFIRMED.id)).rejects.toThrow(/déjà une facture active/)
+    expect(await issueInvoice(CONFIRMED.id)).toEqual(invoice)
 
     const queued = await readOutbox()
     expect(queued.map((o) => [o.kind, o.method])).toEqual([
@@ -228,20 +228,19 @@ describe('Actions hors ligne, suite (lot 4, 4.13)', () => {
 
   it('imprime la facture provisoire en ticket 80 mm, marquée « Provisoire »', async () => {
     const station = seed(new QueryClient())
+    setQueryClientRef(station)
+    reportUnreachable()
+    await confirmReservation(PENDING.id)
     await saveQueryCache(station)
     await rememberSession(USER, 'Secret-2026')
     localStorage.setItem('jb-hotel.last-activity', String(Date.now()))
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'))
     reportUnreachable()
-    renderApp(`/reservations/${CONFIRMED.id}`)
+    renderApp(`/reservations/${PENDING.id}`)
     const user = userEvent.setup()
 
-    await user.click(await screen.findByRole('button', { name: 'Émettre une facture' }))
-    const dialog = screen.getByRole('dialog', { name: 'Émettre une facture' })
-    await user.click(within(dialog).getByRole('button', { name: 'Émettre la facture' }))
-    expect(
-      await screen.findByText(/Facture provisoire FAC-LOC-.* gardée sur ce poste/),
-    ).toBeVisible()
+    expect(await screen.findByRole('link', { name: 'Ouvrir le ticket de facture' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Émettre une facture' })).toBeNull()
 
     // Ni PDF ni vérification pour une facture provisoire : le ticket 80 mm seulement.
     const invoices = screen.getByRole('region', { name: /Factures/ })

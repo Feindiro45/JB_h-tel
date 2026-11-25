@@ -112,7 +112,8 @@ describe('Réservation hors ligne (lot 4, 4.5)', () => {
     ).toBeVisible()
     expect(screen.getByRole('heading', { name: 'NGUEMA Paul', level: 1 })).toBeVisible()
     // Tout reste possible sur la réservation locale (4.13), sauf la suppression.
-    expect(screen.getByRole('button', { name: 'Émettre une facture' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Émettre une facture' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Ouvrir le ticket de facture' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Modifier la réservation' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Supprimer' })).toBeNull()
 

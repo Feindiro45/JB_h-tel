@@ -8,7 +8,9 @@ use App\Modules\Reservations\Application\Queries\ReservationSearch;
 use App\Modules\Reservations\Application\Services\ReservationBookingService;
 use App\Modules\Reservations\Application\Services\ReservationLifecycleService;
 use App\Modules\Reservations\Application\Services\ReservationQuoter;
+use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Modules\Reservations\Http\Requests\CancelReservationRequest;
+use App\Modules\Reservations\Http\Requests\ConfirmReservationRequest;
 use App\Modules\Reservations\Http\Requests\OccupantsRequest;
 use App\Modules\Reservations\Http\Requests\QuoteReservationRequest;
 use App\Modules\Reservations\Http\Requests\ReservationListRequest;
@@ -28,6 +30,7 @@ final class ReservationController
         private readonly ReservationPresenter $presenter,
         private readonly ReservationBookingService $booking,
         private readonly ReservationLifecycleService $lifecycle,
+        private readonly StayInvoicing $invoicing,
     ) {}
 
     /** Liste filtrable : statut, chambre, client (UUID), période qui chevauche `from`–`to`. */
@@ -70,12 +73,12 @@ final class ReservationController
     {
         $reservation = $this->booking->create($request->toData(), $this->actor($request));
 
-        return new JsonResponse(['data' => $this->presenter->one($reservation)], 201);
+        return $this->respond($reservation, 201);
     }
 
-    public function confirm(Request $request, Reservation $reservation): JsonResponse
+    public function confirm(ConfirmReservationRequest $request, Reservation $reservation): JsonResponse
     {
-        return $this->respond($this->booking->confirm($reservation, $this->actor($request), OfflineReplay::fromRequest($request)?->pricedAt()));
+        return $this->respond($this->booking->confirm($reservation, $this->actor($request), OfflineReplay::fromRequest($request)?->pricedAt(), $request->has('expected_unit_price_fcfa') ? $request->integer('expected_unit_price_fcfa') : null));
     }
 
     public function checkIn(Request $request, Reservation $reservation): JsonResponse
@@ -141,9 +144,12 @@ final class ReservationController
         return $state === null ? null : array_diff_key($state, array_flip(['room_id', 'customer_id', 'rate_id']));
     }
 
-    private function respond(Reservation $reservation): JsonResponse
+    private function respond(Reservation $reservation, int $status = 200): JsonResponse
     {
-        return new JsonResponse(['data' => $this->presenter->one($reservation->load('occupants'))]);
+        return new JsonResponse([
+            'data' => $this->presenter->one($reservation->load('occupants')),
+            'meta' => ['automatic_invoice' => $this->invoicing->activeInvoiceReference($reservation->id)],
+        ], $status);
     }
 
     private function actor(Request $request): User

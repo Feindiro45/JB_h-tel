@@ -1,0 +1,87 @@
+{
+  "name": "jb-hotel-desktop",
+  "productName": "JB Hôtel",
+  "version": "1.0.3",
+  "private": true,
+  "type": "module",
+  "description": "JB Hôtel — logiciel Windows (Electron) hors ligne d'abord, branché sur l'API Laravel existante.",
+  "author": "JB Hôtel",
+  "license": "UNLICENSED",
+  "main": "build/main.cjs",
+  "scripts": {
+    "build:main": "node scripts/build-main.mjs",
+    "build:renderer": "node scripts/build-renderer.mjs",
+    "build": "npm run build:renderer && npm run build:main",
+    "start": "npm run build:main && electron .",
+    "start:local": "npm run build && electron . --server=http://localhost:8000 --origin=http://localhost:5173",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --test-concurrency=1 \"src/**/*.test.ts\"",
+    "test:e2e": "node scripts/e2e.mjs",
+    "dist": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "dist:dir": "npm run build && electron-builder --win dir --x64 --publish never",
+    "update-channel": "node scripts/update-channel.mjs"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.19.2",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0",
+    "esbuild": "0.28.2",
+    "typescript": "~7.0.2"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "build": {
+    "appId": "cf.jbhotel.desktop",
+    "productName": "JB Hôtel",
+    "copyright": "JB Hôtel",
+    "directories": {
+      "output": "release",
+      "buildResources": "build-resources"
+    },
+    "files": [
+      "build/**/*",
+      "!build/**/*.map",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://app.jb-hotel.com/desktop"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build-resources/icon.png",
+      "artifactName": "JB-Hotel-Setup-${version}.${ext}",
+      "executableName": "JBHotel"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "JB Hôtel",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "language": "1036",
+      "installerLanguages": [
+        "fr_FR"
+      ]
+    }
+  }
+}

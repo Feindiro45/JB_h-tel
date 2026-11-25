@@ -104,9 +104,7 @@ test('tickets 80 mm et 58 mm d’un reçu et d’une facture, imprimés sur une 
   await dialog.getByRole('button', { name: 'Créer la réservation' }).click()
   await expect(page).toHaveURL(/\/reservations\/[a-f0-9-]{36}$/)
   const reservationUrl = page.url()
-  await page.getByRole('button', { name: 'Émettre une facture' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Émettre la facture' }).click()
-  await expect(page.getByText(/FAC-\d{4}-\d+/).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Ouvrir le ticket de facture' })).toBeVisible()
 
   // Ticket du reçu, depuis la ligne de paiement de la réservation.
   await page.getByRole('link', { name: /^Ticket 80 mm du reçu REC-/ }).click()
@@ -132,7 +130,7 @@ test('tickets 80 mm et 58 mm d’un reçu et d’une facture, imprimés sur une 
   await expect(page).toHaveURL(/\/documents\/factures\/[a-f0-9-]{36}\/ticket$/)
   const invoice = page.getByRole('article', { name: /^Ticket facture FAC-/ })
   await expect(invoice).toContainText('Hébergement')
-  await expect(invoice).toContainText(/Reste dû\d/)
+  await expect(invoice).toContainText(/Solde à l’émission\d/)
   await expect(
     invoice.getByRole('img', { name: 'QR code de vérification de la facture' }),
   ).toBeVisible()

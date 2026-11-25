@@ -58,9 +58,14 @@ test('connexion réelle, administration, réservation avec avance, facture, rapp
   await dialog.getByRole('button', { name: 'Créer la réservation' }).click()
   await expect(page).toHaveURL(/\/reservations\/[a-f0-9-]{36}$/)
   await expect(page.getByText(/20[\s\u202f\u00a0]?000 FCFA/).first()).toBeVisible()
-  await page.getByRole('button', { name: 'Émettre une facture' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Émettre la facture' }).click()
-  await expect(page.getByText(/FAC-\d{4}-\d+/).first()).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Réservation enregistrée : les prochaines étapes' }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Émettre une facture' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Ouvrir le ticket de facture' })).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.screenshot({ path: 'test-results/reservation-guide-desktop.png', fullPage: true })
   for (const [path, title] of [
     ['/admin/tarifs', 'Tarifs'],
     ['/admin/utilisateurs', 'Utilisateurs et accès'],

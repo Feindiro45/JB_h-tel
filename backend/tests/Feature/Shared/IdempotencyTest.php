@@ -108,13 +108,13 @@ class IdempotencyTest extends TestCase
         $this->assertSame(2, Reservation::query()->count());
     }
 
-    public function test_old_responses_are_pruned_after_thirty_days(): void
+    public function test_operation_identities_are_retained_after_thirty_days_even_if_pruning_is_requested(): void
     {
         $this->pay((string) Str::uuid())->assertCreated();
         $this->travel(IdempotencyRecord::RETENTION_DAYS + 1)->days();
         $this->pay((string) Str::uuid(), 1000)->assertCreated();
 
         $this->artisan('model:prune', ['--model' => [IdempotencyRecord::class]])->assertSuccessful();
-        $this->assertSame(1, IdempotencyRecord::query()->count());
+        $this->assertSame(2, IdempotencyRecord::query()->count());
     }
 }

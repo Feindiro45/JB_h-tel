@@ -73,7 +73,7 @@ export const TUTORIALS: Record<string, Tutorial> = {
       {
         title: 'Suivre le séjour',
         icon: 'eye',
-        body: 'Depuis la fiche : arrivée, départ, prolongation (aperçu du supplément puis validation), annulation avec remboursement de l’encaissé, facture et ticket 80 mm.',
+        body: 'Après la création, le guide du séjour montre la prochaine opération : confirmation, arrivée, encaissement et départ. La facture est créée automatiquement à la confirmation ; son ticket 80 mm reste accessible, même provisoirement hors ligne.',
         tip: 'Une même opération envoyée deux fois (double clic, réseau lent) n’est enregistrée qu’une fois.',
       },
       {
@@ -164,12 +164,18 @@ export const TUTORIALS: Record<string, Tutorial> = {
         title: 'Mettre à jour en local, en ligne',
         icon: 'refresh',
         body: '« Mettre à jour en local » télécharge les données et les écrans essentiels. « Mettre à jour en ligne » envoie les opérations en attente ; un refus garde sa cause : « Réessayer » ou « Abandonner » avec motif.',
-        tip: 'Lancez la mise à jour en local avant une coupure annoncée.',
+        tip: 'Sur le logiciel Windows et l’application installée, la copie se met à jour toute seule (tout le poste toutes les 3 h, les écrans toutes les 15 min). Le bouton reste utile juste avant une coupure annoncée.',
       },
       {
         title: 'Protéger les données du poste',
         icon: 'shield',
         body: 'Le disque du poste est « Protégé » quand le navigateur s’engage à ne rien effacer de lui-même. Sinon, installez l’application ou cliquez sur « Protéger ».',
+      },
+      {
+        title: 'Logiciel Windows',
+        icon: 'monitor',
+        body: 'Dans le logiciel JB Hôtel installé sur le PC, le cadre « Poste Windows » montre la base locale (chiffrée), les opérations du poste et la dernière sauvegarde. Le poste se sauvegarde chaque jour ; « Copier sur une clé USB » et « Restaurer une sauvegarde » sont à côté.',
+        tip: 'Choisissez l’imprimante des tickets 80 mm une fois pour toutes dans « Imprimante des tickets ».',
       },
       {
         title: 'Sauvegarder et restaurer',
@@ -389,7 +395,11 @@ export const TUTORIALS: Record<string, Tutorial> = {
       {
         title: 'Règles par domaine',
         icon: 'settings',
-        body: 'Les règles sont rangées par domaine : remises, encaissements, réservations, facturation, postes de caisse.',
+        body: 'Les règles sont rangées par domaine : remises, encaissements, réservations, facturation, hors ligne, postes de caisse. La colonne « Domaines » mène directement à chacun ; un point orange signale des règles à valider.',
+        points: [
+          'Recherchez une règle par son nom ou sa référence (D-016…).',
+          '« Afficher » ne garde que les règles à valider, validées ou modifiables ici.',
+        ],
       },
       {
         title: 'Validé ou provisoire',

@@ -1,5 +1,7 @@
 # Schéma de base de données — JB Hôtel
 
+**D-067, 22/11/2026 :** structure SQL inchangée pour ces corrections. `idempotency_keys` conserve désormais durablement les identifiants/réponses d'opérations ; la purge automatique à 30 jours est retirée. Les nouvelles références de facture automatique passent par les contrats et métadonnées API, sans colonne interne exposée. IndexedDB conserve sa version et ses clés existantes ; les écritures deviennent transactionnelles, sans remise à zéro des postes.
+
 Ce document décrit le schéma réellement implémenté par les migrations (`backend/database/migrations/`). Il recense aussi les écarts avec la référence `09_schema_reference.sql` et le MCD `04_MCD_JB_Hotel.drawio`.
 
 - **Moteur :** MySQL 8+ InnoDB, en `utf8mb4_unicode_ci` (D-002). Le développement local se fait sur MariaDB 10.4 ; le code est compatible avec les deux moteurs.
@@ -68,6 +70,7 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | `idempotency_keys` | `user_id`, `idempotency_key` (UUID), `method`, `path`, `request_hash` (SHA-256), `response_status`, `response_body` : réponse réussie d’une écriture, rejouée à l’identique (D-063). Unique (`user_id`, `idempotency_key`) ; purge après 30 jours. Migration `2026_11_21_110000`. |
 | `audit_logs` | `actor_id`, `action`, `entity_type`, `entity_id`, `before_json`, `after_json`, `ip_address`, `occurred_at`. Append-only. **Sert aussi de journal des modifications des réservations** (D-022). |
 | `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (11 valeurs par défaut, dont plusieurs provisoires ; `workstations.*` ajoutés par la migration `2026_11_21_100100`, D-062 ; `offline.*` par la migration `2026_11_22_100000`, lot 4A). |
+| `sync_changes` | `entity` (type suivi : customer, room, room_type, room_rate, reservation, reservation_extension, reservation_occupant, payment, refund, invoice, user, workstation, setting, role), `entity_uuid` (UUID public ou vide), `action` (created, updated, deleted), `occurred_at` (index). Journal ordonné des changements lu par curseur par les postes (D-069) ; écrit dans la transaction de l'écriture par les événements Eloquent ; aucune donnée personnelle ; purgé après `SYNC_RETENTION_DAYS` (365 j). Migration `2026_11_23_100000`. |
 | `cache`, `jobs`, `password_reset_tokens` | Tables techniques de Laravel (`password_reset_tokens` : liens « mot de passe oublié », 60 min) |
 | `invitation_tokens` | Liens d’invitation d’un nouveau compte (72 h), séparés des liens « mot de passe oublié » pour qu’aucun ne puisse servir à la place de l’autre (D-059, migration `2026_11_20_110000`) |
 

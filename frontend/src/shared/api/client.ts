@@ -2,6 +2,7 @@ import { config } from '../config'
 import { errorFromResponse, networkError } from './errors'
 import { readWorkstationToken, WORKSTATION_HEADER } from './workstationToken'
 import { reportReachable, reportUnreachable } from '../offline/connectivity'
+import { ApiError } from './errors'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 type QueryValue = string | number | boolean | null | undefined
@@ -18,8 +19,23 @@ export interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
+  if (/^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith('//') || path.includes('\\')) {
+    throw new ApiError(
+      422,
+      'Adresse refusée',
+      'Cette opération ne peut être envoyée qu’à l’API de l’hôtel.',
+    )
+  }
   // Un chemin commencant par / effacerait le dossier de deploiement de l'API.
   const url = new URL(path.replace(/^\/+/, ''), `${config.apiUrl}/`)
+  const base = new URL(`${config.apiUrl}/`)
+  if (url.origin !== base.origin || !url.pathname.startsWith(base.pathname)) {
+    throw new ApiError(
+      422,
+      'Adresse refusée',
+      'Cette opération ne peut être envoyée qu’à l’API de l’hôtel.',
+    )
+  }
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== null && value !== undefined && value !== '')
       url.searchParams.set(key, String(value))
@@ -50,6 +66,7 @@ async function parseBody(response: Response): Promise<unknown> {
  * Lève toujours une `ApiError` au message français en cas d'échec.
  */
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const url = buildUrl(path, options.query)
   const method = options.method ?? 'GET'
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -68,7 +85,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   let response: Response
   try {
-    response = await fetch(buildUrl(path, options.query), {
+    response = await fetch(url, {
       method,
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),

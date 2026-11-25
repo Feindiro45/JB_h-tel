@@ -139,7 +139,7 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await expect(
     page.getByText('Gardée sur ce poste, pas encore reçue par le serveur.'),
   ).toBeVisible()
-  await expect(page.getByText(/^LOC-.*-000002$/).first()).toBeVisible()
+  await expect(page.getByText(/^LOC-.*-000003$/).first()).toBeVisible()
   const localBookingUrl = page.url()
 
   // Recette 1 : fermer puis rouvrir l’application sans réseau ; la réservation et le reçu
@@ -148,7 +148,7 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await reopened.goto(localBookingUrl)
   await expect(reopened.getByRole('heading', { name: /Sans Reseau/i, level: 1 })).toBeVisible()
   await expect(reopened.locator('.connectivity-chip')).toHaveText('Hors ligne')
-  const ticketLink = reopened.getByRole('link', { name: /Ticket 80 mm du reçu LOC-.*-000002/ })
+  const ticketLink = reopened.getByRole('link', { name: /Ticket 80 mm du reçu LOC-.*-000003/ })
   await ticketLink.click()
   await expect(reopened.getByRole('article', { name: /Ticket du reçu/ })).toContainText(
     'Provisoire',
@@ -157,15 +157,13 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await reopened.close()
 
   // Facture hors ligne (4.13) : provisoire FAC-LOC-…, numéro définitif au retour du réseau.
-  await page.goto(reservationUrl)
-  await page.getByRole('button', { name: 'Émettre une facture' }).click()
-  await page
-    .getByRole('dialog', { name: 'Émettre une facture' })
-    .getByRole('button', { name: 'Émettre la facture' })
-    .click()
+  await page.goto(localBookingUrl)
+  await expect(page.getByRole('button', { name: 'Émettre une facture' })).toHaveCount(0)
+  await page.getByRole('link', { name: 'Ouvrir le ticket de facture' }).click()
   await expect(
-    page.getByText(/Facture provisoire FAC-LOC-.*-000003 gardée sur ce poste/),
-  ).toBeVisible()
+    page.getByRole('article', { name: /Ticket facture provisoire FAC-LOC-/ }),
+  ).toContainText('Provisoire')
+  await expect(page.getByText(/^FAC-LOC-.*-000002$/).first()).toBeVisible()
 
   // Écran d’administration jamais gardé : message clair, jamais un chargement sans fin.
   await page.goto('/admin/audit')
@@ -201,11 +199,11 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   // Tout ce qui a été fait hors ligne est parti tout seul et a été accepté par le serveur :
   // encaissement, puis client → réservation → encaissement, chacun avec l’identifiant du serveur.
   const outbox = page.getByRole('region', { name: 'Mettre à jour en ligne' })
-  await expect(outbox.getByText('Envoyée', { exact: true })).toHaveCount(5, { timeout: 60_000 })
+  await expect(outbox.getByText('Envoyée', { exact: true })).toHaveCount(4, { timeout: 60_000 })
   await expect(outbox.getByText('Refusée', { exact: true })).toHaveCount(0)
   await expect(outbox).toContainText(/LOC-.*-000001 → REC-\d{4}-\d+/)
-  await expect(outbox).toContainText(/LOC-.*-000002 → REC-\d{4}-\d+/)
-  await expect(outbox).toContainText(/Facture FAC-LOC-.*-000003 → FAC-\d{4}-\d+/)
+  await expect(outbox).toContainText(/LOC-.*-000003 → REC-\d{4}-\d+/)
+  await expect(outbox).toContainText(/Facture FAC-LOC-.*-000002 → FAC-\d{4}-\d+/)
   await expect(history).toContainText('Vers le serveur')
 
   // La fiche provisoire s’ouvre sur la réservation créée par le serveur, payée.
@@ -229,8 +227,7 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await center.getByLabel('Recherche').fill('Sans Reseau')
   await expect(center.getByText('Acceptée', { exact: true })).toHaveCount(3)
   await center.getByLabel('Recherche').fill('Hors Ligne')
-  await expect(center.getByText('Acceptée', { exact: true })).toHaveCount(2)
-  await expect(center).toContainText('Facture provisoire')
+  await expect(center.getByText('Acceptée', { exact: true })).toHaveCount(1)
   await expect(center.getByText('Refusée', { exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
 })

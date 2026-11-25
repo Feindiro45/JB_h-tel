@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
-import { readOutbox, writeOperations, type QueuedOperation } from './outbox'
+import { readOutbox, mergeOperations, type QueuedOperation } from './outbox'
 import { storageGet, storageSet } from './storage'
+import { validatedOperations } from './operationValidation'
 
 /**
  * Sauvegarde des opérations en attente (D-064, N-06) : export **manuel et chiffré**, à garder sur
@@ -180,13 +181,30 @@ export async function rememberBackup(record: BackupRecord): Promise<void> {
 }
 
 function parseFile(text: string): BackupFile {
+  if (text.length > 20 * 1024 * 1024)
+    throw new BackupError('Ce fichier dépasse la taille maximale de sauvegarde (20 Mo).', 'file')
   let file: Partial<BackupFile>
   try {
     file = JSON.parse(text) as Partial<BackupFile>
   } catch {
     throw new BackupError('Ce fichier n’est pas une sauvegarde JB Hôtel.', 'file')
   }
-  if (file?.format !== BACKUP_FORMAT || !file.kdf || !file.cipher || !file.data) {
+  if (
+    file?.format !== BACKUP_FORMAT ||
+    !file.kdf ||
+    !file.cipher ||
+    typeof file.data !== 'string' ||
+    file.kdf.name !== 'PBKDF2' ||
+    file.kdf.hash !== 'SHA-256' ||
+    !Number.isInteger(file.kdf.iterations) ||
+    file.kdf.iterations < 100000 ||
+    file.kdf.iterations > 2000000 ||
+    typeof file.kdf.salt !== 'string' ||
+    file.kdf.salt.length > 100 ||
+    file.cipher.name !== 'AES-GCM' ||
+    typeof file.cipher.iv !== 'string' ||
+    file.cipher.iv.length > 100
+  ) {
     throw new BackupError('Ce fichier n’est pas une sauvegarde JB Hôtel.', 'file')
   }
   if (file.version !== BACKUP_VERSION) {
@@ -221,8 +239,15 @@ export async function readBackup(
   } catch {
     throw new BackupError('Mot de passe incorrect, ou fichier modifié depuis l’export.', 'password')
   }
-  const content = JSON.parse(new TextDecoder().decode(plain)) as { operations?: QueuedOperation[] }
-  return { file, operations: content.operations ?? [] }
+  try {
+    const content = JSON.parse(new TextDecoder().decode(plain)) as { operations?: unknown }
+    return { file, operations: validatedOperations(content.operations) }
+  } catch {
+    throw new BackupError(
+      'Cette sauvegarde contient des opérations invalides ou non autorisées.',
+      'file',
+    )
+  }
 }
 
 /**
@@ -232,13 +257,16 @@ export async function readBackup(
 export async function restoreBackup(
   operations: QueuedOperation[],
 ): Promise<{ added: number; present: number }> {
-  const current = await readOutbox()
-  const known = new Set(current.map((o) => o.id))
-  const added = operations
-    .filter((o) => !known.has(o.id))
-    .map((o) => ({ ...o, status: o.status === 'rejected' ? o.status : ('pending' as const) }))
-  if (added.length > 0) {
-    await writeOperations([...current, ...added].sort((a, b) => a.createdAt - b.createdAt))
+  let safe: QueuedOperation[]
+  try {
+    safe = validatedOperations(operations)
+  } catch {
+    throw new BackupError(
+      'Cette sauvegarde contient des opérations invalides ou non autorisées.',
+      'file',
+    )
   }
-  return { added: added.length, present: operations.length - added.length }
+  return mergeOperations(
+    safe.map((o) => ({ ...o, status: o.status === 'rejected' ? o.status : 'pending' })),
+  )
 }

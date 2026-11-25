@@ -19,5 +19,6 @@ final readonly class ModificationData
         public string $reason,
         /** N-09 : moment du tarif (modification faite hors ligne) ; `null` = maintenant. */
         public ?CarbonInterface $pricedAt = null,
+        public ?int $expectedUnitPriceFcfa = null,
     ) {}
 }

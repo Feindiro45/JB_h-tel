@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { isDesktop } from '../desktop/bridge'
 
 /**
  * Installation de l'application (PWA, lot 2) : Edge et Chrome proposent l'installation par
@@ -22,6 +23,8 @@ let state: InstallState = { installed: runsInstalled(), canPrompt: false }
 const listeners = new Set<() => void>()
 
 function runsInstalled(): boolean {
+  // Logiciel Windows (D-069) : déjà installé, aucune installation PWA à proposer.
+  if (isDesktop()) return true
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -44,6 +47,11 @@ if (typeof window !== 'undefined') {
     deferred = null
     emit({ installed: true, canPrompt: false })
   })
+}
+
+/** État d'installation hors composant (mise à jour automatique du poste, D-070). */
+export function getInstallState(): InstallState {
+  return state
 }
 
 export function useInstallState(): InstallState {

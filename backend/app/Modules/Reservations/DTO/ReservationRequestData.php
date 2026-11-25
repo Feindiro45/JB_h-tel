@@ -28,6 +28,7 @@ final readonly class ReservationRequestData
         public bool $confirm = true,
         /** N-09 : moment du tarif (opération faite hors ligne) ; `null` = maintenant. */
         public ?CarbonInterface $pricedAt = null,
+        public ?int $expectedUnitPriceFcfa = null,
     ) {}
 
     public function period(): BlockedPeriod

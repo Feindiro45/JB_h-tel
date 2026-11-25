@@ -39,8 +39,17 @@ final class ReservationQuoter
         self::assertValidPeriod($period);
         self::assertCapacity($room, count($data->occupants));
 
-        // N-09 : une opération faite hors ligne garde le tarif en vigueur sur le poste à ce moment-là.
-        $rate = $this->prices->currentRate($room->roomTypeId, $data->billingUnit, $data->pricedAt);
+        // D-067 : l'heure du navigateur ne prouve pas le droit à un tarif historique.
+        $rate = $this->prices->currentRate($room->roomTypeId, $data->billingUnit);
+        if ($data->pricedAt !== null) {
+            $observed = $this->prices->currentRate($room->roomTypeId, $data->billingUnit, $data->pricedAt);
+            if ($observed->amountFcfa !== $rate->amountFcfa) {
+                throw new BusinessRuleException('Le tarif a changé pendant la coupure. Cette opération reste sur le poste et doit être examinée par l’administrateur avant une nouvelle saisie au tarif validé.', 'Tarif hors ligne à examiner', 409, 'offline_rate_review');
+            }
+        }
+        if ($data->expectedUnitPriceFcfa !== null && $data->expectedUnitPriceFcfa !== $rate->amountFcfa) {
+            throw new BusinessRuleException('Le tarif gardé sur le poste diffère du tarif serveur. Faites examiner cette opération avant de la reprendre ; aucun montant différent n’a été enregistré.', 'Tarif hors ligne à examiner', 409, 'offline_rate_review');
+        }
         $this->assertDuration($data->billingUnit, $data->quantity, $period, $rate->amountFcfa);
 
         $price = $this->calculator->compute($rate->amountFcfa, $data->quantity, $data->discount);

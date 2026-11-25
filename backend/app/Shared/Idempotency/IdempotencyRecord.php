@@ -9,7 +9,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * Réponse réussie d'une écriture, mémorisée sous sa clé `Idempotency-Key` (lot 3). Ligne
- * technique interne, jamais exposée ; purgée après 30 jours (`model:prune`).
+ * technique interne, jamais exposée. Conservée durablement : une sauvegarde hors ligne ancienne
+ * doit toujours retrouver son opération, même après expiration d'un cache HTTP (D-067).
  *
  * @property int $id
  * @property int $user_id
@@ -25,7 +26,7 @@ class IdempotencyRecord extends Model
 {
     use MassPrunable;
 
-    /** Durée de conservation des réponses (jours). */
+    /** Ancienne durée, conservée pour les outils de compatibilité ; aucune purge automatique. */
     public const RETENTION_DAYS = 30;
 
     protected $table = 'idempotency_keys';
@@ -42,6 +43,6 @@ class IdempotencyRecord extends Model
     /** @return Builder<static> */
     public function prunable(): Builder
     {
-        return static::query()->where('created_at', '<', now()->subDays(self::RETENTION_DAYS));
+        return static::query()->whereRaw('1 = 0');
     }
 }

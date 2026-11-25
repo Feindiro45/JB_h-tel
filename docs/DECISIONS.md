@@ -1,5 +1,29 @@
 # Décisions et arbitrages — JB Hôtel
 
+## D-067 — Reprise hors ligne fiable et contrôlée (22/11/2026)
+
+Choix validé par l'utilisateur : conserver le hors ligne et corriger le mécanisme selon `PLAN_CORRECTIONS_OFFLINE_RESERVATIONS.md`.
+
+- File, compteur provisoire et copie des écrans écrits dans une même transaction IndexedDB ; aucune écriture métier annoncée comme gardée sans stockage durable. Les anciens enregistrements restent compatibles, sans effacement de la base locale.
+- Ajouts, accusés, restauration et compteurs atomiques ; restauration additive et dédoublonnée, avec compteur repris au-delà des numéros importés. Une saisie déjà gardée retrouve son résultat provisoire sans refaire l'encaissement.
+- Les clés serveur ne sont plus purgées après 30 jours : `idempotency_keys` devient le registre durable de reconnaissance des rejeux, sans nouvelle table SQL.
+- Coordination des envois entre onglets avec Web Locks et protection serveur contre les doublons. Reprise à l'ouverture, au retour vérifié de l'API, au retour sur la fenêtre et toutes les 30 secondes en ligne. Session expirée : attente de reconnexion de l'auteur ; erreur temporaire : conservation de l'opération.
+- Validation des sauvegardes après déchiffrement : schéma, méthodes et chemins par type d'opération, taille et paramètres cryptographiques bornés. Refus des URL externes avant préparation des en-têtes.
+- **Sécurise N-09** : l'heure du navigateur ne permet plus de choisir un ancien tarif. Le serveur compare le tarif courant à celui de la date déclarée et au prix observé transmis. Écart : `offline_rate_review`, conservé et visible à examiner ; aucun prix différent appliqué silencieusement. L'administrateur décide de la reprise, avec abandon motivé de l'ancienne opération pour éviter une double saisie.
+- Les dates d'une création/modification peuvent appartenir à la période d'un rejeu borné à 62 jours, pour reprendre une coupure de plusieurs jours. Droits, disponibilité et prix restent revalidés. Au-delà de cette fenêtre, traitement administratif nécessaire ; le stockage local n'expire pas.
+- `users.manage` délégué ne permet plus de créer/se promouvoir administrateur ni de modifier/inviter un compte administrateur. Amorçage initial réservé à la commande CLI privée.
+
+## D-068 — Facture automatique et guide des opérations (22/11/2026)
+
+Demande utilisateur : éviter les oublis après création et supprimer le clic d'émission de facture.
+
+- Réservation confirmée : facture unique dans la transaction de création. Réservation en attente : facture à la confirmation. Échec de facturation : création/confirmation annulée intégralement. Le droit de réserver ne donne aucun droit d'avoir ou d'administration.
+- L'ancien endpoint d'émission retrouve la facture active pour les anciens clients et rejeux ; il n'en crée pas une seconde. Pas de facturation rétroactive massive des anciennes réservations.
+- Hors ligne, facture provisoire et copie des écrans sont enregistrées avec l'opération de création/confirmation. La réponse serveur donne la référence définitive ; le ticket provisoire reste disponible jusqu'au téléchargement du document définitif.
+- Guide de fiche : réservation, facture, arrivée, encaissement/reçu, départ ; prochaine action calculée à partir de l'état réel et des droits ; focus après création et accès direct au ticket. Aucun paiement, arrivée ou départ inventé automatiquement ; paiement différé conservé.
+- Instantanés figés ; ticket de facture libellé **« Solde à l'émission »**, car l'avance peut être saisie juste après. Caisse et reçu montrent la situation courante. Avoirs/remplacements lors d'annulation, prolongation et modification autorisée conservés.
+- Conséquence de D-058 conservée : une réservation désormais facturée automatiquement se modifie par un compte autorisé à émettre un avoir. La caissière demande la correction à l'administrateur ; aucune permission privilégiée n'est élargie implicitement.
+
 Ce fichier consigne les choix techniques et les arbitrages entre documents, comme l'exige `06_PROMPT_AGENT_IA_IMPLEMENTATION.md`.
 
 Chaque décision porte l'un des statuts suivants :
@@ -400,6 +424,7 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
   - *Lecture :* chaque règle montre sa valeur en grand (pastilles pour une liste, Oui/Non, unité), son statut Validé ou Provisoire, sa référence (D-xx, Q-xx) et la date de dernière modification.
   - *Actions :* « Modifier » seulement pour les règles modifiables ; les autres affichent « Fixé par décision ». Une légende explique les trois états. Le panneau « Envoi des e-mails » reste en bas de page.
   - Aucune règle, valeur ou droit n’a changé : présentation uniquement.
+- **Refonte de la page Paramètres (demande de l’utilisateur, 22/11/2026 : « cette version est moche »)** : colonne « Domaines » fixe à gauche (bande défilante sur tablette et mobile) avec le nombre de règles et un point orange pour celles à valider ; recherche (nom, explication, référence) et filtre « Afficher » (à valider, validées, modifiables) ; chaque domaine dans une section à sa couleur et son icône ; règles en cartes, valeur mise en avant dans un cadre teinté (liste d’options en pastilles qui passent à la ligne : corrige l’affichage écrasé de « Opérations permises sans Internet ») ; liseré ambre (provisoire) ou vert (validé), toujours doublé du badge. Présentation uniquement : aucune règle, valeur ni droit ne change.
 
 ### D-061 — Ticket thermique 80 mm en complément de l’A4 (Validé par l’utilisateur le 21/11/2026, N-01)
 - Le ticket 80 mm **s’ajoute** aux impressions existantes : il ne les remplace pas. La facture PDF A4, générée par le serveur depuis l’instantané figé et munie du QR de vérification, reste le document de référence. **Remplacé par D-065 (22/11/2026) : le ticket est désormais le seul format.**
@@ -483,3 +508,21 @@ Reservations n'utilise que les contrats publics de RoomCatalog (`RoomDirectory`,
 - **Mêmes définitions que les écrans :** encaissé, remboursé, net (D-041), facturé = factures − avoirs (D-040) ; les montants viennent des instantanés figés et des prix enregistrés à la confirmation.
 - **Sécurité :** droit de l’écran d’origine ; aucun secret ; une saisie qui commence par « = » reste du texte (pas de formule) ; le classeur des clients rappelle qu’il contient des données personnelles. Plafond de 20 000 lignes par feuille (10 000 pour l’audit).
 - **Architecture (demande de l’utilisateur : SOLID et DTO) :** FormRequest → DTO de filtres partagé par la liste et l’export → requête de lecture commune → classe d’export par module (`Http/Exports`) → contrôleur d’une ligne.
+
+### D-069 — Logiciel Windows Electron hors ligne d'abord (demande de l'utilisateur, 23/11/2026)
+- Demande : `electron/PROMPT_IMPLEMENTATION_JB_HOTEL_ELECTRON_OFFLINE.md` (« lance ma demande qui est dans le dossier electron ») ; l'utilisateur, absent, a demandé de choisir la meilleure option, de l'implémenter et de laisser un rapport. **Option retenue par l'agent, à confirmer par l'utilisateur.**
+- **Architecture (option A) :** le logiciel Windows (`electron/`) affiche **la même application React** que la PWA, servie depuis les fichiers installés (`app://jbhotel/`). La couche hors ligne existante (D-064/D-067/D-068 : file idempotente, règles rejouées sur le poste, copie des écrans, session PBKDF2) est réutilisée ; seul son stockage change : **SQLite** (`node:sqlite` intégré à Electron, aucun module natif) dans `%APPDATA%\JBHotel`, au lieu d'IndexedDB. Rejeté : option B (base locale normalisée et services métier recodés dans Electron), qui créerait un second produit divergent. Détails : `docs/ELECTRON_ARCHITECTURE.md`, audit : `docs/ELECTRON_AUDIT.md`.
+- **Base locale :** une transaction SQLite par écriture (opération + numéro provisoire + copie), WAL et `synchronous = FULL`, opération acceptée définitive et numérotation croissante imposées par triggers, journal immuable, valeurs chiffrées AES-256-GCM avec une clé protégée par DPAPI, sauvegardes quotidiennes vérifiées, restauration sans perte des opérations récentes, reprise automatique d'une base endommagée (`docs/SQLITE_SCHEMA_AND_MIGRATIONS.md`).
+- **Accès au serveur :** relais dans le processus principal (`app://jbhotel/server/*` → Laravel) qui garde les cookies Sanctum, ajoute le jeton CSRF et présente l'origine de l'application web ; **aucun changement d'authentification serveur**. Sécurité Electron : `docs/OFFLINE_SECURITY.md`.
+- **Synchronisation :** envoi = rejeu des opérations sur les routes métier existantes (idempotentes, revalidées) ; réception = nouveau module serveur `Sync` : journal `sync_changes` écrit dans la transaction de chaque écriture (événements Eloquent), `GET /api/v1/sync/status` et `GET /api/v1/sync/changes?cursor=` (curseur opaque, délai de sécurité 15 s, filtrage par droit, 410 si curseur expiré, conservation 365 j). Lu toutes les 30 s par le poste **et par la PWA** : le tableau de bord web s'actualise sans rechargement. Pas de WebSocket (hébergement mutualisé, À CONFIRMER). Protocole : `docs/SYNC_PROTOCOL.md`.
+- **Impression :** ticket 80/58 mm par l'imprimante choisie du poste (mode direct possible), imprimante absente signalée, impressions et réimpressions notées (`print_jobs`). La PWA garde l'impression du navigateur.
+- **Correctif commun (trouvé en recette) :** une relecture échouée quand le serveur est injoignable mais le réseau local actif retirait la session de la copie locale ; au redémarrage suivant, retour forcé à la connexion. La copie garde désormais les données déjà reçues (`persistence.ts`), PWA comprise.
+- **Livraison :** installateur NSIS par utilisateur `JB-Hotel-Setup-<version>.exe` (non signé : À CONFIRMER), mises à jour par electron-updater sur un canal HTTPS à créer (`docs/WINDOWS_BUILD_AND_INSTALL.md`). Guide : `docs/GUIDE_POSTE_WINDOWS.md`. Preuves : `docs/TEST_REPORT.md`.
+
+### D-070 — Copie locale mise à jour automatiquement (demande de l'utilisateur, 23/11/2026)
+- Demande : « je veux que le logiciel en local se mette à jour automatiquement sans que l'utilisateur fasse la synchronisation en local ; souvent ils peuvent l'oublier ».
+- **Où :** logiciel Windows et PWA installée (fenêtre d'application). Le navigateur ordinaire (ex. téléphone de l'administrateur) garde le fonctionnement manuel.
+- **Quand (valeurs provisoires, `shared/offline/autoLocalUpdate.ts`) :** téléchargement complet (« Tout télécharger ») au démarrage et au retour d'Internet s'il date de plus de **3 h**, puis toutes les 3 h ; écrans gardés et essentiels toutes les **15 min**, et au plus **2 min** après un changement signalé par le serveur ; fiches changées ailleurs (identifiant reçu du journal D-069) relues aussitôt, même écran fermé.
+- **Garde-fous :** jamais hors ligne ; jamais tant qu'une opération faite hors ligne de l'utilisateur attend l'envoi (les reçus et factures provisoires ne sont pas écrasés par la copie du serveur) ; une seule mise à jour à la fois (une mise à jour manuelle attend la fin de l'automatique) ; rythme de 40 requêtes/min pour laisser la priorité à la caissière (limite serveur 120/min) ; échecs notés dans l'historique sans fenêtre d'erreur, **et seulement pour les données téléchargées par la mise à jour** : les erreurs des écrans de la caissière restent affichées.
+- **Historique :** chaque passage est noté (« Automatique », « Téléchargement complet automatique ») ; une réussite automatique remplace la précédente du même genre pour ne pas effacer l'historique utile ; les échecs sont toujours ajoutés.
+- Les boutons « Mettre à jour en local » et « Tout télécharger » restent disponibles (avant une coupure annoncée, par exemple).

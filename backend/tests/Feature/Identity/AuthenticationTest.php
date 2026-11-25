@@ -94,11 +94,37 @@ class AuthenticationTest extends TestCase
             ->assertJsonPath('code', 'session_unavailable');
     }
 
-    public function test_current_user_requires_authentication(): void
+    public function test_current_user_returns_null_without_a_session(): void
     {
         $this->getJson('/api/v1/auth/me')
-            ->assertStatus(401)
+            ->assertOk()
+            ->assertExactJson(['data' => null]);
+    }
+
+    public function test_session_probe_from_the_frontend_returns_null_without_a_session(): void
+    {
+        $response = $this->withHeaders(self::FRONTEND)->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertExactJson(['data' => null])
+            ->assertHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function test_business_routes_still_require_authentication(): void
+    {
+        $this->getJson('/api/v1/customers')
+            ->assertUnauthorized()
             ->assertJsonPath('title', 'Session expirée');
+    }
+
+    public function test_current_user_keeps_authenticated_user_details(): void
+    {
+        $user = User::factory()->cashier()->create();
+        $this->actingAs($user, 'web')->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.email', $user->email)
+            ->assertJsonPath('data.role', 'caissiere');
     }
 
     public function test_logout_ends_the_session(): void
@@ -112,7 +138,9 @@ class AuthenticationTest extends TestCase
         // En test, l'application (et le garde Sanctum en cache) survit entre deux requêtes ;
         // en production, chaque requête HTTP repart de zéro.
         $this->app['auth']->forgetGuards();
-        $this->withHeaders(self::FRONTEND)->getJson('/api/v1/auth/me')->assertStatus(401);
+        $this->withHeaders(self::FRONTEND)->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertExactJson(['data' => null]);
     }
 
     public function test_account_disabled_during_a_session_loses_access_immediately(): void

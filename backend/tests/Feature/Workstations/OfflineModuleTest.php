@@ -225,7 +225,7 @@ class OfflineModuleTest extends TestCase
      * en vigueur sur le poste à ce moment-là, même si un nouveau tarif est entré en vigueur avant le
      * retour du réseau. Moment dans le futur ou trop ancien : tarif de l'heure du serveur.
      */
-    public function test_offline_operations_keep_the_rate_in_force_on_the_workstation(): void
+    public function test_changed_offline_rates_require_review_and_unchanged_rates_are_accepted(): void
     {
         $pending = $this->bookOk(['confirm' => false, 'start_date' => '2026-12-05', 'end_date' => '2026-12-05']);
         // 10:00 : le tarif VIP journée passe de 50 000 à 60 000 FCFA.
@@ -238,7 +238,9 @@ class OfflineModuleTest extends TestCase
             ->assertCreated()
             ->json('data.price.net_fcfa');
 
-        $this->assertSame(50000, $book('2026-12-01 09:30', '2026-12-02'), 'réservée avant le changement');
+        $this->actingAs($this->cashier)->withHeaders($this->replayAt('2026-12-01 09:30', 'reservation.create'))
+            ->postJson('/api/v1/reservations', $this->payload(['start_date' => '2026-12-02', 'end_date' => '2026-12-02']))
+            ->assertStatus(409)->assertJsonPath('code', 'offline_rate_review');
         $this->assertSame(60000, $book('2026-12-01 10:02', '2026-12-03'), 'réservée après le changement');
         $this->assertSame(60000, $book('2026-12-01 11:00', '2026-12-04'), 'heure du poste dans le futur');
         $this->assertSame(60000, $book('2026-09-01 09:00', '2026-12-06'), 'heure trop ancienne');
@@ -251,7 +253,7 @@ class OfflineModuleTest extends TestCase
         $this->actingAs($this->cashier)
             ->withHeaders($this->replayAt('2026-12-01 09:45', 'reservation.confirm'))
             ->postJson("/api/v1/reservations/{$pending}/confirm")
-            ->assertOk()
-            ->assertJsonPath('data.price.net_fcfa', 50000);
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'offline_rate_review');
     }
 }

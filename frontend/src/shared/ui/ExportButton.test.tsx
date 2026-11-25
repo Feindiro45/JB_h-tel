@@ -99,6 +99,9 @@ describe('Export Excel d’un écran', () => {
     expect(
       await screen.findByText(
         'Classeur simplifié créé sans réseau, à partir des données de ce poste.',
+        {},
+        // Le chargement initial d'ExcelJS et la génération réelle du fichier dépassent 1 s sous charge.
+        { timeout: 10000 },
       ),
     ).toBeInTheDocument()
     const [blob, name] = vi.mocked(saveFile).mock.calls[0]!

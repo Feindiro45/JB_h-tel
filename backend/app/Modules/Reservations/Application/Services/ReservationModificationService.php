@@ -149,6 +149,7 @@ final class ReservationModificationService
             discount: $reservation->discount(),
             notes: $reservation->notes,
             pricedAt: $data->pricedAt,
+            expectedUnitPriceFcfa: $data->expectedUnitPriceFcfa,
         );
     }
 }

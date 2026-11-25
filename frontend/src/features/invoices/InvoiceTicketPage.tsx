@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router'
+import { outboxQuery } from '../../shared/offline/outbox'
+import { useConnectivity } from '../../shared/offline/connectivity'
+import { isLocalId } from '../../shared/offline/localRefs'
 import { Icon } from '../../shared/ui/Icon'
 import { LoadingBlock, PageHeading } from '../../shared/ui/layout'
 import {
@@ -29,6 +32,21 @@ import { isProvisionalInvoice } from './offlineInvoice'
  */
 export function InvoiceTicketPage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
+  const outbox = useQuery({ ...outboxQuery, enabled: id.startsWith('local-auto-') })
+  const operation = outbox.data?.find((item) => item.id === id.slice('local-auto-'.length))
+  const definitive = operation?.status === 'accepted' ? operation.automaticInvoiceId : null
+  const { online } = useConnectivity()
+  const definitiveInvoice = useQuery({
+    ...invoiceQuery(definitive ?? ''),
+    enabled: Boolean(definitive) && online,
+    meta: { silentError: true },
+    retry: false,
+  })
+  useEffect(() => {
+    if (definitive && definitiveInvoice.data)
+      void navigate(`/documents/factures/${definitive}/ticket`, { replace: true })
+  }, [definitive, definitiveInvoice.data, navigate])
   const invoice = useQuery(invoiceQuery(id))
   const [editedAt] = useState(() => new Date())
 
@@ -53,7 +71,7 @@ export function InvoiceTicketPage() {
   const s = inv.snapshot
   const isCredit = inv.type === 'CREDIT_NOTE'
   // Facture émise hors ligne (FAC-LOC-…) : numéro provisoire, remplacé au retour du réseau.
-  const provisional = isProvisionalInvoice(inv.number)
+  const provisional = isLocalId(inv.id) || isProvisionalInvoice(inv.number)
   const reservationId = s.stay.reservation_uuid
   const methods = [...new Set(s.payments.lines.map((line) => line.method))]
 
@@ -192,7 +210,7 @@ export function InvoiceTicketPage() {
               <TicketPair label="Déjà réglé (net)" amount>
                 {formatFcfa(s.payments.net_paid_fcfa)}
               </TicketPair>
-              <TicketPair label="Reste dû" amount strong>
+              <TicketPair label="Solde à l’émission" amount strong>
                 {formatFcfa(Math.max(0, s.payments.balance_fcfa))}
               </TicketPair>
               {methods.length > 0 && (

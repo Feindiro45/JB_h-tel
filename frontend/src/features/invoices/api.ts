@@ -56,6 +56,10 @@ function keptStay(client: QueryClient, reservationId: string): Reservation {
  * imprimable en ticket 80 mm ; le serveur l'émet avec son numéro FAC définitif à l'envoi.
  */
 export async function issueInvoice(reservationId: string): Promise<InvoiceSummary> {
+  const existing = getQueryClientRef()
+    ?.getQueryData<InvoiceSummary[]>(invoicesKey(reservationId))
+    ?.find((invoice) => invoice.type === 'INVOICE' && invoice.status === 'ISSUED')
+  if (existing) return existing
   return runOrQueue<InvoiceSummary>({
     kind: 'invoice.issue',
     label: `Facture — ${describeReservation(reservationId)}`,

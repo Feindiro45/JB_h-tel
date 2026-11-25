@@ -32,7 +32,9 @@ final class UserController
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $user = $this->users->create($request->toData());
+        /** @var User $actor */
+        $actor = $request->user();
+        $user = $this->users->create($request->toData(), $actor);
 
         return (new UserResource($user->load(self::RELATIONS)))->response()->setStatusCode(201);
     }

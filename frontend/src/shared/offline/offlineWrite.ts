@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query'
+import { dehydrate, hydrate, type QueryClient } from '@tanstack/react-query'
 import { apiRequest } from '../api/client'
 import { ApiError } from '../api/errors'
 import { newIdempotencyKey } from '../api/idempotency'
@@ -7,13 +7,12 @@ import { getConnectivity } from './connectivity'
 import { dependencyRefusal, localIdFor, resolveLocalRefs } from './localRefs'
 import {
   enqueueOperation,
-  nextProvisionalNumber,
   notifyOutboxChanged,
   readOutbox,
   type OperationKind,
   type QueuedOperation,
 } from './outbox'
-import { saveQueryCache } from './persistence'
+import { snapshot } from './persistence'
 import { getQueryClientRef } from './queryClientRef'
 import { isAllowedOffline, OPERATION_LABELS, offlineRules } from './rules'
 
@@ -52,6 +51,24 @@ const envelopeData = <T>(response: unknown): T => (response as { data: T }).data
  */
 export async function runOrQueue<T>(write: OfflineWrite<T>): Promise<T> {
   const idempotencyKey = write.idempotencyKey ?? newIdempotencyKey()
+  const existing = (await readOutbox()).find((operation) => operation.id === idempotencyKey)
+  if (existing) {
+    const actor = getQueryClientRef()?.getQueryData<CurrentUser | null>(['auth', 'me'])
+    if (!actor || actor.id !== existing.userId)
+      throw new ApiError(403, 'Auteur différent', 'Cette opération appartient à une autre session.')
+    if (existing.status === 'rejected' || existing.status === 'abandoned')
+      throw new ApiError(
+        409,
+        'Opération à examiner',
+        existing.error?.message ?? 'Consultez Synchronisation avant de reprendre cette opération.',
+      )
+    if (existing.localResult !== undefined) return existing.localResult as T
+    throw new ApiError(
+      409,
+      'Opération déjà gardée',
+      'Cette opération est déjà sur le poste. Consultez Synchronisation pour suivre sa reprise.',
+    )
+  }
   const read = write.read ?? envelopeData<T>
   if (getConnectivity().online) {
     const resolution = resolveLocalRefs(write.path, write.body, await readOutbox())
@@ -104,18 +121,35 @@ export async function runOrQueue<T>(write: OfflineWrite<T>): Promise<T> {
     attempts: 0,
     lastAttemptAt: null,
     error: null,
-    provisionalNumber: write.numbered
-      ? `${write.numberPrefix ?? ''}${await nextProvisionalNumber(station?.name ?? null, rules.provisional_prefix)}`
-      : null,
+    provisionalNumber: null,
     definitiveNumber: null,
     localId: localIdFor(idempotencyKey),
     abandonReason: null,
     resultId: null,
   }
-  await enqueueOperation(operation)
-  const result = write.provisional(operation, client)
-  // Copie du poste enregistrée tout de suite : un rechargement immédiat garde l'élément provisoire.
-  await saveQueryCache(client).catch(() => undefined)
+  const before = dehydrate(client)
+  let saved: QueuedOperation
+  try {
+    saved = await enqueueOperation(
+      operation,
+      write.numbered
+        ? {
+            station: station?.name ?? null,
+            prefix: rules.provisional_prefix,
+            documentPrefix: write.numberPrefix,
+          }
+        : undefined,
+      (item) => {
+        item.localResult = write.provisional(item, client)
+        // File, compteur, facture provisoire et copie des écrans sont validés ensemble.
+        return { 'query-cache': snapshot(client) }
+      },
+    )
+  } catch (error) {
+    client.clear()
+    hydrate(client, before)
+    throw error
+  }
   notifyOutboxChanged(client)
-  return result
+  return saved.localResult as T
 }

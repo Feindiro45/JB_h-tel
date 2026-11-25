@@ -1,5 +1,7 @@
 # LWS : frontend et API sur banguiweb-tech.com
 
+> **Actualisation du 22 novembre 2026 :** le projet privé est déjà dans `home`, confirmé par l'utilisateur. Utiliser les nouvelles archives décrites dans [LIVRAISON_LWS_HOME.md](LIVRAISON_LWS_HOME.md). Les manipulations de déplacement et les anciennes archives évoquées ci-dessous concernent des incidents précédents ; elles ne sont pas à rejouer pour cette mise à jour.
+
 Destination actuelle, choisie le 20 novembre 2026 : le frontend reste à la racine du domaine ; Laravel est accessible dans `/backend`. Cette procédure remplace la publication sur le sous-domaine API décrite dans les anciens diagnostics.
 
 | Usage | Adresse |

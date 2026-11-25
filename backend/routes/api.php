@@ -23,4 +23,5 @@ Route::prefix('v1')
         require app_path('Modules/Reporting/Http/routes.php');
         require app_path('Modules/Settings/Http/routes.php');
         require app_path('Modules/Workstations/Http/routes.php');
+        require app_path('Modules/Sync/Http/routes.php');
     });

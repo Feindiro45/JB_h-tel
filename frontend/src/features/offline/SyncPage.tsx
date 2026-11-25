@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import {
+  AUTO_LOCAL_UPDATE,
+  autoLocalUpdateEnabled,
+  useAutoLocalUpdate,
+} from '../../shared/offline/autoLocalUpdate'
 import { lastBackupQuery } from '../../shared/offline/backup'
 import { coverageRows, readServerTotals } from '../../shared/offline/coverage'
 import { useConnectivity } from '../../shared/offline/connectivity'
@@ -28,7 +33,9 @@ import { PageOverview } from '../../shared/ui/PageOverview'
 import { useToast } from '../../shared/ui/toastContext'
 import { formatDateTime, formatNumber, formatTime } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
+import { isDesktop } from '../../shared/desktop/bridge'
 import { BackupPanel } from './BackupPanel'
+import { DesktopPanel } from './DesktopPanel'
 import { OutboxPanel } from './OutboxPanel'
 import { useBackupReminder } from './useBackupReminder'
 import './offline.css'
@@ -64,6 +71,7 @@ const TRIGGER = {
   reconnect: 'Retour du réseau',
   auto: 'Automatique',
   full: 'Téléchargement complet',
+  'auto-full': 'Téléchargement complet automatique',
 } as const
 
 const DIRECTION = { local: 'Vers ce poste', online: 'Vers le serveur' } as const
@@ -172,7 +180,9 @@ export function SyncPage() {
 
       <StatusTiles records={datasets.reduce((sum, d) => sum + d.records, 0)} />
 
-      <FullDownloadCard lastFull={runs.find((run) => run.trigger === 'full') ?? null} />
+      <FullDownloadCard
+        lastFull={runs.find((run) => run.trigger === 'full' || run.trigger === 'auto-full') ?? null}
+      />
 
       <div className="sync-charts">
         <CoverageChart />
@@ -181,8 +191,14 @@ export function SyncPage() {
         <RunsChart runs={runs} />
       </div>
 
+      {isDesktop() && (
+        <div className="sync-cards sync-desktop">
+          <DesktopPanel />
+        </div>
+      )}
+
       <div className="sync-cards">
-        <InstallPanel />
+        {!isDesktop() && <InstallPanel />}
         <BackupPanel />
       </div>
 
@@ -643,7 +659,10 @@ function FullDownloadCard({ lastFull }: { lastFull: SyncRun | null }) {
   const { user } = useCurrentUser()
   const { online } = useConnectivity()
   const { notify } = useToast()
-  const [progress, setProgress] = useState<DownloadProgress | null>(null)
+  const [manualProgress, setProgress] = useState<DownloadProgress | null>(null)
+  // Mise à jour automatique du poste (D-070) : même carte, même barre de progression.
+  const auto = useAutoLocalUpdate()
+  const automatic = autoLocalUpdateEnabled()
   const download = useMutation({
     mutationFn: () =>
       updateLocalCopy(client, 'full', user?.name ?? null, { full: true, onProgress: setProgress }),
@@ -660,7 +679,8 @@ function FullDownloadCard({ lastFull }: { lastFull: SyncRun | null }) {
     },
     onSettled: () => setProgress(null),
   })
-  const running = download.isPending
+  const running = download.isPending || auto.running !== null
+  const progress = manualProgress ?? auto.progress
   const percent =
     progress && progress.planned
       ? Math.round(((progress.done + progress.failed) * 100) / progress.planned)
@@ -686,6 +706,7 @@ function FullDownloadCard({ lastFull }: { lastFull: SyncRun | null }) {
               <span style={{ width: `${percent}%` }} />
             </span>
             <p className="full-download__step" aria-live="polite">
+              {!download.isPending && 'Mise à jour automatique · '}
               <strong>{percent} %</strong> · {progress.step} · {formatNumber(progress.done)} /{' '}
               {formatNumber(progress.planned)}
               {progress.failed ? ` · ${progress.failed} échec(s)` : ''}
@@ -704,6 +725,18 @@ function FullDownloadCard({ lastFull }: { lastFull: SyncRun | null }) {
             )}
           </p>
         )}
+        {automatic && (
+          <p className="full-download__auto">
+            <Icon name="refresh" size={15} />
+            Mise à jour automatique : tout le poste toutes les{' '}
+            {AUTO_LOCAL_UPDATE.fullEveryMs / 3_600_000} h, les écrans toutes les{' '}
+            {AUTO_LOCAL_UPDATE.essentialsEveryMs / 60_000} min et après chaque changement du
+            serveur. Rien à faire.
+            {auto.lastLocalAt
+              ? ` Dernière mise à jour : ${formatDateTime(new Date(auto.lastLocalAt))}.`
+              : ''}
+          </p>
+        )}
       </div>
       <button
         type="button"
@@ -712,7 +745,11 @@ function FullDownloadCard({ lastFull }: { lastFull: SyncRun | null }) {
         onClick={() => download.mutate()}
       >
         <Icon name={running ? 'loader' : 'download'} size={17} />
-        {running ? 'Téléchargement…' : 'Tout télécharger'}
+        {download.isPending
+          ? 'Téléchargement…'
+          : auto.running
+            ? 'Mise à jour automatique…'
+            : 'Tout télécharger'}
       </button>
     </section>
   )

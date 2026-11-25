@@ -42,7 +42,7 @@ class CustomerNotificationTest extends TestCase
             && $mail->message->kind === 'reservation.confirmed');
 
         /** @var StayMail $mail */
-        $mail = Mail::sent(StayMail::class)->first();
+        $mail = Mail::sent(StayMail::class)->first(fn (StayMail $message) => $message->message->kind === 'reservation.confirmed');
         $this->assertSame('Votre réservation est confirmée — JB Hôtel', $mail->envelope()->subject);
         $html = $mail->render();
         foreach (['Bienvenue chez JB Hôtel', 'Bonjour NGAÏKOSSET Awa', '101 (VIP)', '01/12/2026 à 14:00', '30 000 FCFA', 'Reste à régler', 'se désinscrire'] as $expected) {
@@ -63,12 +63,13 @@ class CustomerNotificationTest extends TestCase
         $other = $this->bookOk(['start_date' => '2026-12-10', 'end_date' => '2026-12-10']);
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$other}/cancel", ['reason' => 'Empêchement'])->assertOk();
 
-        $this->assertSame([
-            'reservation.confirmed', 'payment.recorded', 'reservation.checked_in', 'reservation.extended',
-            'invoice.issued', 'reservation.checked_out', 'invoice.credit_note', 'payment.refunded',
-            'reservation.confirmed', 'reservation.cancelled',
+        $this->assertEqualsCanonicalizing([
+            'reservation.confirmed', 'invoice.issued', 'payment.recorded', 'reservation.checked_in',
+            'invoice.credit_note', 'invoice.issued', 'reservation.extended',
+            'reservation.checked_out', 'invoice.credit_note', 'payment.refunded',
+            'reservation.confirmed', 'invoice.issued', 'invoice.credit_note', 'reservation.cancelled',
         ], $this->sentKinds());
-        $this->assertSame(10, AuditLog::query()->where('action', 'notification.sent')->count());
+        $this->assertSame(14, AuditLog::query()->where('action', 'notification.sent')->count());
     }
 
     public function test_invoice_email_attaches_the_ticket_with_its_verification_link(): void

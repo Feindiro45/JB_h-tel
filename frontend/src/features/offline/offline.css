@@ -486,3 +486,38 @@
   padding-left: 1.2rem;
   line-height: 1.5;
 }
+
+/* Poste Windows (D-069) : base locale, sauvegardes, imprimante. */
+.sync-desktop .pairs {
+  margin-bottom: 16px;
+}
+
+.sync-desktop .toolbar {
+  flex-wrap: wrap;
+}
+
+.desktop-alert {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+/* Mise à jour automatique du poste (D-070). */
+.full-download__auto {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin-top: 6px;
+  font-size: 0.875rem;
+  color: var(--muted, #475569);
+}
+
+.full-download__auto svg {
+  flex: none;
+  margin-top: 2px;
+}

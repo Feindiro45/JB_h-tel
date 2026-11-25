@@ -22,6 +22,14 @@ return [
     // son mot de passe (6M). Par défaut, la première origine de FRONTEND_URL.
     'frontend_url' => rtrim((string) env('APP_FRONTEND_URL', explode(',', (string) env('FRONTEND_URL', 'http://localhost:5173'))[0]), '/'),
 
+    // Synchronisation des postes (D-069) : conservation du journal des changements (un poste peut
+    // rester longtemps hors ligne), délai de sécurité avant d'avancer un curseur, rythme conseillé.
+    'sync' => [
+        'retention_days' => (int) env('SYNC_RETENTION_DAYS', 365),
+        'commit_lag_seconds' => (int) env('SYNC_COMMIT_LAG_SECONDS', 15),
+        'poll_seconds' => (int) env('SYNC_POLL_SECONDS', 30),
+    ],
+
     // En-tête des factures et reçus. PROVISOIRE (Q-09, Q-16) : raison sociale, adresse, NIF et RCCM
     // à fournir par l'hôtel ; ces valeurs sont copiées dans chaque facture au moment de son émission.
     'hotel' => [

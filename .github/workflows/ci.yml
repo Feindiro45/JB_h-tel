@@ -60,6 +60,9 @@ jobs:
       - name: Installer les dépendances
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Vulnérabilités Composer
+        run: composer audit --locked --abandoned=report
+
       - name: Préparer l'environnement
         run: |
           cp .env.example .env
@@ -92,6 +95,13 @@ jobs:
           APP_ENV: local
           DB_DATABASE: jb_hotel_test
         run: npm run test:e2e
+
+      - name: Reprise hors ligne et conflits sur le build de production
+        working-directory: frontend
+        env:
+          APP_ENV: local
+          DB_DATABASE: jb_hotel_test
+        run: npm run test:e2e:offline
 
       # Les journaux d'exécution exigent les droits d'administrateur du dépôt ; les annotations,
       # elles, sont publiques : on y publie les dernières erreurs serveur en cas d'échec.
@@ -142,6 +152,10 @@ jobs:
       - name: Installer les dépendances
         run: npm ci
 
+      # L'avis modéré transitif uuid / ExcelJS est suivi dans l'audit ; usage v4 seulement.
+      - name: Vulnérabilités npm élevées ou critiques
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint (oxlint)
         run: npm run lint
 
@@ -156,3 +170,33 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  desktop:
+    name: Poste Windows (Electron, SQLite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: electron
+    env:
+      # Tests unitaires du processus principal : node:sqlite de Node 24, sans le binaire Electron.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Types (TypeScript)
+        run: npm run typecheck
+
+      - name: Tests (base locale, relais, réglages)
+        run: npm test
+
+      - name: Construction du processus principal
+        run: npm run build:main

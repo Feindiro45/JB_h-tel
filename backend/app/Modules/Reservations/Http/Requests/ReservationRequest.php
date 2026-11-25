@@ -34,7 +34,9 @@ class ReservationRequest extends FormRequest
         return [
             'room_id' => ['required', 'uuid', Rule::exists('rooms', 'uuid')],
             'customer_id' => [$this->customerRequired() ? 'required' : 'nullable', 'uuid', Rule::exists('customers', 'uuid')],
-            'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            // Une coupure peut durer plusieurs jours : autoriser la période du rejeu borné,
+            // sans utiliser l'heure du poste comme autorisation d'un ancien tarif (D-067).
+            'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.(OfflineReplay::fromRequest($this)?->pricedAt()?->toDateString() ?? 'today')],
             'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
@@ -49,6 +51,7 @@ class ReservationRequest extends FormRequest
             'discount.reason' => ['required_with:discount', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'confirm' => ['sometimes', 'boolean'],
+            'expected_unit_price_fcfa' => ['sometimes', 'integer', 'min:0'],
         ];
     }
 
@@ -124,6 +127,7 @@ class ReservationRequest extends FormRequest
             notes: $this->filled('notes') ? $this->string('notes')->trim()->toString() : null,
             confirm: $this->boolean('confirm', true),
             pricedAt: OfflineReplay::fromRequest($this)?->pricedAt(),
+            expectedUnitPriceFcfa: $this->has('expected_unit_price_fcfa') ? $this->integer('expected_unit_price_fcfa') : null,
         );
     }
 

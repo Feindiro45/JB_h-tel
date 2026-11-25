@@ -1,15 +1,137 @@
-/* D-060 : page Paramètres, règles regroupées par domaine. */
-.settings-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 22px;
-  margin: 4px 0 18px;
-  padding: 12px 16px;
+/*
+ * Page Paramètres (D-060, refonte du 22/11/2026) : colonne des domaines à gauche, sections
+ * colorées par domaine, règles en cartes avec la valeur mise en avant.
+ */
+
+/* Couleur de chaque domaine : icône, pastilles, fond de la valeur. */
+.settings-tone--green {
+  --tone: #047857;
+  --tone-soft: #e6f4ec;
+  --tone-ink: #0b3d2c;
+}
+.settings-tone--blue {
+  --tone: #205ab3;
+  --tone-soft: #e8f0fb;
+  --tone-ink: #14335f;
+}
+.settings-tone--violet {
+  --tone: #5b47c7;
+  --tone-soft: #eeebfb;
+  --tone-ink: #2e2468;
+}
+.settings-tone--gold {
+  --tone: #9a5b0b;
+  --tone-soft: #fbf1e0;
+  --tone-ink: #4d2e06;
+}
+.settings-tone--slate {
+  --tone: #3f5563;
+  --tone-soft: #eaf0f3;
+  --tone-ink: #1e2c35;
+}
+.settings-tone--teal {
+  --tone: #0d7479;
+  --tone-soft: #e3f4f4;
+  --tone-ink: #0a3b3e;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+/* ---------- Colonne des domaines */
+.settings-nav {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 12px;
   border: 1px solid #dde6e1;
-  border-radius: 14px;
-  background: #f8faf9;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 30px -24px #0f2a2066;
+}
+.settings-nav__title {
+  margin: 0 8px;
+  color: #5b6c64;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.settings-nav ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.settings-nav a {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 12px;
+  color: #12261e;
+  font-size: 0.87rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+.settings-nav a:hover,
+.settings-nav a:focus-visible {
+  background: var(--tone-soft);
+}
+.settings-nav__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+.settings-nav__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-nav__count {
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef3f0;
+  color: #2f5244;
+  font-size: 0.74rem;
+  font-weight: 750;
+  text-align: center;
+}
+/* Pastille « à valider » sur l'icône du domaine (texte équivalent pour les lecteurs d'écran). */
+.settings-nav__pending {
+  position: absolute;
+  top: 5px;
+  left: 36px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #d97706;
+}
+.settings-legend {
+  display: grid;
+  gap: 8px;
+  margin: 0 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f6f9f7;
   color: #4e6158;
-  font-size: 0.85rem;
+  font-size: 0.76rem;
 }
 .settings-legend span {
   display: inline-flex;
@@ -19,104 +141,303 @@
 .settings-legend svg {
   color: #5b6c64;
 }
-.settings-list {
+
+/* ---------- Contenu */
+.settings-content {
   display: grid;
-  gap: 12px;
-  padding: 4px 0 2px;
+  gap: 22px;
+  min-width: 0;
 }
-.setting {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
-  gap: 18px;
-  align-items: center;
-  padding: 18px 20px;
-  border: 1px solid #e3eae6;
-  border-radius: 16px;
+.settings-content > .filterbar {
+  margin: 0;
+}
+/* Le champ de recherche passe au-dessus du filtre dès que la place manque (mobile). */
+.workspace .filterbar.settings-filters .field {
+  flex: 1 1 240px;
+}
+
+.settings-section {
+  scroll-margin-top: 16px;
+  padding: 22px;
+  border: 1px solid #dde6e1;
+  border-radius: 20px;
   background: #fff;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  box-shadow: 0 14px 34px -28px #0f2a2066;
 }
-.setting:hover {
-  border-color: #c9d8d0;
-  box-shadow: 0 10px 26px -18px #0f2a2040;
+.settings-section__head {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed #dbe5df;
 }
-.setting__main h3 {
-  margin: 0 0 4px;
+.settings-section__icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+.settings-section__head h2 {
+  margin: 0;
   color: #12261e;
-  font-size: 1rem;
+  font-size: 1.12rem;
   letter-spacing: -0.01em;
 }
-.setting__main p {
-  margin: 0;
+.settings-section__head p {
+  margin: 3px 0 0;
   color: #4e6158;
-  font-size: 0.88rem;
-  line-height: 1.55;
+  font-size: 0.86rem;
+  line-height: 1.5;
 }
-.setting__meta {
+.settings-section__count {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: 0.76rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 16px;
+}
+
+/* ---------- Carte d'une règle */
+.setting-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px 18px 16px 20px;
+  overflow: hidden;
+  border: 1px solid #e3eae6;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff 0%, #fbfcfb 100%);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+/* Liseré : ambre pour une règle provisoire, vert pour une règle validée (jamais seul : badge). */
+.setting-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #d97706;
+  content: '';
+}
+.setting-card--validated::before {
+  background: #047857;
+}
+.setting-card:hover {
+  border-color: #c9d8d0;
+  box-shadow: 0 16px 30px -22px #0f2a2059;
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .setting-card,
+  .setting-card:hover {
+    transition: none;
+    transform: none;
+  }
+}
+.setting-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.setting-card__head h3 {
+  margin: 0;
+  color: #12261e;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+.setting-card__head .badge {
+  flex: none;
+}
+
+.setting-card__value {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--tone-soft);
+  color: var(--tone-ink);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.setting-card__value--short {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.setting-card__value--long {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.setting-card__value--code {
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+}
+.setting-card__bool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.15rem;
+}
+.setting-card__value--yes .setting-card__bool svg {
+  padding: 3px;
+  border-radius: 50%;
+  background: #047857;
+  color: #fff;
+}
+.setting-card__value--no .setting-card__bool svg {
+  padding: 3px;
+  border-radius: 50%;
+  background: #5b6c64;
+  color: #fff;
+}
+.setting-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  margin-top: 8px !important;
-  font-size: 0.78rem !important;
-  color: #5b6c64 !important;
+  gap: 6px;
 }
-.setting__ref {
+.setting-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--tone) 22%, transparent);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--tone);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.setting-card__help {
+  flex: 1;
+  margin: 0;
+  color: #4e6158;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+.setting-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #edf2ef;
+}
+.setting-card__meta {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: #5b6c64;
+  font-size: 0.74rem;
+}
+.setting-card__ref {
+  justify-self: start;
   padding: 2px 9px;
   border-radius: 999px;
   background: #eef3f0;
   color: #2f5244;
   font-weight: 650;
 }
-.setting__side {
-  display: grid;
-  justify-items: end;
-  gap: 8px;
-  text-align: right;
-}
-.setting__value {
-  color: #0f4d38;
-  font-size: 1.3rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-.setting__value--code {
-  padding: 2px 10px;
-  border-radius: 8px;
-  background: #f2f5f3;
-  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
-  font-size: 1.05rem;
-}
-.setting-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-.setting-chip {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #e7f4ec;
-  color: #00663f;
-  font-size: 0.82rem;
-  font-weight: 650;
-}
-.setting__locked {
+.setting-card__locked {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #5b6c64;
-  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #f2f5f3;
+  color: #4e6158;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
-@media (max-width: 720px) {
-  .setting {
+
+.settings-mail {
+  scroll-margin-top: 16px;
+}
+.settings-mail > .panel {
+  margin: 0;
+}
+
+/* ---------- Tablette : les domaines deviennent une bande défilante au-dessus du contenu */
+@media (max-width: 1100px) {
+  .settings-layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .setting__side {
-    justify-items: start;
-    text-align: left;
+  .settings-nav {
+    position: static;
+    padding: 12px;
   }
-  .setting-chips {
-    justify-content: flex-start;
+  .settings-nav ul {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
+  /* Chaque domaine garde son libellé entier ; la bande défile. */
+  .settings-nav li {
+    flex: none;
+  }
+  .settings-nav__label {
+    overflow: visible;
+  }
+  .settings-nav a {
+    grid-template-columns: 30px auto auto;
+    border: 1px solid #e3eae6;
+    white-space: nowrap;
+  }
+  .settings-nav__icon {
+    width: 30px;
+    height: 30px;
+  }
+  .settings-nav__pending {
+    left: 32px;
+  }
+  .settings-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+}
+
+/* ---------- Mobile */
+@media (max-width: 640px) {
+  .settings-section {
+    padding: 16px;
+  }
+  .settings-section__head {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+  .settings-section__icon {
+    width: 40px;
+    height: 40px;
+  }
+  .settings-section__count {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .setting-card__foot .secondary {
+    width: 100%;
+  }
+}
+
+/* Une règle seule dans son domaine occupe toute la largeur (pas de demi-ligne vide). */
+.settings-grid > .setting-card:only-child {
+  grid-column: 1 / -1;
 }

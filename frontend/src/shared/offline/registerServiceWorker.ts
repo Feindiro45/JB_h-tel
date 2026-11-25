@@ -1,4 +1,5 @@
 import { config } from '../config'
+import { isDesktop } from '../desktop/bridge'
 // Capte dès le démarrage la proposition d’installation du navigateur (PWA).
 import './install'
 
@@ -14,6 +15,8 @@ export function apiPrefixFor(apiUrl: string, origin: string): string {
 
 export function registerServiceWorker(): void {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
+  // Logiciel Windows (D-069) : l'interface est installée avec le logiciel, sans service worker.
+  if (isDesktop()) return
   const base = import.meta.env.BASE_URL
   const prefix = apiPrefixFor(config.apiUrl, window.location.origin)
   window.addEventListener('load', () => {

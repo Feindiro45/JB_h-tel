@@ -33,8 +33,8 @@ export function createQueryClient(onError: (error: unknown) => void): QueryClien
   return new QueryClient({
     queryCache: new QueryCache({
       onError: (error, query) => {
-        // Pendant une mise à jour locale, les échecs vont au journal de synchronisation.
-        if (isSyncing()) return
+        // Donnée téléchargée par une mise à jour locale : l'échec va au journal de synchronisation.
+        if (isSyncing(query.queryHash)) return
         // Coupure du réseau : « Connexion impossible » une seule fois par coupure, puis le
         // bandeau « Hors ligne » remplace une fenêtre par écran (lot 2).
         if (error instanceof ApiError && error.isNetworkError) {

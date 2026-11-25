@@ -5,6 +5,7 @@ namespace App\Modules\Reservations\Application\Services;
 use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Application\ReservationQuote;
 use App\Modules\Reservations\Application\ReservationSnapshot;
+use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Modules\Reservations\Domain\ReservationStatus;
 use App\Modules\Reservations\DTO\OccupantData;
 use App\Modules\Reservations\DTO\ReservationRequestData;
@@ -31,6 +32,7 @@ final class ReservationBookingService
         private readonly RoomDirectory $rooms,
         private readonly ReservationQuoter $quoter,
         private readonly AuditTrail $audit,
+        private readonly StayInvoicing $invoicing,
     ) {}
 
     public function create(ReservationRequestData $data, User $actor): Reservation
@@ -74,6 +76,7 @@ final class ReservationBookingService
 
             if ($status === ReservationStatus::Confirmed) {
                 event(new ReservationConfirmed($reservation->id));
+                $this->invoicing->issueOnConfirmation($reservation->id, $actor);
             }
 
             return $reservation;
@@ -85,9 +88,9 @@ final class ReservationBookingService
      * (invariant 3) ; tout écart avec l'estimation initiale est tracé (ancien et nouveau montant).
      */
     /** @param  CarbonInterface|null  $pricedAt  N-09 : moment du tarif si la confirmation a été faite hors ligne. */
-    public function confirm(Reservation $reservation, User $actor, ?CarbonInterface $pricedAt = null): Reservation
+    public function confirm(Reservation $reservation, User $actor, ?CarbonInterface $pricedAt = null, ?int $expectedUnitPriceFcfa = null): Reservation
     {
-        return DB::transaction(function () use ($reservation, $actor, $pricedAt): Reservation {
+        return DB::transaction(function () use ($reservation, $actor, $pricedAt, $expectedUnitPriceFcfa): Reservation {
             $room = $this->rooms->lockForReservation($reservation->room_id) ?? throw ReservationQuoter::roomNotFound();
             /** @var Reservation $reservation */
             $reservation = Reservation::query()->with('occupants')->lockForUpdate()->findOrFail($reservation->id);
@@ -109,6 +112,7 @@ final class ReservationBookingService
                 occupants: $reservation->occupants->map(fn ($o) => new OccupantData($o->name, $o->is_primary))->values()->all(),
                 discount: $reservation->discount(),
                 pricedAt: $pricedAt,
+                expectedUnitPriceFcfa: $expectedUnitPriceFcfa,
             );
             $quote = $this->quoter->quote($data, $actor, $room, $reservation->id);
             self::assertBookable($quote);
@@ -124,6 +128,7 @@ final class ReservationBookingService
 
             $this->audit->record('reservation.confirmed', 'reservation', $reservation->id, $before, ReservationSnapshot::of($reservation), $actor->id);
             event(new ReservationConfirmed($reservation->id));
+            $this->invoicing->issueOnConfirmation($reservation->id, $actor);
 
             return $reservation;
         });

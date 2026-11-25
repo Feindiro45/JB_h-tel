@@ -6,7 +6,7 @@ import { storageDelete, storageGet, storageSet } from './storage'
  * poste ; les envois vers le serveur (lot 4) s'y ajouteront avec `direction: 'online'`.
  */
 export type SyncDirection = 'local' | 'online'
-export type SyncTrigger = 'manual' | 'reconnect' | 'auto' | 'full'
+export type SyncTrigger = 'manual' | 'reconnect' | 'auto' | 'full' | 'auto-full'
 export type SyncStatus = 'success' | 'partial' | 'failure'
 
 export interface SyncFailure {
@@ -53,8 +53,24 @@ export async function readRuns(): Promise<SyncRun[]> {
   return (await storageGet<SyncRun[]>(RUNS_KEY)) ?? []
 }
 
-export async function appendRun(run: SyncRun): Promise<SyncRun[]> {
-  const runs = [run, ...(await readRuns())].slice(0, MAX_RUNS)
+/**
+ * Ajoute une synchronisation à l'historique. `collapse` (mises à jour automatiques, D-070) : une
+ * réussite remplace la réussite automatique précédente du même genre, pour que les passages de
+ * fond n'effacent pas l'historique utile ; un échec est toujours ajouté.
+ */
+export async function appendRun(
+  run: SyncRun,
+  options: { collapse?: boolean } = {},
+): Promise<SyncRun[]> {
+  const previous = await readRuns()
+  const [last] = previous
+  const replace =
+    options.collapse &&
+    run.status === 'success' &&
+    last?.status === 'success' &&
+    last.trigger === run.trigger &&
+    last.direction === run.direction
+  const runs = [run, ...(replace ? previous.slice(1) : previous)].slice(0, MAX_RUNS)
   await storageSet(RUNS_KEY, runs)
   return runs
 }

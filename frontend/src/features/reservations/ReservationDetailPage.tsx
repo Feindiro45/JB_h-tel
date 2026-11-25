@@ -11,7 +11,7 @@ import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
 import { DeleteDialog } from '../../shared/ui/DeleteDialog'
 import { EmptyState, LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
 import { useToast } from '../../shared/ui/toastContext'
-import { formatDateTime, formatDay, formatFcfa, todayIso } from '../../shared/utils/format'
+import { formatDateTime, formatDay, formatFcfa } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
 import {
   CASH_KEYS,
@@ -20,7 +20,8 @@ import {
   paymentsKey,
   reservationPaymentsQuery,
 } from '../cashier'
-import { CreditNoteDialog, invoicesKey, issueInvoice, reservationInvoicesQuery } from '../invoices'
+import { CreditNoteDialog, invoicesKey, reservationInvoicesQuery } from '../invoices'
+import { ReservationJourney } from './ReservationJourney'
 import {
   cancelReservation,
   checkIn,
@@ -42,7 +43,6 @@ type Dialog =
   | 'extend'
   | 'occupants'
   | 'payment'
-  | 'invoice'
   | 'modify'
   | 'delete'
   | null
@@ -133,23 +133,19 @@ function ReservationDetail({
   }
 
   const transition = useMutation({
-    mutationFn: async (kind: 'confirm' | 'check-in' | 'check-out' | 'invoice') => {
+    mutationFn: async (kind: 'confirm' | 'check-in' | 'check-out') => {
       if (kind === 'confirm') await confirmReservation(r.id)
       if (kind === 'check-in') await checkIn(r.id)
       if (kind === 'check-out') await checkOut(r.id)
-      const invoice = kind === 'invoice' ? await issueInvoice(r.id) : null
-      return { kind, invoice }
+      return kind
     },
-    onSuccess: ({ kind, invoice }) =>
+    onSuccess: (kind) =>
       done(
-        invoice && isLocalId(invoice.id)
-          ? `Facture provisoire ${invoice.number} gardée sur ce poste — numéro définitif au retour du réseau`
-          : {
-              confirm: 'Réservation confirmée',
-              'check-in': 'Arrivée enregistrée',
-              'check-out': 'Départ enregistré',
-              invoice: 'Facture émise',
-            }[kind],
+        {
+          confirm: 'Réservation confirmée',
+          'check-in': 'Arrivée enregistrée',
+          'check-out': 'Départ enregistré',
+        }[kind],
       ),
   })
   const cancel = useMutation({
@@ -167,7 +163,6 @@ function ReservationDetail({
   const activeInvoice =
     invoices.data?.find((invoice) => invoice.type === 'INVOICE' && invoice.status === 'ISSUED') ??
     null
-  const hasActiveInvoice = activeInvoice !== null
   const cancelled = r.status === 'CANCELLED'
 
   return (
@@ -271,31 +266,6 @@ function ReservationDetail({
           <Icon name="back" size={17} />
           <span className="sr-only">←</span> Réservations
         </Link>
-        {r.status === 'PENDING' && can('reservations.update') && (
-          <button type="button" className="primary" onClick={() => setDialog('confirm')}>
-            <Icon name="check" size={17} />
-            Confirmer la réservation
-          </button>
-        )}
-        {r.status === 'CONFIRMED' &&
-          can('reservations.check_in_out') &&
-          // Confort uniquement : le serveur refuse de toute façon une arrivée anticipée (409).
-          (r.period.start_date <= todayIso() ? (
-            <button type="button" className="primary" onClick={() => setDialog('check-in')}>
-              <Icon name="login" size={17} />
-              Enregistrer l’arrivée
-            </button>
-          ) : (
-            <span className="caption">
-              Arrivée enregistrable à partir du {formatDay(r.period.start_date)}
-            </span>
-          ))}
-        {r.status === 'IN_PROGRESS' && can('reservations.check_in_out') && (
-          <button type="button" className="primary" onClick={() => setDialog('check-out')}>
-            <Icon name="logout" size={17} />
-            Enregistrer le départ
-          </button>
-        )}
         {open && can('reservations.update') && (
           <>
             <button type="button" className="secondary" onClick={() => setDialog('extend')}>
@@ -314,23 +284,6 @@ function ReservationDetail({
             Modifier la réservation
           </button>
         )}
-        {summary &&
-          summary.balance_fcfa > 0 &&
-          r.status !== 'CANCELLED' &&
-          can('payments.record') && (
-            <button type="button" className="secondary" onClick={() => setDialog('payment')}>
-              <Icon name="wallet" size={17} />
-              Encaisser
-            </button>
-          )}
-        {!['PENDING', 'CANCELLED'].includes(r.status) &&
-          !hasActiveInvoice &&
-          can('invoices.issue') && (
-            <button type="button" className="secondary" onClick={() => setDialog('invoice')}>
-              <Icon name="document" size={17} />
-              Émettre une facture
-            </button>
-          )}
         {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.cancel') && (
           <button type="button" className="danger" onClick={() => setDialog('cancel')}>
             <Icon name="close" size={17} />
@@ -338,6 +291,15 @@ function ReservationDetail({
           </button>
         )}
       </div>
+
+      <ReservationJourney
+        reservation={r}
+        summary={summary}
+        invoice={activeInvoice}
+        invoicePending={invoices.isPending && can('invoices.view')}
+        can={can}
+        onAction={setDialog}
+      />
 
       <div className="dashboard-grid">
         <Panel title="Informations sur le séjour">
@@ -654,17 +616,6 @@ function ReservationDetail({
               <strong> Attention : il reste {formatFcfa(summary.balance_fcfa)} à encaisser.</strong>
             )}
           </p>
-        </ConfirmDialog>
-      )}
-      {dialog === 'invoice' && (
-        <ConfirmDialog
-          title="Émettre une facture"
-          confirmLabel="Émettre la facture"
-          pending={transition.isPending}
-          onClose={() => setDialog(null)}
-          onConfirm={() => transition.mutate('invoice')}
-        >
-          <p>La facture sera figée et numérotée. Toute correction passera ensuite par un avoir.</p>
         </ConfirmDialog>
       )}
       {dialog === 'cancel' && (

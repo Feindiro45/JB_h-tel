@@ -10,6 +10,11 @@ use App\Modules\Identity\Models\User;
  */
 interface StayInvoicing
 {
+    /** D-068 : facture unique créée avec la confirmation, dans sa transaction. */
+    public function issueOnConfirmation(int $reservationId, User $actor): void;
+
+    public function activeInvoiceReference(int $reservationId): ?InvoiceReference;
+
     /**
      * Séjour annulé : la facture active est annulée par un avoir. Renvoie le numéro de l'avoir, ou
      * null s'il n'y avait pas de facture active.

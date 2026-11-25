@@ -39,6 +39,18 @@ final class InvoiceService
         private readonly AuditTrail $audit,
     ) {}
 
+    /** Reprise d'un ancien client ou d'un rejeu hors ligne : ne réémet jamais une facture active. */
+    public function ensureIssued(ReservationDue $reservation, User $actor): Invoice
+    {
+        return DB::transaction(function () use ($reservation, $actor): Invoice {
+            $this->reservations->lockForPayment($reservation->id) ?? throw self::reservationNotFound();
+            $existing = Invoice::query()->where('reservation_id', $reservation->id)
+                ->where('type', InvoiceType::Invoice->value)->where('status', InvoiceStatus::Issued->value)->first();
+
+            return $existing ?? $this->issue($reservation, $actor);
+        });
+    }
+
     /** Une seule facture active (émise, non créditée) par réservation. */
     /**
      * @param  array{invoice_number: string, reason: string}|null  $replaces  Facture remplacée (D-053), mentionnée sur la nouvelle.

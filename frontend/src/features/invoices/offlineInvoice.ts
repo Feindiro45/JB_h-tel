@@ -21,6 +21,25 @@ import type { QueuedOperation } from '../../shared/offline/outbox'
  */
 export const PROVISIONAL_INVOICE_PREFIX = 'FAC-'
 
+/** Document associé à l'opération de création/confirmation : aucun second envoi n'est nécessaire. */
+export function cacheAutomaticInvoice(
+  client: QueryClient,
+  stay: Reservation,
+  operation: QueuedOperation,
+): void {
+  if (stay.status !== 'CONFIRMED') return
+  const invoice = provisionalInvoice(client, stay, {
+    ...operation,
+    localId: `local-auto-${operation.id}`,
+  })
+  client.setQueryData(['invoices', 'detail', invoice.id], invoice)
+  const { snapshot: _snapshot, ...summary } = invoice
+  client.setQueryData<InvoiceSummary[]>(['invoices', stay.id], (old) => [
+    summary,
+    ...(old ?? []).filter((item) => item.status !== 'ISSUED' || item.type !== 'INVOICE'),
+  ])
+}
+
 export function isProvisionalInvoice(number: string): boolean {
   return number.startsWith(`${PROVISIONAL_INVOICE_PREFIX}LOC-`)
 }

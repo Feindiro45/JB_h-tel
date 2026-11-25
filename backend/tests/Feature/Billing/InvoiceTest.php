@@ -33,7 +33,7 @@ class InvoiceTest extends TestCase
 
     public function test_invoice_is_numbered_and_freezes_amounts_payments_and_balance(): void
     {
-        $reservation = $this->bookOk(['discount' => ['type' => 'PERCENT', 'value' => 10, 'reason' => 'Client fidèle']]);
+        $reservation = $this->bookLegacyUninvoiced(['discount' => ['type' => 'PERCENT', 'value' => 10, 'reason' => 'Client fidèle']]);
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$reservation}/payments", ['amount_fcfa' => 20000, 'method' => 'CASH'])->assertCreated();
 
         $this->issue($reservation)
@@ -96,7 +96,8 @@ class InvoiceTest extends TestCase
     {
         $reservation = $this->bookOk();
         $this->issue($reservation)->assertCreated();
-        $this->issue($reservation)->assertStatus(409)->assertJsonPath('code', 'invoice_already_issued');
+        $this->issue($reservation)->assertCreated();
+        $this->assertSame(1, Invoice::query()->where('type', 'INVOICE')->count());
 
         $pending = $this->bookOk(['start_date' => '2026-12-05', 'end_date' => '2026-12-05', 'confirm' => false]);
         $this->issue($pending)->assertStatus(409)->assertJsonPath('code', 'reservation_not_billable');
@@ -159,7 +160,7 @@ class InvoiceTest extends TestCase
     /** Séjour prolongé avant toute facture : rien n'est émis ; la facture suivante est détaillée. */
     public function test_extension_without_invoice_issues_nothing_and_next_invoice_is_detailed(): void
     {
-        $reservation = $this->bookOk(['discount' => ['type' => 'PERCENT', 'value' => 10, 'reason' => 'Client fidèle']]);
+        $reservation = $this->bookLegacyUninvoiced(['discount' => ['type' => 'PERCENT', 'value' => 10, 'reason' => 'Client fidèle']]);
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$reservation}/extension", ['end_date' => '2026-12-02', 'additional_quantity' => 1, 'confirm' => true])
             ->assertOk()->assertJsonPath('meta.replacement_invoice_number', null);
         $this->assertSame(0, Invoice::query()->count());
