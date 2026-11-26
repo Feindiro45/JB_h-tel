@@ -3,7 +3,7 @@ import { Icon } from '../../shared/ui/Icon'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import type { DashboardRow, OccupancyRow } from '../../shared/api/types'
+import { isConferenceRoom, type DashboardRow, type OccupancyRow } from '../../shared/api/types'
 import { ReservationStatusBadge } from '../../shared/ui/Badge'
 import { ROOM_STATE_LABELS } from '../../shared/ui/statusLabels'
 import { EmptyState, LoadingBlock, Metric, PageHeading, Panel } from '../../shared/ui/layout'
@@ -34,11 +34,15 @@ export function DashboardPage() {
   const occupancy = useQuery(occupancyQuery)
   const [creating, setCreating] = useState(false)
 
-  const rooms = occupancy.data?.data ?? []
+  // D-072 : l'occupation ne compte que les chambres ; les salles de conférence à part.
+  const all = occupancy.data?.data ?? []
+  const rooms = all.filter((row) => !isConferenceRoom(row.room))
+  const halls = all.filter((row) => isConferenceRoom(row.room))
   const counts = (['OCCUPIED', 'RESERVED', 'FREE', 'MAINTENANCE'] as const).map((state) => ({
     state,
     count: rooms.filter((row) => row.state === state).length,
   }))
+  const hallCount = (state: string) => halls.filter((row) => row.state === state).length
   const occupied = counts[0].count
 
   return (
@@ -112,6 +116,13 @@ export function DashboardPage() {
             <LoadingBlock lines={3} />
           ) : (
             <OccupancyDonut rows={rooms} counts={counts} />
+          )}
+          {halls.length > 0 && (
+            <p className="caption" style={{ margin: '0 18px 16px' }}>
+              Salles de conférence ({halls.length}) : {hallCount('OCCUPIED')} occupée(s) ·{' '}
+              {hallCount('RESERVED')} réservée(s) · {hallCount('FREE')} libre(s)
+              {hallCount('MAINTENANCE') > 0 ? ` · ${hallCount('MAINTENANCE')} en maintenance` : ''}
+            </p>
           )}
         </Panel>
       </div>

@@ -238,7 +238,8 @@ final class WorkstationService
 
         return [
             'allowed_operations' => is_array($allowed) ? array_values(array_filter($allowed, 'is_string')) : null,
-            'lock_after_minutes' => max(1, $this->settings->int('offline.lock_after_minutes', 15)),
+            // D-074 : délai de mise en veille, le même en ligne et hors ligne.
+            'lock_after_minutes' => max(1, $this->settings->int('security.idle_lock_minutes', 15)),
             'backup_reminder_minutes' => max(15, $this->settings->int('offline.backup_reminder_minutes', 60)),
             'provisional_prefix' => $this->settings->string('offline.provisional_prefix', 'LOC'),
         ];

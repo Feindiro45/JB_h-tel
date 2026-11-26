@@ -169,7 +169,7 @@ describe('Consultation hors ligne', () => {
     ).toHaveAttribute('role', 'status')
   })
 
-  it('verrouille après 15 min d’inactivité hors ligne et redemande le mot de passe', async () => {
+  it('se met en veille après 15 min sans action hors ligne et vérifie le mot de passe sur le poste (D-074)', async () => {
     await rememberSession(USER, 'Secret-2026')
     localStorage.setItem(ACTIVITY_KEY, String(Date.now() - 20 * 60_000))
     serve()
@@ -178,8 +178,8 @@ describe('Consultation hors ligne', () => {
     renderApp('/alertes')
     const user = userEvent.setup()
 
-    const lock = await screen.findByRole('dialog', { name: 'Session verrouillée' })
-    await waitFor(() => expect(lock).toHaveTextContent(`mot de passe de ${USER.name}`))
+    const lock = await screen.findByRole('dialog', { name: 'Logiciel en veille' })
+    expect(lock).toHaveTextContent('saisissez votre mot de passe pour reprendre')
     await user.type(within(lock).getByLabelText('Mot de passe'), 'mauvais')
     await user.click(within(lock).getByRole('button', { name: 'Déverrouiller' }))
     expect(await within(lock).findByText('Mot de passe incorrect.')).toBeVisible()
@@ -187,8 +187,9 @@ describe('Consultation hors ligne', () => {
     await user.clear(within(lock).getByLabelText('Mot de passe'))
     await user.type(within(lock).getByLabelText('Mot de passe'), 'Secret-2026')
     await user.click(within(lock).getByRole('button', { name: 'Déverrouiller' }))
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Session verrouillée' })).toBeNull(),
+    await waitFor(
+      () => expect(screen.queryByRole('dialog', { name: 'Logiciel en veille' })).toBeNull(),
+      { timeout: 4000 },
     )
   })
 
@@ -205,7 +206,7 @@ describe('Consultation hors ligne', () => {
 
     expect(await screen.findByText('Hors ligne')).toBeVisible()
     expect(screen.queryByRole('dialog', { name: /Session hors ligne/ })).toBeNull()
-    expect(screen.queryByRole('dialog', { name: 'Session verrouillée' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Logiciel en veille' })).toBeNull()
   })
 
   it('bloque hors ligne un poste sans session gardée : le mot de passe ne peut être vérifié', async () => {

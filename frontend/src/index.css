@@ -1297,6 +1297,12 @@ fieldset legend {
   bottom: 0;
   background: #fff;
 }
+/* Action d'un assistant (« Retour ») poussée à gauche des boutons de fermeture et de validation. */
+.dialog-foot__start {
+  margin-right: auto;
+  display: flex;
+  gap: 8px;
+}
 
 /* ---------- Notifications brèves ---------- */
 .toast {

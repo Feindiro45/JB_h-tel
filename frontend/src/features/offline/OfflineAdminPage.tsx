@@ -234,7 +234,7 @@ function RulesPanel({ rules }: { rules: import('../../shared/offline/rules').Off
               : allowed.map((kind) => OPERATION_LABELS[kind as OperationKind] ?? kind).join(', ')}
         </Pair>
         <Pair label="Durée hors ligne">Sans limite (décision du 22/11/2026)</Pair>
-        <Pair label="Verrouillage après">{rules.lock_after_minutes} min d’inactivité</Pair>
+        <Pair label="Mise en veille après">{rules.lock_after_minutes} min sans action</Pair>
         <Pair label="Rappel de sauvegarde après">{rules.backup_reminder_minutes} min</Pair>
         <Pair label="Numéros provisoires">
           {rules.provisional_prefix}-POSTE-000001 · FAC-{rules.provisional_prefix}-…

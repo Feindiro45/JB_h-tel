@@ -3,6 +3,47 @@
 > Tableau de bord de ce qui est **fait**, **en cours** et **à faire**. Mis à jour à chaque étape.
 > Référence : `docs/06_PROMPT_AGENT_IA_IMPLEMENTATION.md` (phases 0 à 8) et `docs/08_plan_implementation.md`.
 
+## Page de veille et délai réglable — 26/11/2026 (D-074)
+
+Demande : page de veille soignée (avatar et nom en bas, cadenas animé qui se verrouille et éclate au déverrouillage, mot de passe), délai réglable dans Paramètres.
+
+- [x] **Paramètre** « Mise en veille après » (`security.idle_lock_minutes`, 1 à 240 min) dans « Veille et sécurité », en ligne comme hors ligne ; remplace le verrouillage hors ligne seul (valeur reprise par la migration `2026_11_26_100000`).
+- [x] **Page de veille** : heure, date, cadenas animé (fermeture, attente, refus, éclatement), avatar, nom et rôle, mot de passe affichable ; bouton « Verrouiller » dans le menu ; veille conservée au rechargement et partagée entre onglets.
+- [x] **Mot de passe** vérifié par le serveur (`POST /auth/confirm-password`, limité à 6 essais par minute, sans alerte de connexion), sinon sur le poste.
+- [x] Correctif : initiales des avatars sans ponctuation (« Caissière (démo) » → « CD », et non « C( »).
+- [x] Contrôles : backend **299/299** (`StandbyTest` 3), Pint, Larastan ; frontend **252/252** (`StandbyScreen.test` 5, veille hors ligne, initiales), oxlint, Prettier, TypeScript, build ; parcours réel dans Edge sur l'application locale, ordinateur et mobile (veille, refus, déverrouillage, aucune erreur JavaScript).
+- [x] Livraison régénérée le 26/11/2026 (`deploiement/frontend`, `deploiement/backend`, sans archives) et logiciel Windows **1.0.4** (veille, salles, motif de départ) dans `deploiement/desktop` ; interface empaquetée vérifiée.
+- [ ] Production : mettre en ligne l’API (`app`, `config`, `database`, `resources`), `migrate --force`, `optimize`, puis l’application web et `/desktop` ; choisir le délai dans Paramètres → Veille et sécurité.
+
+## Salles de conférence, informations de l'établissement et Bambari — 25/11/2026 (D-072, D-073)
+
+Choix de l'utilisateur : organisation et contact (sans participants, équipements ni restauration), liste fixe des types d'occupant, tarif comme les chambres, statistiques à part.
+
+- [x] Ticket de facture : lien de vérification écrit retiré, QR code seul (PDF et ticket de caisse) ; tests adaptés.
+- [x] **Catalogue :** nature « Chambre » / « Salle de conférence » (`room_types.kind`), catégorie `SALLE_CONFERENCE` créée, capacité jusqu'à 1 000 places pour une salle ; écran Chambres et catégories (colonne et choix « Nature »).
+- [x] **Réservation d'une salle** : événement, type d'occupant, organisation, responsable ; accord salle / événement vérifié par le serveur et hors ligne ; modification limitée à la même nature ; assistant, fiche, liste et guide adaptés.
+- [x] **Facture** : salle, début, fin et événement figés ; ligne « Location de salle » ; ticket PDF, ticket de caisse et facture provisoire hors ligne.
+- [x] **Statistiques à part** : tableau de bord, rapport financier, PDF et Excel.
+- [x] **Paramètres → Établissement** (nom, ville, adresse, téléphone, e-mail, NIF, RCCM) lus par `HotelIdentity`, figés dans chaque facture ; ville **Bambari** partout (facture, menu, connexion, modèles `.env`).
+- [x] Contrôles : backend **296/296** (dont `ConferenceRoomTest` 8 et `HotelIdentityTest` 3), Pint, Larastan ; frontend **246/246** (assistant salle, fiche salle, règle hors ligne, paramètres Établissement), oxlint, Prettier, TypeScript, build ; base locale migrée et application locale vérifiée (`check:dev`).
+- [ ] Production : jouer les deux migrations (`php artisan migrate --force`), créer les salles et leurs tarifs, renseigner téléphone, e-mail, adresse, NIF et RCCM dans Paramètres.
+- [ ] Rejouer les scénarios navigateur, hors ligne et Windows après ces changements (l'assistant garde les mêmes libellés pour une chambre).
+
+## Parcours de réservation guidé et départs à enregistrer — 25/11/2026 (D-071)
+
+Demande : les caissières sautent des étapes (encaissement, arrivée, départ). Choix de l'utilisateur : rappel après 10 min, départ avec solde possible avec motif, encaissement à choix obligatoire.
+
+- [x] **Assistant « Nouvelle réservation »** en 4 étapes (client → séjour et prix → récapitulatif confirmé par le client → encaissement sans choix présélectionné) ; facture émise seulement à l'enregistrement final. 6 tests (`NewReservationDialog.test.tsx`).
+- [x] **Enchaînement automatique** sur la fiche (`nextOperation.ts`) : arrivée, encaissement ou départ proposés après chaque opération. 5 tests de règle + 1 test d'écran.
+- [x] **Départ guidé** (`CheckOutDialog`) : solde, « Encaisser le solde », ou départ avec motif. Serveur : 409 `checkout_unpaid_balance` sans motif, solde et motif audités (2 nouveaux tests `LifecycleTest`) ; hors ligne : motif gardé dans l'opération (1 test). 3 tests d'écran.
+- [x] **Fenêtre « Départs à enregistrer »** sur tous les écrans, rappel à 10 min, jamais par-dessus une autre fenêtre, seulement pour qui peut enregistrer un départ sur un poste autorisé. 3 tests.
+- [x] Tutoriels « Réservations » et « Alertes » mis à jour ; décision [D-071](docs/DECISIONS.md) ; recette hors ligne n° 11 et 12.
+- [x] Contrôles : backend 285/285 (dont `SubdirectoryDeploymentTest` corrigé : il attendait un 401 sur `/auth/me`, qui répond volontairement `data: null`), Pint, Larastan ; frontend 241/241, oxlint, Prettier, TypeScript, build.
+- [x] Scénarios navigateur adaptés à l'assistant et rejoués : **10/10** (`hotel`, `thermal-ticket`, `workstations`…), fenêtre d'arrivée automatique vérifiée.
+- [~] Scénarios adaptés mais pas encore rejoués : hors ligne (`offline`, `conflict`) et logiciel Windows (`desktop`).
+- [x] Application lancée en local pour l'essai de l'utilisateur : API `http://localhost:8000`, interface **`http://localhost:4173`** (le port 5173 est pris par un autre projet ; 4173 est déjà autorisé par le CORS et Sanctum du `.env` local), contrôle `check:dev` sans erreur.
+- [ ] Essai par les caissières à l'hôtel : parcours complet sur un vrai séjour, puis un départ oublié.
+
 ## Dossier de déploiement « deux sous-domaines » — 25/11/2026
 
 Demande : `PROMPT_CONFIGURATION_JB_HOTEL.md` — créer un dossier de déploiement et y préparer les deux applications. Cible : `https://app.jb-hotel.com` (React) et `https://api.jb-hotel.com` (Laravel, dossier `public`). **Aucun déploiement effectué, aucun code applicatif modifié.**

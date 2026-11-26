@@ -2,6 +2,7 @@
 
 namespace App\Modules\RoomCatalog\Models;
 
+use App\Modules\RoomCatalog\Contracts\RoomKind;
 use App\Shared\Models\HasPublicUuid;
 use Database\Factories\RoomTypeFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -10,11 +11,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Type de chambre (VIP, STANDARD). Le code est une référence stable : il n'est jamais modifié.
+ * Type de chambre (VIP, STANDARD) ou salle de conférence (D-072). Le code et la nature sont des
+ * références stables : ils ne sont jamais modifiés.
  *
  * @property int $id
  * @property string $code
  * @property string $label
+ * @property RoomKind $kind
  * @property string|null $description
  */
 #[UseFactory(RoomTypeFactory::class)]
@@ -24,7 +27,16 @@ class RoomType extends Model
     use HasFactory, HasPublicUuid;
 
     /** @var list<string> */
-    protected $fillable = ['code', 'label', 'description'];
+    protected $fillable = ['code', 'label', 'kind', 'description'];
+
+    /** @var array<string, mixed> */
+    protected $attributes = ['kind' => 'ROOM'];
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return ['kind' => RoomKind::class];
+    }
 
     /** @return HasMany<Room, $this> */
     public function rooms(): HasMany

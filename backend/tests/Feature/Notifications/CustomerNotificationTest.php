@@ -57,7 +57,7 @@ class CustomerNotificationTest extends TestCase
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-in")->assertOk();
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/extension", ['end_date' => '2026-12-02', 'additional_quantity' => 1, 'confirm' => true])->assertOk();
         $invoiceId = $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/invoices")->assertCreated()->json('data.id');
-        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out")->assertOk();
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out", ['unpaid_reason' => 'Paiement prévu plus tard'])->assertOk();
         $this->actingAs($this->admin)->postJson("/api/v1/invoices/{$invoiceId}/credit-notes", ['reason' => 'Correction'])->assertCreated();
         $this->actingAs($this->admin)->postJson("/api/v1/payments/{$paymentId}/refunds", ['amount_fcfa' => 5000, 'reason' => 'Geste commercial'])->assertCreated();
         $other = $this->bookOk(['start_date' => '2026-12-10', 'end_date' => '2026-12-10']);

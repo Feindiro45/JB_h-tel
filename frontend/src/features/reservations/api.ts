@@ -11,7 +11,7 @@ import { isLocalId, localQuery } from '../../shared/offline/localRefs'
 import { runOrQueue } from '../../shared/offline/offlineWrite'
 import { OUTBOX_QUERY_KEY, type QueuedOperation } from '../../shared/offline/outbox'
 import { getQueryClientRef } from '../../shared/offline/queryClientRef'
-import { addDays, formatDay, todayIso } from '../../shared/utils/format'
+import { addDays, formatDay, formatFcfa, todayIso } from '../../shared/utils/format'
 import { reservationPaymentsQuery } from '../cashier'
 import { roomsQuery } from '../catalog'
 import { cacheAutomaticInvoice, reservationInvoicesQuery } from '../invoices'
@@ -31,6 +31,7 @@ import {
   provisionalStay,
   roomTakenError,
 } from './offlineBooking'
+import { eventRoomMismatch, type EventInput } from './organizers'
 import type {
   AccountSummary,
   CurrentUser,
@@ -76,6 +77,8 @@ export interface ReservationInput {
   notes?: string | null
   confirm?: boolean
   expected_unit_price_fcfa?: number
+  /** D-072 : salle de conférence seulement (sans occupants). */
+  event?: EventInput | null
 }
 
 export interface ExtensionInput {
@@ -263,6 +266,9 @@ export const createReservation = async (input: ReservationInput, idempotencyKey?
     numberPrefix: 'FAC-',
     validate: (client) => {
       quote = localQuote(client, input)
+      // D-072 : même accord salle / événement que le serveur.
+      const mismatch = eventRoomMismatch(quote.room, input.event)
+      if (mismatch) throw mismatch
       if (!quote.available) throw roomTakenError(quote)
       input.expected_unit_price_fcfa = quote.price.unit_price_fcfa
     },
@@ -352,13 +358,18 @@ export function describeStay(id: string): string {
  */
 const transition =
   (path: 'check-in' | 'check-out', status: 'IN_PROGRESS' | 'COMPLETED', label: string) =>
-  async (id: string): Promise<Reservation> => {
+  async (
+    id: string,
+    body?: object,
+    validate?: (client: QueryClient) => void,
+  ): Promise<Reservation> => {
     const url = `/api/v1/reservations/${id}/${path}`
     return runOrQueue({
       kind: path === 'check-in' ? 'reservation.check-in' : 'reservation.check-out',
       label: `${path === 'check-in' ? 'Arrivée' : 'Départ'} — ${describeStay(id)}`,
       path: url,
-      body: undefined,
+      body,
+      validate,
       provisional: (operation, client) => {
         const now = new Date(operation.createdAt).toISOString()
         let updated: Reservation | undefined
@@ -379,8 +390,39 @@ const transition =
     })
   }
 
-export const checkIn = transition('check-in', 'IN_PROGRESS', 'En cours')
-export const checkOut = transition('check-out', 'COMPLETED', 'Terminée')
+export const checkIn = (id: string) => transition('check-in', 'IN_PROGRESS', 'En cours')(id)
+
+/** Motif d'un départ avec solde impayé (D-071) ; `null` quand le séjour est soldé. */
+export interface CheckOutInput {
+  unpaid_reason: string | null
+}
+
+/** Message commun au serveur et au poste hors ligne (D-071, code `checkout_unpaid_balance`). */
+export function unpaidCheckOutError(balance: number): ApiError {
+  return new ApiError(
+    409,
+    'Solde impayé au départ',
+    `Il reste ${formatFcfa(balance)} à encaisser sur ce séjour.`,
+    {},
+    'checkout_unpaid_balance',
+  )
+}
+
+/**
+ * Départ (D-071) : un séjour non soldé ne se clôture qu'avec le motif pour lequel le client part
+ * sans tout payer. Le serveur le vérifie ; hors ligne, le poste refuse aussitôt avec son solde.
+ */
+export const checkOut = (id: string, input: CheckOutInput = { unpaid_reason: null }) =>
+  transition('check-out', 'COMPLETED', 'Terminée')(
+    id,
+    input.unpaid_reason ? { unpaid_reason: input.unpaid_reason } : undefined,
+    (client) => {
+      const balance =
+        client.getQueryData<{ summary: AccountSummary }>(reservationPaymentsQuery(id).queryKey)
+          ?.summary.balance_fcfa ?? 0
+      if (balance > 0 && !input.unpaid_reason) throw unpaidCheckOutError(balance)
+    },
+  )
 /** D-053 : `refund_fcfa` confirme le remboursement de l'encaissé net (0 si rien n'a été encaissé). */
 export interface CancellationInput {
   reason: string

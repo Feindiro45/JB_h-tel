@@ -7,6 +7,7 @@ use App\Modules\Cashier\Contracts\PaymentHistory;
 use App\Modules\Reservations\Contracts\ReservationInvoiceData;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
+use App\Shared\Settings\HotelIdentity;
 use App\Shared\Support\Format;
 use Carbon\CarbonImmutable;
 
@@ -180,6 +181,6 @@ final class StayMessageFactory
 
     private static function hotel(): string
     {
-        return (string) config('jbhotel.hotel.name', 'JB Hôtel');
+        return app(HotelIdentity::class)->name();
     }
 }

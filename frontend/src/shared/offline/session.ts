@@ -2,12 +2,11 @@ import { storageDelete, storageGet, storageSet } from './storage'
 
 /**
  * Session hors ligne (D-064, N-05 révisée le 22/11/2026) : la dernière session confirmée par le
- * serveur reste utilisable **sans limite de durée** (l'hôtel peut rester un mois sans Internet) ;
- * après 15 min d'inactivité hors ligne, l'écran se verrouille. Le mot de passe est vérifié localement par une empreinte PBKDF2 (jamais stocké en
- * clair), calculée à la connexion.
+ * serveur reste utilisable **sans limite de durée** (l'hôtel peut rester un mois sans Internet).
+ * Après le délai sans action réglé dans Paramètres, le logiciel se met en veille (D-074) ; sans
+ * réseau, le mot de passe est vérifié localement par une empreinte PBKDF2 (jamais stocké en
+ * clair), calculée à la connexion et mise à jour à chaque sortie de veille en ligne.
  */
-export const LOCK_AFTER_MS = 15 * 60_000
-
 const SESSION_KEY = 'offline-session'
 const ACTIVITY_KEY = 'jb-hotel.last-activity'
 const ITERATIONS = 150_000

@@ -1,56 +1,25 @@
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { checkConnectivity } from '../../shared/offline/connectivity'
-import { canVerifyOffline, verifyOfflinePassword } from '../../shared/offline/session'
-import { TextField } from '../../shared/ui/fields'
 import { Icon } from '../../shared/ui/Icon'
 import { useFocusTrap } from '../../shared/ui/useFocusTrap'
 import './offline.css'
 import { useOfflineLock } from './useOfflineLock'
 
-/** Écran de verrouillage hors ligne : non refermable, focus piégé, saisie conservée en cas d'erreur. */
+/**
+ * Hors ligne sans session gardée sur le poste : non refermable, focus piégé. La mise en veille
+ * après inactivité est la page de veille (D-074).
+ */
 export function OfflineLock({ onSignOut }: { onSignOut: () => void }) {
-  const { expired, locked, userName, unlock } = useOfflineLock()
-  if (!expired && !locked) return null
-  return createPortal(
-    <LockDialog expired={expired} userName={userName} onUnlock={unlock} onSignOut={onSignOut} />,
-    document.body,
-  )
+  const { expired } = useOfflineLock()
+  if (!expired) return null
+  return createPortal(<MissingSessionDialog onSignOut={onSignOut} />, document.body)
 }
 
-function LockDialog({
-  expired,
-  userName,
-  onUnlock,
-  onSignOut,
-}: {
-  expired: boolean
-  userName: string | null
-  onUnlock: () => void
-  onSignOut: () => void
-}) {
+function MissingSessionDialog({ onSignOut }: { onSignOut: () => void }) {
   const titleId = useId()
   const container = useRef<HTMLDivElement>(null)
   const trapTab = useFocusTrap(container)
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string>()
-  const [checking, setChecking] = useState(false)
-
-  async function submit(event: FormEvent) {
-    event.preventDefault()
-    if (!password) return setError('Saisissez votre mot de passe.')
-    setChecking(true)
-    const valid = await verifyOfflinePassword(password)
-    setChecking(false)
-    if (!valid) {
-      return setError(
-        canVerifyOffline()
-          ? 'Mot de passe incorrect.'
-          : 'Déverrouillage impossible sans connexion sécurisée (HTTPS) : reconnectez-vous au retour du réseau.',
-      )
-    }
-    onUnlock()
-  }
 
   return (
     <div className="offline-lock" onKeyDown={trapTab}>
@@ -64,55 +33,22 @@ function LockDialog({
         <span className="offline-lock__icon" aria-hidden="true">
           <Icon name="key" size={28} />
         </span>
-        {expired ? (
-          <>
-            <h2 id={titleId}>Session hors ligne indisponible</h2>
-            <p>
-              Aucune session n’est gardée sur ce poste : sans le serveur, votre mot de passe ne peut
-              pas être vérifié. Reconnectez-vous dès que le réseau revient ; une fois connecté en
-              ligne, ce poste fonctionne ensuite sans réseau aussi longtemps que nécessaire.
-            </p>
-            <div className="toolbar">
-              <button type="button" className="primary" onClick={() => void checkConnectivity()}>
-                <Icon name="refresh" size={17} />
-                Réessayer la connexion
-              </button>
-              <button type="button" className="secondary" onClick={onSignOut}>
-                <Icon name="logout" size={17} />
-                Se déconnecter
-              </button>
-            </div>
-          </>
-        ) : (
-          <form onSubmit={(event) => void submit(event)} noValidate>
-            <h2 id={titleId}>Session verrouillée</h2>
-            <p>
-              Hors ligne et sans activité depuis 15 minutes. Saisissez le mot de passe
-              {userName ? ` de ${userName}` : ''} pour continuer.
-            </p>
-            <div className="fields">
-              <TextField
-                className="full"
-                label="Mot de passe"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                error={error}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
-            <div className="toolbar">
-              <button type="submit" className="primary" disabled={checking}>
-                <Icon name="key" size={17} />
-                {checking ? 'Vérification…' : 'Déverrouiller'}
-              </button>
-              <button type="button" className="secondary" onClick={onSignOut}>
-                <Icon name="logout" size={17} />
-                Se déconnecter
-              </button>
-            </div>
-          </form>
-        )}
+        <h2 id={titleId}>Session hors ligne indisponible</h2>
+        <p>
+          Aucune session n’est gardée sur ce poste : sans le serveur, votre mot de passe ne peut pas
+          être vérifié. Reconnectez-vous dès que le réseau revient ; une fois connecté en ligne, ce
+          poste fonctionne ensuite sans réseau aussi longtemps que nécessaire.
+        </p>
+        <div className="toolbar">
+          <button type="button" className="primary" onClick={() => void checkConnectivity()}>
+            <Icon name="refresh" size={17} />
+            Réessayer la connexion
+          </button>
+          <button type="button" className="secondary" onClick={onSignOut}>
+            <Icon name="logout" size={17} />
+            Se déconnecter
+          </button>
+        </div>
       </div>
     </div>
   )

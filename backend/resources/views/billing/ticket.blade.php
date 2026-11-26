@@ -22,6 +22,9 @@
     ]);
     $methods = array_values(array_unique(array_map(fn (array $line) => (string) $line['method'], $doc['payments']['lines'] ?? [])));
     $stamp = $isCredit ? null : ($status === 'CREDITED' ? 'Annulée par avoir' : null);
+    // D-072 : salle de conférence (événement) ; absent des factures émises avant ce changement.
+    $conference = ($doc['room']['kind'] ?? 'ROOM') === 'CONFERENCE';
+    $event = $doc['event'] ?? null;
 @endphp
 <!doctype html>
 <html lang="fr">
@@ -47,7 +50,6 @@
         .section { margin-top: 2pt; font-weight: bold; text-transform: uppercase; font-size: 7.5pt; }
         .note { font-size: 7pt; }
         .qr { margin: 4pt auto 2pt; width: 30mm; height: 30mm; }
-        .url { font-size: 6pt; word-wrap: break-word; }
     </style>
 </head>
 <body>
@@ -57,6 +59,7 @@
             <p>{{ $line }}</p>
         @endforeach
         @if (! empty($hotel['phone']))<p>Tél. : {{ $hotel['phone'] }}</p>@endif
+        @if (! empty($hotel['email']))<p>{{ $hotel['email'] }}</p>@endif
         @if ($legal !== [])<p>{{ implode(' · ', $legal) }}</p>@endif
         <p class="title">{{ $doc['document']['label'] }}</p>
         @if ($stamp !== null)<p class="stamp">{{ $stamp }}</p>@endif
@@ -75,10 +78,16 @@
     <hr class="rule">
     <table>
         <tr><td>Client</td><td class="value">{{ $doc['customer']['full_name'] ?? '—' }}</td></tr>
-        <tr><td>Chambre</td><td class="value">{{ empty($doc['room']) ? '—' : $doc['room']['number'].(! empty($doc['room']['type']) ? ' ('.$doc['room']['type'].')' : '') }}</td></tr>
-        <tr><td>Arrivée</td><td class="value">{{ $moment($doc['stay']['start_date'] ?? null, $doc['stay']['start_time'] ?? null) }}</td></tr>
-        <tr><td>Départ</td><td class="value">{{ $moment($doc['stay']['end_date'] ?? null, $doc['stay']['end_time'] ?? null) }}</td></tr>
+        <tr><td>{{ $conference ? 'Salle' : 'Chambre' }}</td><td class="value">{{ empty($doc['room']) ? '—' : $doc['room']['number'].(! empty($doc['room']['type']) ? ' ('.$doc['room']['type'].')' : '') }}</td></tr>
+        <tr><td>{{ $conference ? 'Début' : 'Arrivée' }}</td><td class="value">{{ $moment($doc['stay']['start_date'] ?? null, $doc['stay']['start_time'] ?? null) }}</td></tr>
+        <tr><td>{{ $conference ? 'Fin' : 'Départ' }}</td><td class="value">{{ $moment($doc['stay']['end_date'] ?? null, $doc['stay']['end_time'] ?? null) }}</td></tr>
     </table>
+    @if (! empty($event))
+        <p class="section">Événement</p>
+        <p>{{ $event['name'] }}</p>
+        <p>{{ $event['organizer'] }}{{ ! empty($event['organization_name']) ? ' — '.$event['organization_name'] : '' }}</p>
+        @if (! empty($event['contact_name']) || ! empty($event['contact_phone']))<p>Contact : {{ implode(' · ', array_filter([$event['contact_name'] ?? null, $event['contact_phone'] ?? null])) }}</p>@endif
+    @endif
     <hr class="rule">
     <table>
         <tr class="head"><td>Désignation</td><td class="value">Montant</td></tr>
@@ -113,10 +122,9 @@
     <hr class="rule">
     <div class="center">
         <p class="note">{{ $isCredit ? 'Cet avoir corrige le document référencé ci-dessus. Il ne constitue pas un remboursement.' : 'Document figé à sa date d’émission ; toute correction fait l’objet d’un avoir.' }}</p>
+        {{-- Demande de l'utilisateur (25/11/2026) : seul le QR code reste, sans le lien écrit. --}}
         <img class="qr" src="{{ $qr }}" alt="QR code de vérification">
-        <p class="note"><strong>Vérifier ce document</strong> : scannez le QR code ou ouvrez</p>
-        <p class="url">{{ $verificationUrl }}</p>
-        @if (! $isCredit)<p>Merci pour votre séjour !</p>@endif
+        @if (! $isCredit)<p>{{ $conference ? 'Merci pour votre confiance !' : 'Merci pour votre séjour !' }}</p>@endif
     </div>
 </body>
 </html>

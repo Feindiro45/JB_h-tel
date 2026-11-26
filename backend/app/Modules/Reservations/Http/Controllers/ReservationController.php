@@ -10,6 +10,7 @@ use App\Modules\Reservations\Application\Services\ReservationLifecycleService;
 use App\Modules\Reservations\Application\Services\ReservationQuoter;
 use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Modules\Reservations\Http\Requests\CancelReservationRequest;
+use App\Modules\Reservations\Http\Requests\CheckOutRequest;
 use App\Modules\Reservations\Http\Requests\ConfirmReservationRequest;
 use App\Modules\Reservations\Http\Requests\OccupantsRequest;
 use App\Modules\Reservations\Http\Requests\QuoteReservationRequest;
@@ -86,9 +87,9 @@ final class ReservationController
         return $this->respond($this->lifecycle->checkIn($reservation, $this->actor($request)));
     }
 
-    public function checkOut(Request $request, Reservation $reservation): JsonResponse
+    public function checkOut(CheckOutRequest $request, Reservation $reservation): JsonResponse
     {
-        return $this->respond($this->lifecycle->checkOut($reservation, $this->actor($request)));
+        return $this->respond($this->lifecycle->checkOut($reservation, $request->toData(), $this->actor($request)));
     }
 
     public function cancel(CancelReservationRequest $request, Reservation $reservation): JsonResponse

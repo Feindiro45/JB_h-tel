@@ -4,6 +4,26 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Page de veille et délai réglable — 26/11/2026 (D-074)
+- Page de veille : heure et date, cadenas animé qui se referme, tremble sur un mauvais mot de passe et éclate au déverrouillage, avatar, nom et rôle de l'utilisateur, mot de passe affichable, « Changer d'utilisateur ». Bouton « Verrouiller » dans le menu.
+- Paramètres → « Veille et sécurité » : délai sans action avant la mise en veille (1 à 240 min), en ligne comme hors ligne ; remplace le verrouillage hors ligne seul (migration `2026_11_26_100000_add_idle_lock_setting`).
+- Mot de passe vérifié par le serveur (`POST /api/v1/auth/confirm-password`, 6 essais par minute) ou, sans réseau, sur le poste. La veille résiste au rechargement et s'étend aux autres onglets.
+- Initiales des avatars sans ponctuation.
+
+### Salles de conférence, informations de l'établissement et Bambari — 25/11/2026 (D-072, D-073)
+- Catégorie « Salle de conférence » (nature choisie à la création, jamais modifiée). Une salle se réserve dans le même assistant pour un événement : type d'occupant (ONG, entreprise…), organisation, responsable sur place, nom de l'événement, début et fin ; sans occupants. Tarif à la journée ou à la demi-journée comme les chambres ; capacité jusqu'à 1 000 places.
+- Fiche, liste, guide des étapes et facture (écran, PDF, provisoire hors ligne) adaptés : « Location de salle », « Début », « Fin », bloc « Événement ». Occupation des chambres et des salles comptée à part (tableau de bord, rapport, PDF, Excel).
+- Paramètres → « Établissement » : nom, ville, adresse, téléphone, e-mail, NIF, RCCM imprimés sur les factures et reçus, figés dans chaque facture à son émission. Ville : Bambari (facture, menu, page de connexion, modèles `.env`).
+- Le ticket de facture ne porte plus le lien de vérification écrit : seulement le QR code.
+- Migrations : `2026_11_25_100000_add_conference_rooms`, `2026_11_25_110000_add_hotel_identity_settings`.
+
+### Parcours de réservation guidé et départs à enregistrer — 25/11/2026 (D-071)
+- « Nouvelle réservation » devient un assistant en 4 étapes : client et occupants, séjour et prix, récapitulatif que le client confirme (case obligatoire), encaissement sans choix présélectionné. La réservation et sa facture ne sont créées qu'à la fin ; un refus du serveur ramène à l'étape à corriger.
+- Sur la fiche, la fenêtre de l'opération suivante s'ouvre d'elle-même après chaque opération : arrivée du jour, encaissement du solde, départ du dernier jour.
+- Départ guidé : solde affiché, « Encaisser le solde », ou départ avec solde impayé seulement avec un motif. Le serveur refuse ce départ sans motif (409 `checkout_unpaid_balance`) et écrit le solde et le motif dans le journal ; hors ligne, le motif part avec l'opération.
+- Fenêtre « Départs à enregistrer » sur tous les écrans dès qu'un séjour dépasse sa fin : enregistrer le départ ou prolonger ; « Me le rappeler dans 10 min ».
+- Test corrigé : `SubdirectoryDeploymentTest` vérifie le refus 401 sur une route protégée, `/auth/me` répondant volontairement `data: null` à un visiteur.
+
 ### Canal des mises à jour du logiciel Windows, version 1.0.3 — 25/11/2026
 - Correctif : le canal est déclaré dans `electron/package.json` (`build.publish`, `generic`, `https://app.jb-hotel.com/desktop`). Sans cette déclaration, la construction ne produisait ni `latest.yml` ni `resources/app-update.yml`, et electron-updater échouait à chaque téléchargement : les versions 1.0.0 à 1.0.2 ne peuvent pas se mettre à jour seules. Nouvelle version **1.0.3**, à installer à la main une fois.
 - `npm run update-channel` (`electron/scripts/update-channel.mjs`) prépare `deploiement/desktop/` : installateur, `.blockmap` (gardés pour le téléchargement partiel), `latest.yml`, `.htaccess` (pas de renvoi vers React, pas de cache sur `latest.yml`) et `SHA256SUMS.txt`. Il refuse un canal incohérent (version, taille ou empreinte différente de `latest.yml`, `app-update.yml` absent ou mal dirigé).

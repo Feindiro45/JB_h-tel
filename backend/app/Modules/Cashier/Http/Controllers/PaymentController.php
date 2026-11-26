@@ -12,6 +12,7 @@ use App\Modules\Reservations\Contracts\ReservationDue;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Shared\Exceptions\BusinessRuleException;
+use App\Shared\Settings\HotelIdentity;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -86,7 +87,7 @@ final class PaymentController
                 'summary' => $this->cashier->summary($due)->toArray(),
                 // La situation du séjour est celle du moment de la consultation, pas figée au versement (D-041).
                 'summary_at' => CarbonImmutable::now((string) config('app.timezone'))->toIso8601String(),
-                'hotel' => (array) config('jbhotel.hotel'),
+                'hotel' => app(HotelIdentity::class)->toArray(),
             ],
         ]);
     }

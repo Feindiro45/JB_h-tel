@@ -67,6 +67,7 @@ export function ThermalTicket({
           <p key={line}>{line}</p>
         ))}
         {hotel.phone && <p>Tél. : {hotel.phone}</p>}
+        {hotel.email && <p>{hotel.email}</p>}
         {legal.length > 0 && <p>{legal.join(' · ')}</p>}
         <p className="ticket-title">{title}</p>
         {stamp && <p className="ticket-stamp">{stamp}</p>}

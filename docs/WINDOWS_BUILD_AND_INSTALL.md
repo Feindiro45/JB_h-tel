@@ -1,10 +1,11 @@
 # Construire, installer et mettre à jour JB Hôtel pour Windows
 
-> D-069. Dossier : `electron/`. Installateur de production vérifié le 25/11/2026 :
-> `electron/release/JB-Hotel-Setup-1.0.3.exe` (≈ 122 Mo, x64), branché sur `https://api.jb-hotel.com`
+> D-069. Dossier : `electron/`. Installateur de production vérifié le 26/11/2026 :
+> `deploiement/desktop/JB-Hotel-Setup-1.0.4.exe` (≈ 122 Mo, x64 ; `electron/release/`, simple sortie
+> de `npm run dist`, a été vidé une fois le canal préparé), branché sur `https://api.jb-hotel.com`
 > (API) avec l'origine `https://app.jb-hotel.com` (application web), mises à jour par
 > `https://app.jb-hotel.com/desktop`.
-> SHA-256 : `4ce1356421b8897795b01b3479587de7892c1efac04a0a7019eb6a16efc9dfa3`.
+> SHA-256 : `287c165f8538205f61b95dccae44f8dbab8ef22c500e958d484ffc7c319ceeef`.
 >
 > **Ne pas distribuer les 1.0.0 à 1.0.2** : elles ont été construites sans canal déclaré
 > (`build.publish`), donc sans `app-update.yml`, et ne peuvent télécharger aucune mise à jour. Un

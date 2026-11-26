@@ -26,7 +26,9 @@ class SubdirectoryDeploymentTest extends TestCase
 
     public function test_api_routes_keep_their_json_authentication_contract_under_the_folder(): void
     {
-        $response = $this->mountedGet('/api/v1/auth/me');
+        // `/auth/me` répond volontairement `{"data": null}` à un visiteur (sonde de session,
+        // ApiExceptionRenderer) : le contrat 401 se vérifie sur une autre route protégée.
+        $response = $this->mountedGet('/api/v1/reservations');
 
         $this->assertSame(401, $response->getStatusCode());
         $this->assertSame('Session expirée', json_decode($response->getContent(), true)['title']);

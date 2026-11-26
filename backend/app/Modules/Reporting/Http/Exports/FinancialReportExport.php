@@ -44,7 +44,7 @@ final class FinancialReportExport
             ['label' => 'Remises', 'value' => $t['discount_fcfa'], 'format' => Workbook::FCFA, 'hint' => 'Sur les séjours de la période', 'tone' => 'EDA100'],
         ]);
 
-        /** @var array<string, int|string> $occupancy */
+        /** @var array<string, int|string|array<string, int>> $occupancy */
         $occupancy = $report['occupancy'];
         $book->summary('Occupation des chambres maintenant', 'Chambres', array_values(array_filter([
             ['Occupées', (int) ($occupancy['occupied'] ?? 0)],
@@ -52,6 +52,17 @@ final class FinancialReportExport
             ['Libres', (int) ($occupancy['free'] ?? 0)],
             ['En maintenance', (int) ($occupancy['maintenance'] ?? 0)],
         ], fn (array $row) => $row[1] > 0)), 'pie');
+        // D-072 : salles de conférence à part, seulement si l'hôtel en a.
+        /** @var array<string, int> $halls */
+        $halls = is_array($occupancy['conference'] ?? null) ? $occupancy['conference'] : [];
+        if (array_sum($halls) > 0) {
+            $book->summary('Salles de conférence maintenant', 'Salles', array_values(array_filter([
+                ['Occupées', (int) ($halls['occupied'] ?? 0)],
+                ['Réservées', (int) ($halls['reserved'] ?? 0)],
+                ['Libres', (int) ($halls['free'] ?? 0)],
+                ['En maintenance', (int) ($halls['maintenance'] ?? 0)],
+            ], fn (array $row) => $row[1] > 0)), 'pie');
+        }
         /** @var list<array{label: string, collected_fcfa: int, refunded_fcfa: int, net_fcfa: int}> $byType */
         $byType = $report['by_type'];
         $book->summary('Encaissé net par catégorie', 'Net', array_map(fn (array $row) => [$row['label'], $row['net_fcfa']], $byType), 'bar', Workbook::FCFA);

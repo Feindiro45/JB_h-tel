@@ -12,6 +12,7 @@ use Illuminate\Auth\SessionGuard;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\PasswordBroker;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -80,6 +81,18 @@ final class AuthenticationService
      * Mot de passe choisi depuis le lien de l'invitation (6M). Le lien sert une seule fois et
      * expire après 72 h ; un lien inconnu, expiré ou déjà utilisé reçoit la même réponse.
      */
+    /**
+     * Sortie de veille (D-074) : le mot de passe de l'utilisateur déjà connecté est vérifié sans
+     * ouvrir de nouvelle session ni envoyer d'alerte de connexion. Les essais sont limités par la
+     * route (6 par minute et par utilisateur).
+     */
+    public function confirmPassword(User $user, string $password): void
+    {
+        if (! Hash::check($password, (string) $user->password)) {
+            throw ValidationException::withMessages(['password' => 'Mot de passe incorrect.']);
+        }
+    }
+
     /**
      * « Mot de passe oublié » (D-059). À la demande de l'utilisateur, le compte est vérifié avant
      * tout envoi et la réponse le dit clairement (compte introuvable, désactivé ou adresse qui ne peut

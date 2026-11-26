@@ -1,11 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router'
-import type { AccountSummary, InvoiceSummary, Reservation } from '../../shared/api/types'
+import {
+  isConferenceRoom,
+  type AccountSummary,
+  type InvoiceSummary,
+  type Reservation,
+} from '../../shared/api/types'
 import { Icon } from '../../shared/ui/Icon'
 import { formatDay, formatFcfa, todayIso } from '../../shared/utils/format'
+import type { JourneyAction } from './nextOperation'
 import './reservationJourney.css'
 
-type Action = 'confirm' | 'check-in' | 'check-out' | 'payment'
+type Action = JourneyAction
 
 export function ReservationJourney({
   reservation: r,
@@ -33,6 +39,8 @@ export function ReservationJourney({
   if (r.status === 'CANCELLED') return null
 
   const pending = r.status === 'PENDING'
+  const conference = isConferenceRoom(r.room) || Boolean(r.event)
+  const place = conference ? 'la salle' : 'la chambre'
   const inProgress = r.status === 'IN_PROGRESS'
   const completed = r.status === 'COMPLETED'
   const arrivalReady = r.period.start_date <= todayIso()
@@ -46,10 +54,10 @@ export function ReservationJourney({
         : 'Le séjour est terminé. Les documents restent disponibles ci-dessous.'
       : inProgress
         ? balance !== undefined && balance > 0
-          ? 'Avant le départ, pensez au solde et enregistrez ensuite le départ pour libérer la chambre.'
-          : 'Au départ du client, enregistrez son départ pour libérer la chambre.'
+          ? `Avant le départ, pensez au solde et enregistrez ensuite le départ pour libérer ${place}.`
+          : `Au départ du client, enregistrez son départ pour libérer ${place}.`
         : arrivalReady
-          ? 'À l’arrivée du client, enregistrez son arrivée pour marquer la chambre occupée.'
+          ? `À l’arrivée du client, enregistrez son arrivée pour marquer ${place} occupée.`
           : `Préparez le séjour. L’arrivée pourra être enregistrée à partir du ${formatDay(r.period.start_date)}.`
 
   return (
@@ -96,7 +104,7 @@ export function ReservationJourney({
           aria-current={!pending && !inProgress && !completed ? 'step' : undefined}
         >
           <span className="reservation-journey__number">3</span>
-          <strong>Arrivée du client</strong>
+          <strong>{conference ? 'Début de l’événement' : 'Arrivée du client'}</strong>
           <span>
             {inProgress || completed
               ? 'Arrivée enregistrée'
@@ -121,11 +129,11 @@ export function ReservationJourney({
         </li>
         <li data-done={completed} aria-current={inProgress && paid ? 'step' : undefined}>
           <span className="reservation-journey__number">5</span>
-          <strong>Départ du client</strong>
+          <strong>{conference ? 'Fin de l’événement' : 'Départ du client'}</strong>
           <span>
             {completed
-              ? 'Départ enregistré · chambre libérée'
-              : 'À enregistrer au départ pour libérer la chambre'}
+              ? `Départ enregistré · ${conference ? 'salle' : 'chambre'} libérée`
+              : `À enregistrer au départ pour libérer ${place}`}
           </span>
         </li>
       </ol>

@@ -18,6 +18,10 @@ export interface ModalProps {
   size?: 'small' | 'large'
   /** Avertissement qui exige une réponse (suppression définitive) : rôle « alertdialog ». */
   alert?: boolean
+  /** Action placée à gauche du pied (« Retour » d'un assistant en plusieurs étapes). */
+  footStart?: ReactNode
+  /** Libellé du bouton de fermeture du pied (« Annuler » ou « Fermer » par défaut). */
+  closeLabel?: string
 }
 
 /** Modale de saisie accessible (dialogue, focus piégé, Échap, retour du focus). */
@@ -34,6 +38,8 @@ export function Modal({
   danger = false,
   size = 'large',
   alert = false,
+  footStart,
+  closeLabel,
 }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -57,9 +63,10 @@ export function Modal({
     <>
       <div className="dialog-body">{children}</div>
       <div className="dialog-foot">
+        {footStart && <div className="dialog-foot__start">{footStart}</div>}
         <button type="button" className="secondary" onClick={onClose} disabled={submitting}>
           <Icon name="close" size={17} />
-          {onSubmit ? 'Annuler' : 'Fermer'}
+          {closeLabel ?? (onSubmit ? 'Annuler' : 'Fermer')}
         </button>
         {onSubmit && (
           <button

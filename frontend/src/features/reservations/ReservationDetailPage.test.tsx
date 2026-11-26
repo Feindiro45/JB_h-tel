@@ -546,3 +546,188 @@ describe('Corrections et suppressions (D-058)', () => {
     expect(screen.queryByRole('button', { name: /Rembourser le reçu/ })).not.toBeInTheDocument()
   })
 })
+
+describe('Étapes enchaînées et départ guidé (D-071)', () => {
+  it('après l’arrivée, la fenêtre d’encaissement du solde s’ouvre d’elle-même', async () => {
+    let current = reservation()
+    serve(current, undefined, {
+      [`GET /api/v1/reservations/${ID}`]: () => ({ body: { data: current } }),
+      [`POST /api/v1/reservations/${ID}/check-in`]: () => {
+        current = reservation({ status: 'IN_PROGRESS', status_label: 'En cours' })
+        return { body: { data: current } }
+      },
+    })
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer l’arrivée' }))
+    const arrival = screen.getByRole('dialog', { name: 'Enregistrer l’arrivée' })
+    await user.click(within(arrival).getByRole('button', { name: 'Enregistrer l’arrivée' }))
+
+    const payment = await screen.findByRole('dialog', { name: 'Encaisser' })
+    expect(normalize(payment.textContent)).toContain('Solde restant : 30 000 FCFA')
+  })
+
+  it('un départ non soldé exige l’encaissement ou un motif, transmis au serveur', async () => {
+    const calls = serve(
+      reservation({ status: 'IN_PROGRESS', status_label: 'En cours' }),
+      undefined,
+      {
+        [`POST /api/v1/reservations/${ID}/check-out`]: {
+          body: { data: reservation({ status: 'COMPLETED', status_label: 'Terminée' }) },
+        },
+      },
+    )
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer le départ' }))
+    const dialog = screen.getByRole('dialog', { name: 'Enregistrer le départ' })
+    expect(normalize((await within(dialog).findByRole('status')).textContent)).toContain(
+      'Il reste 30 000 FCFA à encaisser sur ce séjour.',
+    )
+    expect(within(dialog).getByRole('button', { name: 'Encaisser le solde' })).toBeVisible()
+
+    const submit = within(dialog).getByRole('button', { name: 'Enregistrer le départ' })
+    await user.click(submit)
+    expect(
+      within(dialog).getByText(
+        'Encaissez le solde, ou cochez « Le client part sans tout payer » et indiquez le motif.',
+      ),
+    ).toBeVisible()
+    await user.click(within(dialog).getByLabelText('Le client part sans tout payer'))
+    await user.click(submit)
+    expect(
+      within(dialog).getByText('Indiquez pourquoi le client part sans tout payer.'),
+    ).toBeVisible()
+    expect(calls.some((call) => call.path.endsWith('/check-out'))).toBe(false)
+
+    await user.type(
+      within(dialog).getByLabelText('Motif du départ avec solde impayé'),
+      'Entreprise : paiement par virement',
+    )
+    await user.click(submit)
+    await waitFor(() =>
+      expect(calls.find((call) => call.path.endsWith('/check-out'))?.body).toEqual({
+        unpaid_reason: 'Entreprise : paiement par virement',
+      }),
+    )
+    // La notification, et non l’intitulé « Départ enregistré » de la fiche mise à jour.
+    await waitFor(() =>
+      expect(document.querySelector('.toast')).toHaveTextContent('Départ enregistré'),
+    )
+  })
+
+  it('hors ligne, le départ non soldé est gardé avec son motif pour le serveur', async () => {
+    serve(reservation({ status: 'IN_PROGRESS', status_label: 'En cours' }))
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer le départ' }))
+    const dialog = screen.getByRole('dialog', { name: 'Enregistrer le départ' })
+    await within(dialog).findByRole('status')
+
+    // Coupure réelle : le serveur ne répond plus.
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
+    reportUnreachable()
+    await user.click(within(dialog).getByLabelText('Le client part sans tout payer'))
+    await user.type(
+      within(dialog).getByLabelText('Motif du départ avec solde impayé'),
+      'Paiera demain à l’accueil',
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer le départ' }))
+
+    // La notification, et non l’intitulé « Départ enregistré » de la fiche mise à jour.
+    await waitFor(() =>
+      expect(document.querySelector('.toast')).toHaveTextContent('Départ enregistré'),
+    )
+    const [operation] = await readOutbox()
+    expect(operation).toMatchObject({
+      status: 'pending',
+      kind: 'reservation.check-out',
+      path: `/api/v1/reservations/${ID}/check-out`,
+      body: { unpaid_reason: 'Paiera demain à l’accueil' },
+    })
+  })
+
+  it('encaisse le solde depuis la fenêtre de départ, puis enregistre le départ sans motif', async () => {
+    let summary = SUMMARY
+    const calls = serve(
+      reservation({ status: 'IN_PROGRESS', status_label: 'En cours' }),
+      undefined,
+      {
+        [`GET /api/v1/reservations/${ID}/payments`]: () => ({ body: { data: [], summary } }),
+        [`POST /api/v1/reservations/${ID}/payments`]: () => {
+          summary = { ...SUMMARY, paid_fcfa: 50000, net_paid_fcfa: 50000, balance_fcfa: 0 }
+          return { status: 201, body: { data: { id: 'pay-2', receipt_number: 'REC-2026-000043' } } }
+        },
+        [`POST /api/v1/reservations/${ID}/check-out`]: {
+          body: { data: reservation({ status: 'COMPLETED', status_label: 'Terminée' }) },
+        },
+      },
+    )
+    renderApp(`/reservations/${ID}`)
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer le départ' }))
+    await user.click(await screen.findByRole('button', { name: 'Encaisser le solde' }))
+    const payment = screen.getByRole('dialog', { name: 'Encaisser' })
+    await user.click(within(payment).getByRole('button', { name: 'Enregistrer l’encaissement' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Enregistrer le départ' })
+    expect(
+      await within(dialog).findByText(/Le séjour est soldé : rien à encaisser\./),
+    ).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer le départ' }))
+    await waitFor(() =>
+      expect(calls.find((call) => call.path.endsWith('/check-out'))).toBeDefined(),
+    )
+    expect(calls.find((call) => call.path.endsWith('/check-out'))?.body).toBeUndefined()
+    expect(
+      calls.find((call) => call.path.endsWith('/payments') && call.method === 'POST')?.body,
+    ).toMatchObject({ amount_fcfa: 30000 })
+  })
+})
+
+describe('Fiche d’une réservation de salle de conférence (D-072)', () => {
+  it('montre l’événement, l’occupant et le contact à la place des occupants', async () => {
+    serve(
+      reservation({
+        room: {
+          id: 'room-hall',
+          number: 'SALLE-A',
+          room_type: { code: 'SALLE_CONFERENCE', label: 'Salle de conférence', kind: 'CONFERENCE' },
+          capacity: 120,
+          under_maintenance: false,
+        },
+        occupants: [],
+        event: {
+          name: 'Atelier santé communautaire',
+          organizer_type: 'NGO',
+          organizer_type_label: 'ONG',
+          organizer_type_other: null,
+          organization_name: 'Santé pour tous',
+          contact_name: 'Jean Yakité',
+          contact_phone: '+236 75 11 22 33',
+        },
+      }),
+    )
+    renderApp(`/reservations/${ID}`)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Atelier santé communautaire', level: 1 }),
+    ).toBeVisible()
+    const panel = screen.getByRole('region', { name: 'Informations sur l’événement' })
+    const text = normalize(panel.textContent)
+    for (const expected of [
+      'Type d’occupantONG',
+      'OrganisationSanté pour tous',
+      'Responsable sur placeJean Yakité · +236 75 11 22 33',
+      'Client (réservation)NGUEMA Paul',
+    ]) {
+      expect(text).toContain(expected)
+    }
+    expect(text).not.toContain('Occupants')
+    expect(screen.queryByRole('button', { name: 'Modifier les occupants' })).toBeNull()
+    expect(screen.getByText('Début de l’événement')).toBeVisible()
+  })
+})

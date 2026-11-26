@@ -30,7 +30,7 @@ export function AuthLayout({
             </span>
             <span>
               <b>{config.appName}</b>
-              <small>Bangui · Hôtellerie</small>
+              <small>Bambari · Hôtellerie</small>
             </span>
           </div>
           <h1 id={titleId}>{title}</h1>

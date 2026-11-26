@@ -70,6 +70,8 @@ export function InvoiceTicketPage() {
 
   const s = inv.snapshot
   const isCredit = inv.type === 'CREDIT_NOTE'
+  // D-072 : facture d'une salle de conférence (absent des factures plus anciennes : une chambre).
+  const conference = s.room?.kind === 'CONFERENCE' || Boolean(s.event)
   // Facture émise hors ligne (FAC-LOC-…) : numéro provisoire, remplacé au retour du réseau.
   const provisional = isLocalId(inv.id) || isProvisionalInvoice(inv.number)
   const reservationId = s.stay.reservation_uuid
@@ -120,21 +122,18 @@ export function InvoiceTicketPage() {
                   foi.
                 </p>
               ) : (
+                // Demande de l'utilisateur (25/11/2026) : seul le QR code reste, sans le lien écrit.
                 inv.verification_qr && (
-                  <>
-                    <img
-                      className="ticket-qr"
-                      src={inv.verification_qr}
-                      alt={`QR code de vérification de ${isCredit ? 'l’avoir' : 'la facture'}`}
-                    />
-                    <p className="ticket-note">
-                      <strong>Vérifier ce document</strong> : scannez le QR code ou ouvrez
-                    </p>
-                    <p className="ticket-url">{inv.verification_url}</p>
-                  </>
+                  <img
+                    className="ticket-qr"
+                    src={inv.verification_qr}
+                    alt={`QR code de vérification de ${isCredit ? 'l’avoir' : 'la facture'}`}
+                  />
                 )
               )}
-              {!isCredit && <p>Merci pour votre séjour !</p>}
+              {!isCredit && (
+                <p>{conference ? 'Merci pour votre confiance !' : 'Merci pour votre séjour !'}</p>
+              )}
               <p className="ticket-note">Édité le {formatNumericDateTime(editedAt)}</p>
             </>
           }
@@ -156,15 +155,31 @@ export function InvoiceTicketPage() {
           )}
           <TicketRule />
           <TicketPair label="Client">{s.customer?.full_name ?? '—'}</TicketPair>
-          <TicketPair label="Chambre">
+          <TicketPair label={conference ? 'Salle' : 'Chambre'}>
             {s.room ? `${s.room.number}${s.room.type ? ` (${s.room.type})` : ''}` : '—'}
           </TicketPair>
-          <TicketPair label="Arrivée">
+          <TicketPair label={conference ? 'Début' : 'Arrivée'}>
             {formatStayMoment(s.stay.start_date, s.stay.start_time)}
           </TicketPair>
-          <TicketPair label="Départ">
+          <TicketPair label={conference ? 'Fin' : 'Départ'}>
             {formatStayMoment(s.stay.end_date, s.stay.end_time)}
           </TicketPair>
+          {s.event && (
+            <>
+              <p className="ticket-section-title">Événement</p>
+              <p>{s.event.name}</p>
+              <p>
+                {s.event.organizer}
+                {s.event.organization_name ? ` — ${s.event.organization_name}` : ''}
+              </p>
+              {(s.event.contact_name || s.event.contact_phone) && (
+                <p>
+                  Contact :{' '}
+                  {[s.event.contact_name, s.event.contact_phone].filter(Boolean).join(' · ')}
+                </p>
+              )}
+            </>
+          )}
           <TicketRule />
           <TicketLines
             lines={s.lines.map((line, index) => ({

@@ -36,7 +36,9 @@ describe('Tutoriels du menu (lot T)', () => {
     await user.click(await screen.findByRole('button', { name: 'Tutoriel : Réservations' }))
     const dialog = screen.getByRole('dialog', { name: 'Tutoriel — Réservations' })
     expect(dialog).toHaveTextContent('Étape 1 sur 5')
-    expect(within(dialog).getByRole('heading', { name: 'Créer une réservation' })).toBeVisible()
+    expect(
+      within(dialog).getByRole('heading', { name: 'Créer une réservation, étape par étape' }),
+    ).toBeVisible()
     expect(within(dialog).getByRole('button', { name: 'Précédent' })).toBeDisabled()
 
     await user.click(within(dialog).getByRole('button', { name: 'Suivant' }))

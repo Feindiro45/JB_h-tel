@@ -33,7 +33,15 @@ interface Report {
   }[]
   reconciliation: { difference_fcfa: number }
   definitions: string[]
-  occupancy: { at: string; occupied: number; reserved: number; maintenance: number; free: number }
+  occupancy: {
+    at: string
+    occupied: number
+    reserved: number
+    maintenance: number
+    free: number
+    /** D-072 : salles de conférence comptées à part. */
+    conference?: { occupied: number; reserved: number; maintenance: number; free: number }
+  }
 }
 export function ReportsPage() {
   const today = todayIso()
@@ -180,6 +188,15 @@ export function ReportsPage() {
                   Chambres occupées : {data.occupancy.occupied} · libres : {data.occupancy.free} ·
                   réservées : {data.occupancy.reserved} · maintenance : {data.occupancy.maintenance}
                 </span>
+                {data.occupancy.conference &&
+                  Object.values(data.occupancy.conference).some((count) => count > 0) && (
+                    <span>
+                      Salles de conférence occupées : {data.occupancy.conference.occupied} · libres
+                      : {data.occupancy.conference.free} · réservées :{' '}
+                      {data.occupancy.conference.reserved} · maintenance :{' '}
+                      {data.occupancy.conference.maintenance}
+                    </span>
+                  )}
               </div>
             </Panel>
             <Panel title="Évolution de l’encaissé net">

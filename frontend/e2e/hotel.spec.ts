@@ -43,6 +43,8 @@ test('connexion réelle, administration, réservation avec avance, facture, rapp
   await dialog.getByLabel('Nom', { exact: true }).fill('Recette E2E')
   await dialog.getByLabel('Téléphone', { exact: true }).fill('+23672009999')
   await dialog.getByLabel('Titulaire du séjour').fill('Recette E2E')
+  // Assistant D-071 : client → séjour et prix → récapitulatif confirmé → encaissement.
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
   await expect(
     dialog.getByLabel('Chambre', { exact: true }).locator('option').filter({ hasText: 'E2E-901' }),
   ).toHaveCount(1)
@@ -52,11 +54,20 @@ test('connexion réelle, administration, réservation avec avance, facture, rapp
     .filter({ hasText: 'E2E-901' })
     .getAttribute('value')
   await dialog.getByLabel('Chambre', { exact: true }).selectOption(option!)
+  await expect(dialog.getByText('Total net')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
+  await expect(dialog.getByText('Recette E2E').first()).toBeVisible()
+  await dialog.getByLabel('Le client a vérifié ces informations et les confirme').check()
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
   await dialog.getByRole('radio', { name: 'Avance', exact: true }).check()
   await dialog.getByLabel('Montant de l’avance (FCFA)').fill('20000')
   await expect(dialog.getByRole('button', { name: 'Créer la réservation' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Créer la réservation' }).click()
   await expect(page).toHaveURL(/\/reservations\/[a-f0-9-]{36}$/)
+  // Le séjour commence aujourd'hui : la fenêtre d'arrivée s'ouvre d'elle-même (D-071).
+  const arrival = page.getByRole('dialog', { name: 'Enregistrer l’arrivée' })
+  await expect(arrival).toBeVisible()
+  await arrival.getByRole('button', { name: 'Annuler' }).click()
   await expect(page.getByText(/20[\s\u202f\u00a0]?000 FCFA/).first()).toBeVisible()
   await expect(
     page.getByRole('heading', { name: 'Réservation enregistrée : les prochaines étapes' }),

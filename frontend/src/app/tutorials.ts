@@ -37,17 +37,30 @@ export const TUTORIALS: Record<string, Tutorial> = {
         body: 'La cloche de la barre du haut compte les séjours dont l’heure de départ est dépassée. Elle s’actualise toutes les 30 secondes.',
         tip: 'Traitez les alertes depuis le menu « Alertes » : départ réel ou prolongation.',
       },
+      {
+        title: 'Mise en veille',
+        icon: 'lock',
+        body: 'Sans clic ni frappe pendant le délai réglé par l’administrateur, le logiciel se met en veille : votre nom s’affiche et votre mot de passe est demandé pour reprendre. Le travail en cours reste à l’écran.',
+        points: [
+          'Le cadenas en bas du menu, à côté de « Se déconnecter », met en veille tout de suite (pause, poste laissé seul).',
+          'Recharger la page ou ouvrir un autre onglet ne sort pas de veille.',
+          'Sans réseau, le mot de passe est vérifié sur le poste.',
+        ],
+      },
     ],
   },
   '/reservations': {
     section: 'Réservations',
     steps: [
       {
-        title: 'Créer une réservation',
+        title: 'Créer une réservation, étape par étape',
         icon: 'plus',
-        body: 'Cliquez sur « + Nouvelle réservation ». Choisissez un client existant ou créez sa fiche, puis indiquez le titulaire et les autres occupants.',
+        body: 'Cliquez sur « + Nouvelle réservation ». L’assistant avance une étape à la fois : client et occupants, séjour et prix, récapitulatif, encaissement. « Suivant » ne passe pas tant que l’étape n’est pas complète ; « Retour » garde la saisie.',
         tip: 'La capacité de la chambre est vérifiée : le prix est par chambre, quel que soit le nombre d’occupants.',
         points: [
+          'Récapitulatif : relisez-le avec le client et cochez sa confirmation. La facture n’est émise qu’à l’enregistrement, après cette confirmation.',
+          'Encaissement : rien n’est choisi d’avance. Choisissez « Paiement intégral », « Avance » ou « Paiement différé ».',
+          'Salle de conférence : choisissez « Salle de conférence » à la première étape. À la place des occupants, indiquez le type d’occupant (ONG, entreprise…), l’organisation et le responsable sur place, puis le nom de l’événement avec sa date de début et de fin.',
           'Sans réseau : chambres libres et prix sont calculés sur le poste ; la réservation, marquée « en attente d’envoi », part au retour du réseau.',
         ],
       },
@@ -73,8 +86,11 @@ export const TUTORIALS: Record<string, Tutorial> = {
       {
         title: 'Suivre le séjour',
         icon: 'eye',
-        body: 'Après la création, le guide du séjour montre la prochaine opération : confirmation, arrivée, encaissement et départ. La facture est créée automatiquement à la confirmation ; son ticket 80 mm reste accessible, même provisoirement hors ligne.',
+        body: 'Après chaque opération, la fenêtre de la suivante s’ouvre d’elle-même : l’arrivée si le séjour commence aujourd’hui, l’encaissement s’il reste un solde, le départ le dernier jour. La facture est créée automatiquement à la confirmation ; son ticket 80 mm reste accessible, même provisoirement hors ligne.',
         tip: 'Une même opération envoyée deux fois (double clic, réseau lent) n’est enregistrée qu’une fois.',
+        points: [
+          'Départ : s’il reste un solde, encaissez-le d’abord. Si le client part sans tout payer, cochez-le et indiquez le motif : il est enregistré dans le journal.',
+        ],
       },
       {
         title: 'Retrouver une réservation',
@@ -90,6 +106,9 @@ export const TUTORIALS: Record<string, Tutorial> = {
         title: 'Départs dépassés',
         icon: 'bell',
         body: 'Un séjour en cours dont la fin est passée apparaît ici. La chambre reste bloquée tant que le départ n’est pas enregistré.',
+        points: [
+          'La fenêtre « Départs à enregistrer » s’ouvre aussi sur n’importe quel écran : enregistrez le départ ou prolongez le séjour. « Me le rappeler dans 10 min » la referme ; elle revient tant que le départ n’est pas traité.',
+        ],
       },
       {
         title: 'Traiter une alerte',
@@ -277,6 +296,9 @@ export const TUTORIALS: Record<string, Tutorial> = {
         title: 'Catégories',
         icon: 'layers',
         body: 'Une catégorie (VIP, Standard…) regroupe des chambres. Les tarifs sont définis par catégorie.',
+        points: [
+          'Nature : « Chambre » ou « Salle de conférence », choisie à la création et jamais modifiée. Une salle se réserve pour un événement, sans occupants, et compte à part dans l’occupation.',
+        ],
       },
       {
         title: 'Chambres',
@@ -395,8 +417,10 @@ export const TUTORIALS: Record<string, Tutorial> = {
       {
         title: 'Règles par domaine',
         icon: 'settings',
-        body: 'Les règles sont rangées par domaine : remises, encaissements, réservations, facturation, hors ligne, postes de caisse. La colonne « Domaines » mène directement à chacun ; un point orange signale des règles à valider.',
+        body: 'Les règles sont rangées par domaine : veille et sécurité, établissement, remises, encaissements, réservations, facturation, hors ligne, postes de caisse. La colonne « Domaines » mène directement à chacun ; un point orange signale des règles à valider.',
         points: [
+          'Veille et sécurité : délai sans action avant la mise en veille du logiciel (1 à 240 minutes), en ligne comme hors ligne.',
+          'Établissement : nom, ville (Bambari), adresse, téléphone, e-mail, NIF et RCCM imprimés en tête des factures et reçus. Une information vidée n’est plus imprimée ; une facture déjà émise garde celles de son jour d’émission.',
           'Recherchez une règle par son nom ou sa référence (D-016…).',
           '« Afficher » ne garde que les règles à valider, validées ou modifiables ici.',
         ],

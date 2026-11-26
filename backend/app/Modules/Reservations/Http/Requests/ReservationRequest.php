@@ -6,6 +6,8 @@ use App\Modules\Customers\Contracts\CustomerDirectory;
 use App\Modules\Reservations\Domain\Billing\CalendarDayQuantity;
 use App\Modules\Reservations\Domain\Discount;
 use App\Modules\Reservations\Domain\DiscountType;
+use App\Modules\Reservations\Domain\OrganizerType;
+use App\Modules\Reservations\DTO\EventData;
 use App\Modules\Reservations\DTO\OccupantData;
 use App\Modules\Reservations\DTO\ReservationRequestData;
 use App\Modules\RoomCatalog\Contracts\BillingUnit;
@@ -28,6 +30,15 @@ class ReservationRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Occupants exigés pour une chambre. Une salle de conférence (D-072) se réserve avec un
+     * événement à la place : son accord avec la nature de la salle est vérifié par le service.
+     */
+    protected function occupantsRequired(): bool
+    {
+        return ! $this->filled('event');
+    }
+
     /** @return array<string, list<mixed>> */
     public function rules(): array
     {
@@ -42,9 +53,22 @@ class ReservationRequest extends FormRequest
             'end_time' => ['nullable', 'date_format:H:i'],
             'billing_unit' => ['required', Rule::enum(BillingUnit::class)],
             'quantity' => ['required', 'integer', 'min:1', 'max:365'],
-            'occupants' => ['required', 'array', 'min:1', 'max:50'],
+            'occupants' => $this->occupantsRequired()
+                ? ['required', 'array', 'min:1', 'max:50']
+                : ['nullable', 'array', 'max:50'],
             'occupants.*.name' => ['required', 'string', 'max:160'],
             'occupants.*.is_primary' => ['sometimes', 'boolean'],
+            'event' => ['nullable', 'array'],
+            'event.name' => ['required_with:event', 'string', 'max:150'],
+            'event.organizer_type' => ['required_with:event', Rule::enum(OrganizerType::class)],
+            'event.organizer_type_other' => ['nullable', 'string', 'max:100', 'required_if:event.organizer_type,'.OrganizerType::Other->value],
+            // Un particulier n'a pas d'organisation ; les autres occupants en déclarent une.
+            'event.organization_name' => [
+                Rule::requiredIf(fn (): bool => $this->filled('event') && $this->input('event.organizer_type') !== OrganizerType::Individual->value),
+                'nullable', 'string', 'max:150',
+            ],
+            'event.contact_name' => ['nullable', 'string', 'max:150'],
+            'event.contact_phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+().\s-]{6,30}$/'],
             'discount' => ['nullable', 'array'],
             'discount.type' => ['required_with:discount', Rule::enum(DiscountType::class)],
             'discount.value' => ['required_with:discount', 'numeric', 'gt:0', $this->discountValueRule()],
@@ -92,6 +116,12 @@ class ReservationRequest extends FormRequest
             'discount.value' => 'valeur de la réduction',
             'discount.reason' => 'motif de la réduction',
             'notes' => 'notes',
+            'event.name' => "nom de l'événement",
+            'event.organizer_type' => "type d'occupant",
+            'event.organizer_type_other' => "précision du type d'occupant",
+            'event.organization_name' => "nom de l'organisation",
+            'event.contact_name' => 'responsable sur place',
+            'event.contact_phone' => 'téléphone du responsable',
         ];
     }
 
@@ -103,6 +133,9 @@ class ReservationRequest extends FormRequest
             'end_date.after_or_equal' => "La date de départ doit être identique ou postérieure à la date d'arrivée.",
             'occupants.required' => 'Indiquez au moins un occupant.',
             'occupants.min' => 'Indiquez au moins un occupant.',
+            'event.organizer_type_other.required_if' => 'Précisez le type d’occupant.',
+            'event.organization_name.required' => 'Indiquez le nom de l’organisation (sauf pour un particulier).',
+            'event.contact_phone.regex' => 'Le téléphone du responsable ne doit contenir que des chiffres, espaces et + ( ) . -',
         ];
     }
 
@@ -122,12 +155,34 @@ class ReservationRequest extends FormRequest
             endTime: $this->filled('end_time') ? $this->string('end_time')->toString() : null,
             billingUnit: $this->enum('billing_unit', BillingUnit::class) ?? BillingUnit::Day,
             quantity: $this->integer('quantity'),
-            occupants: self::occupants((array) $this->input('occupants', [])),
+            // D-072 : une salle de conférence n'a pas d'occupants, seulement un événement.
+            occupants: $this->filled('event') ? [] : self::occupants((array) $this->input('occupants', [])),
             discount: $this->discount(),
             notes: $this->filled('notes') ? $this->string('notes')->trim()->toString() : null,
             confirm: $this->boolean('confirm', true),
             pricedAt: OfflineReplay::fromRequest($this)?->pricedAt(),
             expectedUnitPriceFcfa: $this->has('expected_unit_price_fcfa') ? $this->integer('expected_unit_price_fcfa') : null,
+            event: $this->event(),
+        );
+    }
+
+    private function event(): ?EventData
+    {
+        if (! $this->filled('event')) {
+            return null;
+        }
+        $text = fn (string $field): ?string => $this->filled("event.{$field}")
+            ? $this->string("event.{$field}")->trim()->toString()
+            : null;
+        $type = $this->enum('event.organizer_type', OrganizerType::class) ?? OrganizerType::Other;
+
+        return new EventData(
+            name: (string) $text('name'),
+            organizerType: $type,
+            organizerTypeOther: $type === OrganizerType::Other ? $text('organizer_type_other') : null,
+            organizationName: $type === OrganizerType::Individual ? null : $text('organization_name'),
+            contactName: $text('contact_name'),
+            contactPhone: $text('contact_phone'),
         );
     }
 

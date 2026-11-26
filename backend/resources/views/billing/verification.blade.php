@@ -9,7 +9,7 @@
     $isCredit = $valid && $result['type'] === 'CREDIT_NOTE';
     $tone = ! $valid ? 'ko' : ($cancelled ? 'warn' : 'ok');
     $hotelName = $valid ? $result['issuer'] : ($hotel['name'] ?? 'JB Hôtel');
-    $city = $hotel['city'] ?? 'Bangui, République centrafricaine';
+    $city = $hotel['city'] ?? 'Bambari, République centrafricaine';
     $contact = array_filter([$hotel['phone'] ?? null, $hotel['email'] ?? null]);
 @endphp
 <!doctype html>
@@ -155,7 +155,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
             <div>
                 <p>Seules les informations nécessaires à la vérification sont affichées, pour protéger les données du client.</p>
-                <p>Vérification effectuée le {{ $checkedAt }} (heure de Bangui). Comparez le numéro et le montant avec le document que vous avez en main.</p>
+                <p>Vérification effectuée le {{ $checkedAt }} (heure de Centrafrique). Comparez le numéro et le montant avec le document que vous avez en main.</p>
             </div>
         </section>
     @else

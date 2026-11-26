@@ -13,10 +13,13 @@ export function PaymentDialog({
   reservationId,
   balance,
   onClose,
+  onPaid,
 }: {
   reservationId: string
   balance: number
   onClose: () => void
+  /** Appelé après un encaissement réussi, avant la fermeture (enchaînement des étapes, D-071). */
+  onPaid?: () => void
 }) {
   const methods = useQuery(paymentMethodsQuery)
   const queryClient = useQueryClient()
@@ -51,6 +54,7 @@ export function PaymentDialog({
           ? `Encaissement gardé sur ce poste — reçu provisoire ${payment.receipt_number}, envoyé au retour du réseau`
           : `Encaissement enregistré — reçu ${payment.receipt_number}`,
       )
+      onPaid?.()
       onClose()
     },
   })

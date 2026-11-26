@@ -151,11 +151,6 @@
   height: 26mm;
 }
 
-.thermal-ticket .ticket-url {
-  font-size: 0.72em;
-  overflow-wrap: anywhere;
-}
-
 .thermal-ticket .ticket-section-title {
   margin: 2px 0;
   font-weight: 700;

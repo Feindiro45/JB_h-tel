@@ -35,6 +35,7 @@ backups/
 /backend/backend.zip
 /frontend/dist.zip
 /deploiement/backend.zip
+/deploiement/frontend.zip
 
 # Dossier de deploiement : les artefacts construits se reproduisent avec deploiement/preparer.py
 # (le script, les modeles et le README restent versionnes).

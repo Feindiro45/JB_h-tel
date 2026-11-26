@@ -21,7 +21,8 @@ class SettingsTest extends TestCase
     {
         $settings = $this->actingAs($this->admin)->getJson('/api/v1/settings')->assertOk()->collect('data')->keyBy('key');
 
-        $this->assertCount(15, $settings);
+        // 15 règles, plus les 7 informations de l'établissement (D-073, HotelIdentityTest).
+        $this->assertCount(22, $settings);
         $cap = $settings->get('discounts.cashier_max_percent');
         $this->assertSame(10, data_get($cap, 'value'));
         $this->assertSame(['PROVISIONAL', true, '%'], [data_get($cap, 'status'), data_get($cap, 'editable'), data_get($cap, 'unit')]);
@@ -36,7 +37,9 @@ class SettingsTest extends TestCase
         $allowed = $settings->get('offline.allowed_operations');
         $this->assertSame(['PROVISIONAL', true, 'choices'], [data_get($allowed, 'status'), data_get($allowed, 'editable'), data_get($allowed, 'type')]);
         $this->assertCount(11, (array) data_get($allowed, 'value'));
-        $this->assertSame(15, data_get($settings->get('offline.lock_after_minutes'), 'value'));
+        // D-074 : la mise en veille remplace le verrouillage hors ligne seul.
+        $this->assertSame(15, data_get($settings->get('security.idle_lock_minutes'), 'value'));
+        $this->assertNull($settings->get('offline.lock_after_minutes'));
         $this->assertSame(60, data_get($settings->get('offline.backup_reminder_minutes'), 'value'));
         $this->assertSame('LOC', data_get($settings->get('offline.provisional_prefix'), 'value'));
     }

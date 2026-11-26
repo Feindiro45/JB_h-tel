@@ -105,12 +105,23 @@ test('poste Windows : en ligne, redémarrages sans serveur, encaissement local, 
   await booking.getByLabel('Nom', { exact: true }).fill('Poste Windows')
   await booking.getByLabel('Téléphone', { exact: true }).fill('+23672008888')
   await booking.getByLabel('Titulaire du séjour').fill('Poste Windows')
+  // Assistant D-071 : client → séjour et prix → récapitulatif confirmé → encaissement.
+  await booking.getByRole('button', { name: 'Suivant' }).click()
   const room = booking.getByLabel('Chambre', { exact: true })
   await expect(room.locator('option')).not.toHaveCount(1)
   await room.selectOption({ index: 1 })
+  await expect(booking.getByText('Total net')).toBeVisible()
+  await booking.getByRole('button', { name: 'Suivant' }).click()
+  await booking.getByLabel('Le client a vérifié ces informations et les confirme').check()
+  await booking.getByRole('button', { name: 'Suivant' }).click()
   await booking.getByRole('radio', { name: 'Paiement différé', exact: true }).check()
   await booking.getByRole('button', { name: 'Créer la réservation' }).click()
   await expect(page).toHaveURL(/\/reservations\/[a-f0-9-]{36}$/)
+  // L'arrivée du jour est proposée d'elle-même (D-071) ; ce scénario ne l'enregistre pas.
+  await page
+    .getByRole('dialog', { name: 'Enregistrer l’arrivée' })
+    .getByRole('button', { name: 'Annuler' })
+    .click()
   const reservationUrl = page.url()
   const reservationId = reservationUrl.split('/').at(-1)!
   await expect(page.getByRole('button', { name: 'Encaisser' })).toBeVisible()

@@ -33,6 +33,7 @@ async function book(page: Page, name: string, phone: string, date: string, room?
   await dialog.getByLabel('Nom', { exact: true }).fill(name)
   await dialog.getByLabel('Téléphone', { exact: true }).fill(phone)
   await dialog.getByLabel('Titulaire du séjour').fill(name)
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
   await dialog.getByLabel('Date d’arrivée').fill(date)
   await dialog.getByLabel('Date de départ').fill(date)
   const select = dialog.getByLabel('Chambre', { exact: true })
@@ -48,6 +49,10 @@ async function book(page: Page, name: string, phone: string, date: string, room?
   }
   const chosen = (await select.locator('option:checked').textContent())!.split(' · ')[0]!.trim()
   await expect(dialog.getByText('Total net')).toBeVisible()
+  // Assistant D-071 : récapitulatif confirmé par le client, puis règlement choisi.
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
+  await dialog.getByLabel('Le client a vérifié ces informations et les confirme').check()
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
   await dialog.getByRole('radio', { name: 'Paiement différé', exact: true }).check()
   await dialog.getByRole('button', { name: 'Créer la réservation' }).click()
   return chosen

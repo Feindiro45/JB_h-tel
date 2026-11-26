@@ -117,9 +117,12 @@ export function provisionalInvoice(
   const valid = (account?.data ?? []).filter((payment) => payment.status === 'VALID')
   const paid = valid.reduce((sum, payment) => sum + payment.amount_fcfa, 0)
   const refunded = valid.reduce((sum, payment) => sum + payment.refunded_fcfa, 0)
-  const roomLabel = stay.room
-    ? `chambre ${stay.room.number} (${stay.room.room_type.label}), ${stay.price.billing_unit_label.toLowerCase()}`
-    : 'chambre ?'
+  // D-072 : même libellé que le serveur pour une salle de conférence.
+  const conference = stay.room?.room_type.kind === 'CONFERENCE' || Boolean(stay.event)
+  const roomLabel =
+    (stay.room
+      ? `${conference ? 'salle' : 'chambre'} ${stay.room.number} (${stay.room.room_type.label}), ${stay.price.billing_unit_label.toLowerCase()}`
+      : 'chambre ?') + (conference && stay.event ? ` — événement : ${stay.event.name}` : '')
   const snapshot: InvoiceSnapshot = {
     document: { type: 'INVOICE', label: 'Facture provisoire', number, issued_at: issuedAt },
     hotel: keptHotel(client),
@@ -138,7 +141,22 @@ export function provisionalInvoice(
             address: null,
           }
         : null,
-    room: stay.room ? { number: stay.room.number, type: stay.room.room_type.label } : null,
+    room: stay.room
+      ? {
+          number: stay.room.number,
+          type: stay.room.room_type.label,
+          kind: conference ? 'CONFERENCE' : 'ROOM',
+        }
+      : null,
+    event: stay.event
+      ? {
+          name: stay.event.name,
+          organizer: stay.event.organizer_type_label,
+          organization_name: stay.event.organization_name,
+          contact_name: stay.event.contact_name,
+          contact_phone: stay.event.contact_phone,
+        }
+      : null,
     stay: {
       reservation_uuid: stay.id,
       start_date: stay.period.start_date,
@@ -150,7 +168,7 @@ export function provisionalInvoice(
     lines: [
       {
         kind: 'STAY',
-        label: `Hébergement — ${roomLabel}`,
+        label: `${conference ? 'Location de salle' : 'Hébergement'} — ${roomLabel}`,
         billing_unit: stay.price.billing_unit,
         quantity: stay.price.quantity,
         unit_price_fcfa: stay.price.unit_price_fcfa,

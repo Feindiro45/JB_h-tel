@@ -17,6 +17,7 @@ use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Création et confirmation des réservations.
@@ -39,6 +40,7 @@ final class ReservationBookingService
     {
         return DB::transaction(function () use ($data, $actor): Reservation {
             $room = $this->rooms->lockForReservation($data->roomId) ?? throw ReservationQuoter::roomNotFound();
+            self::assertEventMatchesRoom($room, $data);
             $quote = $this->quoter->quote($data, $actor, $room);
             self::assertBookable($quote);
 
@@ -70,8 +72,20 @@ final class ReservationBookingService
                 'created_by' => $actor->id,
             ]);
             self::storeOccupants($reservation, $data->occupants);
+            if ($data->event !== null) {
+                $reservation->event()->create([
+                    'event_name' => $data->event->name,
+                    'organizer_type' => $data->event->organizerType,
+                    'organizer_type_other' => $data->event->organizerTypeOther,
+                    'organization_name' => $data->event->organizationName,
+                    'contact_name' => $data->event->contactName,
+                    'contact_phone' => $data->event->contactPhone,
+                ]);
+            }
 
-            $after = ReservationSnapshot::of($reservation) + ['occupants' => count($data->occupants)];
+            $after = ReservationSnapshot::of($reservation) + ($data->event === null
+                ? ['occupants' => count($data->occupants)]
+                : ['event' => $data->event->name, 'organizer' => $data->event->organizerLabel()]);
             $this->audit->record('reservation.created', 'reservation', $reservation->id, after: $after, actorId: $actor->id);
 
             if ($status === ReservationStatus::Confirmed) {
@@ -161,6 +175,27 @@ final class ReservationBookingService
                 409,
                 'room_under_maintenance',
             );
+        }
+    }
+
+    /**
+     * D-072 : une salle de conférence se réserve pour un événement, une chambre pour des occupants.
+     * Le serveur reste l'autorité, sous le verrou de la chambre.
+     */
+    public static function assertEventMatchesRoom(RoomSnapshot $room, ReservationRequestData $data): void
+    {
+        if ($room->isConference() && $data->event === null) {
+            throw ValidationException::withMessages([
+                'event.name' => "La salle {$room->number} est une salle de conférence : indiquez l’événement, son type d’occupant et l’organisation.",
+            ]);
+        }
+        if (! $room->isConference() && $data->event !== null) {
+            throw ValidationException::withMessages([
+                'event' => "La chambre {$room->number} n’est pas une salle de conférence : indiquez ses occupants, sans événement.",
+            ]);
+        }
+        if (! $room->isConference() && $data->occupants === []) {
+            throw ValidationException::withMessages(['occupants' => 'Indiquez au moins un occupant.']);
         }
     }
 

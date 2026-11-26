@@ -46,6 +46,7 @@ final class RoomTypeService
             $type = RoomType::query()->create([
                 'code' => strtoupper((string) $data->code),
                 'label' => (string) $data->label,
+                'kind' => $data->kind,
                 'description' => $data->description,
             ]);
             $this->audit->record('room_type.created', 'room_type', $type->id, after: $this->snapshot($type));
@@ -74,6 +75,6 @@ final class RoomTypeService
     /** @return array<string, string|null> */
     private function snapshot(RoomType $type): array
     {
-        return ['code' => $type->code, 'label' => $type->label, 'description' => $type->description];
+        return ['code' => $type->code, 'label' => $type->label, 'kind' => $type->kind->value, 'description' => $type->description];
     }
 }

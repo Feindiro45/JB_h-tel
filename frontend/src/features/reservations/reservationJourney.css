@@ -110,3 +110,155 @@
     display: none;
   }
 }
+
+/* ---------- Assistant « Nouvelle réservation » (D-071) ---------- */
+.wizard-steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+}
+.wizard-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #475569;
+  font-size: 0.88rem;
+}
+.wizard-steps li[data-done='true'] {
+  border-color: #86bda0;
+  background: #f0fdf4;
+  color: #065f46;
+}
+.wizard-steps li[aria-current='step'] {
+  border: 2px solid #1d4ed8;
+  background: #eff6ff;
+  color: #0f172a;
+  font-weight: 600;
+}
+.wizard-steps__number {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.wizard-steps li[data-done='true'] .wizard-steps__number {
+  background: #047857;
+  color: #fff;
+}
+.wizard-steps li[aria-current='step'] .wizard-steps__number {
+  background: #1d4ed8;
+  color: #fff;
+}
+.wizard-recap__title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+.wizard-recap {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.wizard-recap dt {
+  color: #475569;
+  font-size: 0.82rem;
+}
+.wizard-recap dd {
+  margin: 3px 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.wizard-recap__total {
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  border-top: 1px solid #cbd5e1;
+}
+.wizard-recap__total dd {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.wizard-recap__amount {
+  margin: 0 0 12px;
+}
+.wizard-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 2px solid #047857;
+  border-radius: 10px;
+  background: #ecfdf5;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wizard-confirm input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: none;
+}
+
+/* ---------- Départ guidé et départs à enregistrer (D-071) ---------- */
+.notice--success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ecfdf5;
+  color: #065f46;
+}
+.checkout-balance {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+.checkout-balance > button {
+  justify-self: start;
+}
+.checkout-overdue {
+  color: #b45309;
+}
+.due-departures {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.due-departures li {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #fca5a5;
+  border-left: 5px solid #b91c1c;
+  border-radius: 10px;
+  background: #fff;
+}
+.due-departures__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 14px;
+}
+.due-departures__late {
+  color: #b91c1c;
+  font-weight: 700;
+}
+.due-departures__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

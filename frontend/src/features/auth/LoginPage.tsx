@@ -6,7 +6,8 @@ import { Icon } from '../../shared/ui/Icon'
 import { login, ME_KEY } from './api'
 import { AuthLayout } from './AuthLayout'
 import { clearQueryCache } from '../../shared/offline/persistence'
-import { rememberSession } from '../../shared/offline/session'
+import { recordActivity, rememberSession } from '../../shared/offline/session'
+import { flagStandby } from '../../shared/standby'
 
 /** Connexion de l'équipe (D-059) : session Sanctum par cookie, jamais de jeton stocké. */
 export function LoginPage() {
@@ -28,8 +29,11 @@ export function LoginPage() {
         queryClient.clear()
         void clearQueryCache()
       }
-      // Empreinte du mot de passe pour déverrouiller l’écran hors ligne (D-064).
+      // Empreinte du mot de passe pour sortir de veille, même hors ligne (D-064, D-074).
       void rememberSession(user, password)
+      // Nouvelle connexion : présence enregistrée, aucune veille restée d'une session précédente.
+      recordActivity()
+      flagStandby(null)
       queryClient.setQueryData(ME_KEY, user)
       navigate(from, { replace: true })
     },

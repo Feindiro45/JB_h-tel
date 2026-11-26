@@ -23,10 +23,21 @@ export interface CurrentUser {
   last_login_at: string | null
 }
 
+/** D-072 : chambre d'hébergement ou salle de conférence (choisie à la création de la catégorie). */
+export type RoomKind = 'ROOM' | 'CONFERENCE'
+
+/** Vrai pour une salle de conférence ; une nature absente (ancienne copie locale) est une chambre. */
+export function isConferenceRoom(room: { room_type?: { kind?: RoomKind } } | null | undefined) {
+  return room?.room_type?.kind === 'CONFERENCE'
+}
+
 export interface RoomType {
   id: string
   code: string
   label: string
+  /** Absente d'une copie locale gardée avant D-072 : c'est alors une chambre. */
+  kind?: RoomKind
+  kind_label?: string
   description: string | null
   rooms_count?: number
 }
@@ -45,7 +56,7 @@ export interface Room {
 export interface RoomBrief {
   id: string
   number: string
-  room_type: { code: string; label: string }
+  room_type: { code: string; label: string; kind?: RoomKind }
   capacity: number
   under_maintenance: boolean
 }
@@ -88,6 +99,26 @@ export interface ReservationBrief extends BlockedPeriodView {
   status_label: string
 }
 
+/** Type d'occupant d'une salle de conférence (D-072, liste validée par l'utilisateur). */
+export type OrganizerType =
+  | 'NGO'
+  | 'INTERNATIONAL_ORGANIZATION'
+  | 'COMPANY'
+  | 'PUBLIC_ADMINISTRATION'
+  | 'ASSOCIATION'
+  | 'INDIVIDUAL'
+  | 'OTHER'
+
+export interface ReservationEvent {
+  name: string
+  organizer_type: OrganizerType
+  organizer_type_label: string
+  organizer_type_other: string | null
+  organization_name: string | null
+  contact_name: string | null
+  contact_phone: string | null
+}
+
 export interface Reservation {
   id: string
   status: string
@@ -108,6 +139,8 @@ export interface Reservation {
     amount_due_fcfa: number
   } & PriceView
   occupants: { id: string; name: string; is_primary: boolean }[] | null
+  /** D-072 : réservation d'une salle de conférence ; `null` pour une chambre. */
+  event?: ReservationEvent | null
   notes: string | null
   checked_in_at: string | null
   checked_out_at: string | null
@@ -340,7 +373,16 @@ export interface InvoiceSnapshot {
     email: string | null
     address: string | null
   } | null
-  room: { number: string; type: string | null } | null
+  /** `kind` absent des factures émises avant D-072 : c'était une chambre. */
+  room: { number: string; type: string | null; kind?: RoomKind } | null
+  /** D-072 : salle de conférence ; absent ou `null` pour une chambre. */
+  event?: {
+    name: string
+    organizer: string
+    organization_name: string | null
+    contact_name: string | null
+    contact_phone: string | null
+  } | null
   stay: StayPeriod & { reservation_uuid?: string; period_is_estimated?: boolean }
   lines: {
     kind: string

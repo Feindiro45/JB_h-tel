@@ -286,6 +286,59 @@ describe('Administration', () => {
     expect(screen.getByText('Aucune règle ne correspond')).toBeInTheDocument()
   })
 
+  it('modifie les informations de l’établissement imprimées sur les factures (D-073)', async () => {
+    const setting = (key: string, label: string, value: string | null) => ({
+      key,
+      label,
+      value,
+      type: 'text',
+      editable: true,
+      status: 'VALIDATED',
+      help: 'Imprimé sur les factures et reçus.',
+      reference: 'D-073',
+    })
+    const calls = mockApi({
+      ...defaults,
+      'GET /api/v1/settings': {
+        body: {
+          data: [
+            setting('hotel.city', 'Ville', 'Bambari, République centrafricaine'),
+            setting('hotel.email', 'E-mail de l’hôtel', 'reception@jb-hotel.com'),
+            setting('hotel.phone', 'Téléphone de l’hôtel', null),
+          ],
+        },
+      },
+      'PUT /api/v1/settings/hotel.email': { body: { data: { key: 'hotel.email', value: null } } },
+    })
+    renderApp('/admin/parametres')
+    const user = userEvent.setup()
+
+    const group = await screen.findByRole('region', { name: 'Établissement' })
+    expect(within(group).getByRole('article', { name: 'Ville' })).toHaveTextContent(
+      'Bambari, République centrafricaine',
+    )
+    expect(within(group).getByRole('article', { name: 'Téléphone de l’hôtel' })).toHaveTextContent(
+      'Non imprimé',
+    )
+
+    await user.click(
+      within(within(group).getByRole('article', { name: 'E-mail de l’hôtel' })).getByRole(
+        'button',
+        { name: 'Modifier' },
+      ),
+    )
+    const dialog = screen.getByRole('dialog', { name: 'E-mail de l’hôtel' })
+    const field = within(dialog).getByLabelText('E-mail de l’hôtel')
+    expect(field).toHaveAttribute('type', 'email')
+    expect(field).not.toBeRequired()
+    await user.clear(field)
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    // Une information facultative vidée n'est plus imprimée : la valeur envoyée est « null ».
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ value: null }),
+    )
+  })
+
   it('affiche le détail avant et après dans le journal d’audit', async () => {
     mockApi({
       ...defaults,

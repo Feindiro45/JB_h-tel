@@ -213,7 +213,10 @@ export function ReservationTable({ rows }: { rows: Reservation[] }) {
                   </span>
                   <div>
                     <strong>{row.customer?.full_name ?? '—'}</strong>
-                    <small>{row.customer?.phone ?? ''}</small>
+                    <small>
+                      {/* D-072 : réservation d'une salle de conférence. */}
+                      {row.event ? `Événement : ${row.event.name}` : (row.customer?.phone ?? '')}
+                    </small>
                   </div>
                 </div>
               </td>

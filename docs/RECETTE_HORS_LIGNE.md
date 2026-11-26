@@ -46,7 +46,7 @@ Pour essayer soi-même sur ce PC : `npm run hors-ligne` (dossier `frontend`), pu
 | Réservation concurrente dans le cloud : conflit affiché, rien d’écrasé | Recette de production `e2e-offline/conflict.spec.ts` : deux postes, refus du serveur avec sa cause, client créé gardé, refus examiné par l’administrateur | ✅ |
 | Tarif modifié pendant une coupure : la facture historique garde son prix | Serveur `InvoiceTest::test_rate_change_never_alters_an_issued_invoice` ; réservation faite hors ligne au tarif de ce moment (N-09, `OfflineModuleTest`) | ✅ |
 | Solde après paiement partiel, réimpression fidèle | `ReceiptTicketPage.test.tsx` (« reste dû », jamais « payé ») ; recette du ticket 80 mm | ✅ |
-| Session hors ligne, droits et messages en français | Verrou après inactivité, mot de passe vérifié sur le poste, opération non permise refusée en français (`OfflinePages.test.tsx`, `outbox.test.ts`) ; aucune durée maximale (décision du 22/11/2026) | ✅ |
+| Session hors ligne, droits et messages en français | Mise en veille après le délai réglé dans Paramètres (D-074), mot de passe vérifié sur le poste, opération non permise refusée en français (`OfflinePages.test.tsx`, `outbox.test.ts`) ; aucune durée maximale (décision du 22/11/2026) | ✅ |
 | Navigateur cible, imprimante 80 mm réelle, stockage, mises à jour, restauration après perte du poste | Restauration : `backup.test.ts` et écran de restauration ; stockage protégé affiché ; le reste sur le matériel de l’hôtel | 🏨 partie 3 |
 
 ### 2.2 Ticket thermique 80 mm (`new/JB_Hotel_Facture_Thermique_80mm`, § 12)
@@ -63,6 +63,10 @@ Pour essayer soi-même sur ce PC : `npm run hors-ligne` (dossier `frontend`), pu
 | 8 | Papier 58 mm par erreur | Choix « Largeur du papier » 80/58 mm, mémorisé sur le poste ; recette `thermal-ticket.spec.ts` | ✅ (🏨 rouleau réel) |
 | 9 | Aucune donnée bancaire sensible imprimée ni gardée | Aucun champ de carte bancaire ; le champ « Référence » rappelle de n’y mettre ni numéro de carte ni code ; la copie du poste ne contient que des données de gestion | ✅ (voir limite 4.5) |
 | 10 | Effacement du navigateur : restauration, limites | Export chiffré et restauration (`backup.test.ts`, écran Synchronisation) ; limite : une opération jamais exportée ni envoyée est perdue | ✅ (🏨 exercice partie 3) |
+| 11 | D-071 : réservation hors ligne en assistant, arrivée du jour proposée d’elle-même | `OfflineReservation.test.tsx` ✅ ; recette de production `e2e-offline/offline.spec.ts` (assistant complet, fenêtre d’arrivée sur la réservation locale) : à rejouer | [~] |
+| 14 | D-074 : mise en veille hors ligne après le délai réglé, mot de passe vérifié sur le poste | `OfflinePages.test.tsx` « se met en veille après 15 min sans action hors ligne » ; `StandbyScreen.test.tsx` (repli sur le poste quand le serveur ne répond pas, délai reçu avec les règles du poste) | ✅ |
+| 13 | D-072 : réservation de salle de conférence hors ligne : même accord salle / événement que le serveur, événement gardé sur la réservation provisoire et dans l’opération | `organizers.test.ts` (règle et événement provisoire) ; serveur `ConferenceRoomTest` (revérifié au rejeu). Parcours complet sans réseau : à faire à la recette de l’hôtel | ✅ (🏨 parcours réel) |
+| 12 | D-071 : départ hors ligne avec solde impayé : motif exigé, gardé dans l’opération, revérifié par le serveur | `ReservationDetailPage.test.tsx` « hors ligne, le départ non soldé est gardé avec son motif » ; serveur `LifecycleTest` (409 `checkout_unpaid_balance` sans motif, audit du solde et du motif) | ✅ |
 
 ### 2.3 Critères d’acceptation (§ 13)
 

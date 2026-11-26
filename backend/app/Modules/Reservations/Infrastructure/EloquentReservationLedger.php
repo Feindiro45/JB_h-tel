@@ -60,11 +60,12 @@ final class EloquentReservationLedger implements ReservationLedger
 
     public function invoiceData(int $reservationId): ?ReservationInvoiceData
     {
-        $reservation = Reservation::query()->find($reservationId);
+        $reservation = Reservation::query()->with('event')->find($reservationId);
         if ($reservation === null) {
             return null;
         }
         $discount = $reservation->discount();
+        $event = $reservation->event;
 
         return new ReservationInvoiceData(
             id: $reservation->id,
@@ -90,6 +91,13 @@ final class EloquentReservationLedger implements ReservationLedger
             discountFcfa: $reservation->discount_fcfa,
             netFcfa: $reservation->net_fcfa,
             lines: self::lines($reservation),
+            event: $event === null ? null : [
+                'name' => $event->event_name,
+                'organizer' => $event->toData()->organizerLabel(),
+                'organization_name' => $event->organization_name,
+                'contact_name' => $event->contact_name,
+                'contact_phone' => $event->contact_phone,
+            ],
         );
     }
 

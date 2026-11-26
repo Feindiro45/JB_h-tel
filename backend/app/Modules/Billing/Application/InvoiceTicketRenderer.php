@@ -30,7 +30,6 @@ final class InvoiceTicketRenderer
             'doc' => $invoice->snapshot_json,
             'status' => $invoice->status->value,
             'qr' => $this->verification->qrDataUri($invoice),
-            'verificationUrl' => $this->verification->url($invoice),
         ];
 
         return $this->render($data, $this->contentHeight($data))->output();

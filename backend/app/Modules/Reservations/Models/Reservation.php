@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -99,6 +100,12 @@ class Reservation extends Model
             'checked_out_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    /** @return HasOne<ReservationEvent, $this> Salle de conférence seulement (D-072). */
+    public function event(): HasOne
+    {
+        return $this->hasOne(ReservationEvent::class);
     }
 
     /** @return HasMany<ReservationOccupant, $this> */

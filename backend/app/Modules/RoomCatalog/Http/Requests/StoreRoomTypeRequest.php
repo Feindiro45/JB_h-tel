@@ -2,6 +2,7 @@
 
 namespace App\Modules\RoomCatalog\Http\Requests;
 
+use App\Modules\RoomCatalog\Contracts\RoomKind;
 use App\Modules\RoomCatalog\DTO\RoomTypeData;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,6 +22,8 @@ final class StoreRoomTypeRequest extends FormRequest
         return [
             'code' => ['required', 'string', 'regex:/^[A-Z0-9_]{2,30}$/', Rule::unique('room_types', 'code')],
             'label' => ['required', 'string', 'max:100'],
+            // D-072 : chambre par défaut, ou salle de conférence.
+            'kind' => ['sometimes', Rule::enum(RoomKind::class)],
             'description' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -28,7 +31,7 @@ final class StoreRoomTypeRequest extends FormRequest
     /** @return array<string, string> */
     public function attributes(): array
     {
-        return ['code' => 'code', 'label' => 'libellé', 'description' => 'description'];
+        return ['code' => 'code', 'label' => 'libellé', 'kind' => 'nature', 'description' => 'description'];
     }
 
     /** @return array<string, string> */
@@ -44,6 +47,7 @@ final class StoreRoomTypeRequest extends FormRequest
             label: $this->string('label')->trim()->toString(),
             description: $this->filled('description') ? $this->string('description')->trim()->toString() : null,
             descriptionProvided: true,
+            kind: $this->enum('kind', RoomKind::class) ?? RoomKind::Room,
         );
     }
 }

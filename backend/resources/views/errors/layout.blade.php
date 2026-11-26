@@ -4,9 +4,11 @@
      * toute page web. Message en français, aucun détail technique, même identité que la page de
      * vérification. Les erreurs de l'API restent au format JSON (ApiExceptionRenderer).
      */
-    $hotel = (string) config('jbhotel.hotel.name', 'JB Hôtel');
-    $city = (string) config('jbhotel.hotel.city', 'Bangui, République centrafricaine');
-    $contact = array_filter([config('jbhotel.hotel.phone'), config('jbhotel.hotel.email')]);
+    // D-073 : informations des Paramètres, ou du serveur si la base ne répond pas.
+    $identity = app(\App\Shared\Settings\HotelIdentity::class)->toArray();
+    $hotel = (string) $identity['name'];
+    $city = (string) ($identity['city'] ?? 'Bambari, République centrafricaine');
+    $contact = array_filter([$identity['phone'], $identity['email']]);
     $tone = $tone ?? 'warn';
 @endphp
 <!doctype html>

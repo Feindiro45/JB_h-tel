@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateTime, formatFcfa } from './format'
+import { formatDateTime, formatFcfa, initials } from './format'
 
 describe('formatFcfa', () => {
   it('sépare les milliers par une espace', () => {
@@ -17,5 +17,15 @@ describe('formatDateTime', () => {
   it('affiche la date en français dans le fuseau de l’hôtel', () => {
     // 2026-11-19 11:30 UTC = 12:30 à Bangui (UTC+1).
     expect(formatDateTime('2026-11-19T11:30:00Z', 'Africa/Bangui')).toBe('19 novembre 2026 à 12:30')
+  })
+})
+
+describe('initials', () => {
+  it('prend la première lettre des mots, sans ponctuation ni parenthèses', () => {
+    expect(initials('Awa Caissière')).toBe('AC')
+    expect(initials('Caissière (démo)')).toBe('CD')
+    expect(initials('  NGAÏKOSSET   Awa Marie ')).toBe('NA')
+    expect(initials('Élodie')).toBe('É')
+    expect(initials('(—)')).toBe('?')
   })
 })

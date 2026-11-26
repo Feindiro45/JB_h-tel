@@ -29,6 +29,8 @@ final readonly class ReservationRequestData
         /** N-09 : moment du tarif (opération faite hors ligne) ; `null` = maintenant. */
         public ?CarbonInterface $pricedAt = null,
         public ?int $expectedUnitPriceFcfa = null,
+        /** D-072 : salle de conférence ; `null` pour une chambre. */
+        public ?EventData $event = null,
     ) {}
 
     public function period(): BlockedPeriod

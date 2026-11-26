@@ -21,6 +21,7 @@ import { registerOfflineEssential } from '../../shared/offline/essentials'
 import { formatDateTime, formatFcfa } from '../../shared/utils/format'
 import { roomsQuery } from '../catalog'
 import { calendarDaysBetween } from './calendarDays'
+import { eventView, type EventInput } from './organizers'
 
 /**
  * Réservation sans réseau (lot 4, 4.5) : le poste calcule chambres libres, prix et conflits à
@@ -625,7 +626,13 @@ export function keptCustomer(client: QueryClient, id: string): Customer | undefi
 export function provisionalStay(
   client: QueryClient,
   localId: string,
-  input: BookingInput & { customer_id?: string | null; notes?: string | null; confirm?: boolean },
+  input: BookingInput & {
+    customer_id?: string | null
+    notes?: string | null
+    confirm?: boolean
+    /** D-072 : salle de conférence. */
+    event?: EventInput | null
+  },
   quote: Quote,
   createdAt: number,
 ): Reservation {
@@ -657,6 +664,7 @@ export function provisionalStay(
       name: occupant.name,
       is_primary: Boolean(occupant.is_primary),
     })),
+    event: input.event ? eventView(input.event) : null,
     notes: input.notes ?? null,
     checked_in_at: null,
     checked_out_at: null,

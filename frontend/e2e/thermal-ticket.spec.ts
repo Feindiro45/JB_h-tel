@@ -94,15 +94,25 @@ test('tickets 80 mm et 58 mm d’un reçu et d’une facture, imprimés sur une 
   await dialog.getByLabel('Nom', { exact: true }).fill('Ticket Thermique Avec Un Nom Assez Long')
   await dialog.getByLabel('Téléphone', { exact: true }).fill('+23672008888')
   await dialog.getByLabel('Titulaire du séjour').fill('Ticket Thermique')
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
   const room = dialog.getByLabel('Chambre', { exact: true })
   await expect(room.locator('option').filter({ hasText: 'E2E-902' })).toHaveCount(1)
   await room.selectOption(
     (await room.locator('option').filter({ hasText: 'E2E-902' }).getAttribute('value'))!,
   )
+  await expect(dialog.getByText('Total net')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
+  await dialog.getByLabel('Le client a vérifié ces informations et les confirme').check()
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
   await dialog.getByRole('radio', { name: 'Avance', exact: true }).check()
   await dialog.getByLabel('Montant de l’avance (FCFA)').fill('20000')
   await dialog.getByRole('button', { name: 'Créer la réservation' }).click()
   await expect(page).toHaveURL(/\/reservations\/[a-f0-9-]{36}$/)
+  // D-071 : l'arrivée est proposée d'elle-même ; ce scénario ne l'enregistre pas.
+  await page
+    .getByRole('dialog', { name: 'Enregistrer l’arrivée' })
+    .getByRole('button', { name: 'Annuler' })
+    .click()
   const reservationUrl = page.url()
   await expect(page.getByRole('link', { name: 'Ouvrir le ticket de facture' })).toBeVisible()
 
@@ -134,7 +144,8 @@ test('tickets 80 mm et 58 mm d’un reçu et d’une facture, imprimés sur une 
   await expect(
     invoice.getByRole('img', { name: 'QR code de vérification de la facture' }),
   ).toBeVisible()
-  await expect(invoice).toContainText('/verification/factures/')
+  // Seul le QR code reste sur le ticket, sans le lien écrit (demande du 25/11/2026).
+  await expect(invoice).not.toContainText('/verification/factures/')
   expect(await expectNothingOverflows(page)).toBeCloseTo((80 * 96) / 25.4, 0)
   await expectSingleStripPdf(page, 80, 'facture-80mm.pdf')
 

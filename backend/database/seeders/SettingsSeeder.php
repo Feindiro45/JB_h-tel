@@ -62,9 +62,9 @@ class SettingsSeeder extends Seeder
             'value' => ['payment.record', 'reservation.create', 'customer.create', 'reservation.confirm', 'reservation.check-in', 'reservation.check-out', 'reservation.extend', 'reservation.cancel', 'reservation.modify', 'reservation.occupants', 'invoice.issue'],
             'description' => 'PROVISOIRE (N-02, D-064) : opérations permises sans Internet, toutes par défaut.',
         ],
-        'offline.lock_after_minutes' => [
+        'security.idle_lock_minutes' => [
             'value' => 15,
-            'description' => 'PROVISOIRE (N-05, D-064) : verrouillage de l’écran après ce délai d’inactivité hors ligne.',
+            'description' => 'D-074 : mise en veille du logiciel après ce délai sans action, en ligne comme hors ligne.',
         ],
         'offline.backup_reminder_minutes' => [
             'value' => 60,
@@ -74,6 +74,15 @@ class SettingsSeeder extends Seeder
             'value' => 'LOC',
             'description' => 'PROVISOIRE (N-03, D-064) : préfixe des numéros provisoires (LOC-<poste>-<séquence>).',
         ],
+        // D-073 : informations de l'établissement. La migration 2026_11_25_110000 les crée avec les
+        // valeurs du serveur ; ces valeurs ne servent que si la table a été vidée.
+        'hotel.name' => ['value' => 'JB Hôtel', 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.city' => ['value' => 'Bambari, République centrafricaine', 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.address' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.phone' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.email' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.tax_id' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.trade_register' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
     ];
 
     public function run(): void

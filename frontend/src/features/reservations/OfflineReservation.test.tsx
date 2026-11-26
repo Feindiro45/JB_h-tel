@@ -8,6 +8,7 @@ import { saveQueryCache } from '../../shared/offline/persistence'
 import { rememberSession } from '../../shared/offline/session'
 import { addDays, todayIso } from '../../shared/utils/format'
 import { cashier, mockApi, renderApp } from '../../test/renderApp'
+import { finishReservationWizard, nextStep } from '../../test/reservationWizard'
 
 const USER = cashier()
 const ACTIVITY_KEY = 'jb-hotel.last-activity'
@@ -95,18 +96,22 @@ describe('Réservation hors ligne (lot 4, 4.5)', () => {
     await user.type(within(dialog).getByLabelText('Rechercher un client'), 'ngue')
     await user.click(await within(dialog).findByRole('button', { name: /NGUEMA Paul/ }))
     expect(within(dialog).getByLabelText('Titulaire du séjour')).toHaveValue('NGUEMA Paul')
+    await nextStep(user, dialog)
 
     // Chambre libre et prix calculés sur le poste.
     const room = within(dialog).getByLabelText('Chambre')
     await waitFor(() => expect(within(room).getAllByRole('option')).toHaveLength(2))
     await user.selectOptions(room, ROOM.id)
     expect(await within(dialog).findByText('50 000 FCFA')).toBeVisible()
-    await user.click(within(dialog).getByRole('button', { name: 'Créer la réservation' }))
+    await finishReservationWizard(user, dialog)
 
     expect(
       await screen.findByText(/Réservation gardée sur ce poste — envoyée au serveur/),
     ).toBeVisible()
     await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/reservations\/local-/))
+    // D-071 : le séjour commence aujourd'hui, la fenêtre d'arrivée s'ouvre d'elle-même.
+    const arrival = await screen.findByRole('dialog', { name: 'Enregistrer l’arrivée' })
+    await user.click(within(arrival).getByRole('button', { name: 'Annuler' }))
     expect(
       await screen.findByText('Gardée sur ce poste, pas encore reçue par le serveur.'),
     ).toBeVisible()

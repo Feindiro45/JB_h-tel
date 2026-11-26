@@ -23,6 +23,22 @@ const GROUPS: {
   tone: string
 }[] = [
   {
+    prefix: 'hotel',
+    title: 'Établissement',
+    description:
+      'Nom, ville, adresse, téléphone, e-mail et mentions imprimés en tête des factures et reçus (D-073). Une facture déjà émise garde les informations du jour de son émission.',
+    icon: 'rooms',
+    tone: 'blue',
+  },
+  {
+    prefix: 'security',
+    title: 'Veille et sécurité',
+    description:
+      'Délai sans action avant la mise en veille du logiciel, en ligne comme hors ligne : le mot de passe est alors demandé pour reprendre (D-074).',
+    icon: 'lock',
+    tone: 'violet',
+  },
+  {
     prefix: 'discounts',
     title: 'Remises',
     description: 'Plafonds et arrondis appliqués aux réductions.',
@@ -53,8 +69,7 @@ const GROUPS: {
   {
     prefix: 'offline',
     title: 'Hors ligne',
-    description:
-      'Opérations permises sans Internet, verrouillage, sauvegardes et numéros provisoires (D-064).',
+    description: 'Opérations permises sans Internet, sauvegardes et numéros provisoires (D-064).',
     icon: 'cloudOff',
     tone: 'slate',
   },
@@ -131,7 +146,8 @@ function displayValue(s: Setting): ReactNode {
       </span>
     )
   if (typeof s.value === 'boolean') return s.value ? 'Oui' : 'Non'
-  if (s.value === null || s.value === undefined) return 'Non défini'
+  if (s.value === null || s.value === undefined || s.value === '')
+    return s.key.startsWith('hotel.') ? 'Non imprimé' : 'Non défini'
   const text = s.options?.[String(s.value)] ?? String(s.value)
   return s.unit ? `${text} ${s.unit}` : text
 }
@@ -139,13 +155,23 @@ function displayValue(s: Setting): ReactNode {
 /** Taille de la valeur : grande pour un nombre court, normale pour une phrase ou une liste. */
 function valueKind(s: Setting): string {
   if (Array.isArray(s.value)) return 'list'
-  if (s.type === 'text' && !s.options) return 'code'
+  if (s.type === 'text' && !s.options && !s.key.startsWith('hotel.')) return 'code'
   if (typeof s.value === 'boolean') return s.value ? 'yes' : 'no'
   const text = String(displayValue(s))
   return text.length > 16 ? 'long' : 'short'
 }
 
 /** « 2026-11-20 09:15:00 » (heure de l'hôtel, renvoyée par le serveur) → « 20/11/2026 à 09:15 ». */
+/** Informations de l'établissement qui peuvent rester vides (D-073) : rien n'est alors imprimé. */
+const OPTIONAL_TEXT = new Set([
+  'hotel.address',
+  'hotel.phone',
+  'hotel.email',
+  'hotel.tax_id',
+  'hotel.trade_register',
+])
+const TEXT_INPUT_TYPES: Record<string, string> = { 'hotel.email': 'email', 'hotel.phone': 'tel' }
+
 function displayUpdatedAt(value: string): string {
   const [date = '', time = ''] = value.split(' ')
   const [y, m, d] = date.split('-')
@@ -410,7 +436,14 @@ export function SettingsPage() {
                     ],
                   }
                 : editing.type === 'text'
-                  ? { name: 'value', label: editing.label, required: true, hint: editing.help }
+                  ? {
+                      name: 'value',
+                      label: editing.label,
+                      required: !OPTIONAL_TEXT.has(editing.key),
+                      type: TEXT_INPUT_TYPES[editing.key],
+                      maxLength: 200,
+                      hint: editing.help,
+                    }
                   : {
                       name: 'value',
                       label: editing.label,
@@ -420,12 +453,18 @@ export function SettingsPage() {
                       max: editing.max ?? 100,
                     },
             ]}
-            initial={{ value: String(editing.value) }}
+            initial={{ value: editing.value === null ? '' : String(editing.value) }}
             transform={(v) =>
               editing.type === 'boolean'
                 ? { value: v.value === 'true' }
                 : editing.type === 'text'
-                  ? { value: v.value.trim() }
+                  ? // Une information facultative laissée vide n'est plus imprimée (D-073).
+                    {
+                      value:
+                        v.value.trim() === '' && OPTIONAL_TEXT.has(editing.key)
+                          ? null
+                          : v.value.trim(),
+                    }
                   : { value: Number(v.value) }
             }
             onClose={() => setEditing(null)}

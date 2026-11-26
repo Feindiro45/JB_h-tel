@@ -110,11 +110,13 @@ export function addDays(iso: string, days: number): string {
 }
 
 /** « Awa Ngaïkosset » → « AN » */
+/** Initiales d'un nom (avatar) : premières lettres des mots, sans ponctuation ni parenthèses. */
 export function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('')
-    .slice(0, 2)
+  return (
+    name
+      .split(/\s+/)
+      .map((word) => word.match(/\p{L}/u)?.[0]?.toUpperCase() ?? '')
+      .join('')
+      .slice(0, 2) || '?'
+  )
 }

@@ -18,6 +18,7 @@ use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Reservations\Models\ReservationExtension;
 use App\Modules\Reservations\Models\ReservationOccupant;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
+use App\Modules\RoomCatalog\Contracts\RoomSnapshot;
 use App\Shared\Contracts\AuditTrail;
 use App\Shared\Exceptions\BusinessRuleException;
 use App\Shared\Support\Format;
@@ -43,8 +44,10 @@ final class ReservationModificationService
     public function preview(Reservation $reservation, ModificationData $data, User $actor): ReservationQuote
     {
         $this->assertModifiable($reservation, $actor);
+        $room = $this->rooms->find($data->roomId) ?? throw ReservationQuoter::roomNotFound();
+        $this->assertSameKind($reservation, $room);
 
-        return $this->quoter->quote($this->request($reservation, $data), $actor, null, $reservation->id);
+        return $this->quoter->quote($this->request($reservation, $data), $actor, $room, $reservation->id);
     }
 
     public function modify(Reservation $reservation, ModificationData $data, User $actor): ExtensionOutcome
@@ -54,6 +57,7 @@ final class ReservationModificationService
             /** @var Reservation $reservation */
             $reservation = Reservation::query()->with('occupants')->lockForUpdate()->findOrFail($reservation->id);
             $invoiced = $this->assertModifiable($reservation, $actor);
+            $this->assertSameKind($reservation, $room);
 
             $quote = $this->quoter->quote($this->request($reservation, $data), $actor, $room, $reservation->id);
             ReservationBookingService::assertBookable($quote);
@@ -132,6 +136,26 @@ final class ReservationModificationService
         }
 
         return $invoiced;
+    }
+
+    /**
+     * D-072 : un événement reste dans une salle de conférence, un séjour dans une chambre (les
+     * informations demandées ne sont pas les mêmes). Pour changer de nature, annuler et recréer.
+     */
+    private function assertSameKind(Reservation $reservation, RoomSnapshot $newRoom): void
+    {
+        $current = $this->rooms->find($reservation->room_id);
+        if ($current !== null && $current->kind !== $newRoom->kind) {
+            throw new BusinessRuleException(
+                $current->isConference()
+                    ? 'Un événement ne peut pas être déplacé vers une chambre : choisissez une autre salle de conférence.'
+                    : 'Un séjour ne peut pas être déplacé vers une salle de conférence : choisissez une autre chambre.',
+                'Modification impossible',
+                409,
+                'room_kind_mismatch',
+                ['Pour changer de nature, annulez la réservation puis créez-en une nouvelle.'],
+            );
+        }
     }
 
     private function request(Reservation $reservation, ModificationData $data): ReservationRequestData

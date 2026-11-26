@@ -9,6 +9,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Reservations\Contracts\ReservationInvoiceData;
 use App\Modules\Reservations\Contracts\ReservationInvoiceLine;
 use App\Modules\RoomCatalog\Contracts\RoomSnapshot;
+use App\Shared\Settings\HotelIdentity;
 use Carbon\CarbonImmutable;
 
 /**
@@ -38,7 +39,9 @@ final class InvoiceSnapshotBuilder
                 'email' => $customer->email,
                 'address' => $customer->address,
             ],
-            'room' => $room === null ? null : ['number' => $room->number, 'type' => $room->roomTypeLabel],
+            'room' => $room === null ? null : ['number' => $room->number, 'type' => $room->roomTypeLabel, 'kind' => $room->kind->value],
+            // D-072 : salle de conférence ; absent (null) pour une chambre.
+            'event' => $reservation->event,
             'stay' => [
                 'reservation_uuid' => $reservation->uuid,
                 'start_date' => $reservation->startDate,
@@ -80,7 +83,9 @@ final class InvoiceSnapshotBuilder
      */
     private static function lines(ReservationInvoiceData $reservation, ?RoomSnapshot $room): array
     {
-        $base = 'chambre '.($room->number ?? '?').' ('.($room->roomTypeLabel ?? '').'), '.mb_strtolower($reservation->billingUnitLabel);
+        $conference = $room?->isConference() ?? false;
+        $base = ($conference ? 'salle ' : 'chambre ').($room->number ?? '?').' ('.($room->roomTypeLabel ?? '').'), '.mb_strtolower($reservation->billingUnitLabel)
+            .($conference && $reservation->event !== null ? ' — événement : '.$reservation->event['name'] : '');
         $lines = $reservation->lines !== [] ? $reservation->lines : [new ReservationInvoiceLine(
             ReservationInvoiceLine::STAY, $reservation->startDate, $reservation->startTime, $reservation->endDate,
             $reservation->endTime, $reservation->quantity, $reservation->unitPriceFcfa, $reservation->grossFcfa,
@@ -91,7 +96,7 @@ final class InvoiceSnapshotBuilder
             'kind' => $line->kind,
             'label' => $line->kind === ReservationInvoiceLine::EXTENSION
                 ? 'Prolongation '.self::period($line).' — '.$base
-                : 'Hébergement — '.$base.($detailed ? ' — séjour initial '.self::period($line) : ''),
+                : ($conference ? 'Location de salle — ' : 'Hébergement — ').$base.($detailed ? ' — '.($conference ? 'réservation initiale ' : 'séjour initial ').self::period($line) : ''),
             'billing_unit' => $reservation->billingUnit,
             'period' => ['from_date' => $line->fromDate, 'from_time' => $line->fromTime, 'to_date' => $line->toDate, 'to_time' => $line->toTime],
             'quantity' => $line->quantity,
@@ -114,9 +119,7 @@ final class InvoiceSnapshotBuilder
      */
     public static function hotel(): array
     {
-        /** @var array<string, string|null> $hotel */
-        $hotel = (array) config('jbhotel.hotel');
-
-        return $hotel;
+        // D-073 : valeurs des Paramètres (à défaut, celles du serveur), figées dans la facture.
+        return app(HotelIdentity::class)->toArray();
     }
 }

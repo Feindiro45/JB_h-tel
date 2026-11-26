@@ -58,12 +58,22 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await booking.getByLabel('Nom', { exact: true }).fill('Hors Ligne')
   await booking.getByLabel('Téléphone', { exact: true }).fill('+23672006666')
   await booking.getByLabel('Titulaire du séjour').fill('Hors Ligne')
+  await booking.getByRole('button', { name: 'Suivant' }).click()
   const room = booking.getByLabel('Chambre', { exact: true })
   await expect(room.locator('option')).not.toHaveCount(1)
   await room.selectOption({ index: 1 })
+  await expect(booking.getByText('Total net')).toBeVisible()
+  await booking.getByRole('button', { name: 'Suivant' }).click()
+  await booking.getByLabel('Le client a vérifié ces informations et les confirme').check()
+  await booking.getByRole('button', { name: 'Suivant' }).click()
   await booking.getByRole('radio', { name: 'Paiement différé', exact: true }).check()
   await booking.getByRole('button', { name: 'Créer la réservation' }).click()
   await expect(page).toHaveURL(/\/reservations\/[a-f0-9-]{36}$/)
+  // D-071 : l'arrivée du jour est proposée d'elle-même ; ce scénario ne l'enregistre pas.
+  await page
+    .getByRole('dialog', { name: 'Enregistrer l’arrivée' })
+    .getByRole('button', { name: 'Annuler' })
+    .click()
   const reservationUrl = page.url()
   await expect(page.getByRole('button', { name: 'Encaisser' })).toBeVisible()
   // La fiche et ses encaissements sont gardés sur le poste avant de quitter la page.
@@ -129,13 +139,22 @@ test('poste coupé du réseau : ouverture, consultation, historique, verrou et r
   await offlineBooking.getByLabel('Nom', { exact: true }).fill('Sans Reseau')
   await offlineBooking.getByLabel('Téléphone', { exact: true }).fill('+23672007777')
   await offlineBooking.getByLabel('Titulaire du séjour').fill('Sans Reseau')
+  await offlineBooking.getByRole('button', { name: 'Suivant' }).click()
   const offlineRoom = offlineBooking.getByLabel('Chambre', { exact: true })
   await expect(offlineRoom.locator('option')).not.toHaveCount(1)
   await offlineRoom.selectOption({ index: 1 })
   await expect(offlineBooking.getByText('Total net')).toBeVisible()
+  await offlineBooking.getByRole('button', { name: 'Suivant' }).click()
+  await offlineBooking.getByLabel('Le client a vérifié ces informations et les confirme').check()
+  await offlineBooking.getByRole('button', { name: 'Suivant' }).click()
   await offlineBooking.getByRole('radio', { name: 'Paiement intégral', exact: true }).check()
   await offlineBooking.getByRole('button', { name: 'Créer la réservation' }).click()
   await expect(page).toHaveURL(/\/reservations\/local-[0-9a-f-]{36}$/)
+  // Hors ligne aussi, l'arrivée du jour est proposée d'elle-même (D-071).
+  await page
+    .getByRole('dialog', { name: 'Enregistrer l’arrivée' })
+    .getByRole('button', { name: 'Annuler' })
+    .click()
   await expect(
     page.getByText('Gardée sur ce poste, pas encore reçue par le serveur.'),
   ).toBeVisible()
