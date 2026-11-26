@@ -8,6 +8,8 @@ use App\Modules\Notifications\NotificationsServiceProvider;
 use App\Modules\Reservations\ReservationsServiceProvider;
 use App\Modules\RoomCatalog\RoomCatalogServiceProvider;
 use App\Modules\Settings\SettingsServiceProvider;
+use App\Modules\Sync\SyncServiceProvider;
+use App\Modules\Workstations\WorkstationsServiceProvider;
 use App\Providers\AppServiceProvider;
 
 return [
@@ -20,4 +22,6 @@ return [
     BillingServiceProvider::class,
     NotificationsServiceProvider::class,
     SettingsServiceProvider::class,
+    WorkstationsServiceProvider::class,
+    SyncServiceProvider::class,
 ];

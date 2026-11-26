@@ -12,6 +12,7 @@ use App\Modules\Reservations\Domain\ReservationStatus;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Modules\RoomCatalog\Contracts\RoomSnapshot;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 /**
  * Représentation JSON des réservations. Les chambres et les clients sont lus par les contrats
@@ -31,6 +32,8 @@ final class ReservationPresenter
     public function many(iterable $reservations): array
     {
         $list = is_array($reservations) ? $reservations : iterator_to_array($reservations, false);
+        // D-072 : informations des salles de conférence, en une requête pour toute la liste.
+        (new EloquentCollection($list))->loadMissing('event');
         $customers = $this->customers->findMany(array_values(array_unique(array_map(fn (Reservation $r) => $r->customer_id, $list))));
         $rooms = [];
         foreach ($list as $reservation) {
@@ -83,6 +86,7 @@ final class ReservationPresenter
             'occupants' => $reservation->relationLoaded('occupants')
                 ? $reservation->occupants->map(fn ($o) => ['id' => $o->uuid, 'name' => $o->name, 'is_primary' => $o->is_primary])->values()->all()
                 : null,
+            'event' => $reservation->relationLoaded('event') ? $reservation->event?->toPublicArray() : null,
             'notes' => $reservation->notes,
             'checked_in_at' => $reservation->checked_in_at?->toIso8601String(),
             'checked_out_at' => $reservation->checked_out_at?->toIso8601String(),
@@ -139,7 +143,7 @@ final class ReservationPresenter
         return [
             'id' => $room->uuid,
             'number' => $room->number,
-            'room_type' => ['code' => $room->roomTypeCode, 'label' => $room->roomTypeLabel],
+            'room_type' => ['code' => $room->roomTypeCode, 'label' => $room->roomTypeLabel, 'kind' => $room->kind->value],
             'capacity' => $room->capacity,
             'under_maintenance' => $room->underMaintenance,
         ];

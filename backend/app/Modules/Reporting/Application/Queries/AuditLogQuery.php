@@ -2,8 +2,8 @@
 
 namespace App\Modules\Reporting\Application\Queries;
 
+use App\Modules\Reporting\DTO\AuditFilters;
 use App\Shared\Audit\AuditLog;
-use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -103,16 +103,15 @@ final class AuditLogQuery
     ];
 
     /**
-     * @param  array{domain?: string, actor_id?: int, from?: CarbonImmutable, until?: CarbonImmutable}  $filters
      * @return array{rows: list<array<string, mixed>>, page: LengthAwarePaginator<int, AuditLog>}
      */
-    public function page(array $filters, int $perPage = 50): array
+    public function page(AuditFilters $filters, int $perPage = 50): array
     {
         $page = AuditLog::query()->with('actor')
-            ->when(isset($filters['domain']), fn (Builder $q) => $q->where('action', 'like', $filters['domain'].'.%'))
-            ->when(isset($filters['actor_id']), fn (Builder $q) => $q->where('actor_id', $filters['actor_id']))
-            ->when(isset($filters['from']), fn (Builder $q) => $q->where('occurred_at', '>=', $filters['from']))
-            ->when(isset($filters['until']), fn (Builder $q) => $q->where('occurred_at', '<', $filters['until']))
+            ->when($filters->domain !== null, fn (Builder $q) => $q->where('action', 'like', $filters->domain.'.%'))
+            ->when($filters->actorId !== null, fn (Builder $q) => $q->where('actor_id', $filters->actorId))
+            ->when($filters->from !== null, fn (Builder $q) => $q->where('occurred_at', '>=', $filters->from))
+            ->when($filters->until !== null, fn (Builder $q) => $q->where('occurred_at', '<', $filters->until))
             ->orderByDesc('occurred_at')->orderByDesc('id')
             ->paginate($perPage);
 

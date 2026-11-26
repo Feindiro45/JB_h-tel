@@ -451,7 +451,6 @@ small,
 
 .metric,
 .panel,
-.paper,
 .card {
   border-radius: var(--radius);
   background: #fff;
@@ -1298,6 +1297,12 @@ fieldset legend {
   bottom: 0;
   background: #fff;
 }
+/* Action d'un assistant (« Retour ») poussée à gauche des boutons de fermeture et de validation. */
+.dialog-foot__start {
+  margin-right: auto;
+  display: flex;
+  gap: 8px;
+}
 
 /* ---------- Notifications brèves ---------- */
 .toast {
@@ -1392,52 +1397,6 @@ fieldset legend {
 }
 
 /* ---------- Documents ---------- */
-.paper {
-  max-width: 790px;
-  margin: 0 auto;
-  padding: clamp(22px, 5vw, 55px);
-}
-
-.paper header,
-.paper-client {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 15px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 15px;
-  margin-bottom: 15px;
-}
-
-.paper header > div {
-  display: grid;
-  gap: 4px;
-}
-
-.paper header h2 {
-  margin-top: 7px;
-  font-size: 1.5rem;
-}
-
-.paper header p,
-.paper footer {
-  color: var(--muted);
-  font-size: 0.79rem;
-}
-
-.paper footer {
-  border-top: 1px solid var(--line);
-  margin-top: 22px;
-  padding-top: 12px;
-}
-
-.paper-total {
-  display: grid;
-  gap: 10px;
-  margin: 20px 0 25px auto;
-  max-width: 280px;
-}
-
 .compact-actions {
   white-space: nowrap;
 }
@@ -1610,17 +1569,6 @@ fieldset legend {
     display: none !important;
   }
 
-  /* Un document imprimé (reçu) occupe seul la page A4. */
-  .print-only-paper .page-heading {
-    display: none;
-  }
-
-  .print-only-paper .paper {
-    max-width: none;
-    padding: 0;
-    border: 0;
-  }
-
   @page {
     size: A4;
     margin: 16mm;
@@ -1631,7 +1579,6 @@ fieldset legend {
   }
 
   .panel,
-  .paper,
   .metric {
     box-shadow: none;
   }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Billing;
 
+use App\Modules\Billing\Application\InvoiceTicketRenderer;
 use App\Modules\Billing\Models\Invoice;
 use App\Shared\Audit\AuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -102,9 +103,9 @@ class InvoiceVerificationTest extends TestCase
             ->assertJsonPath('code', 'document_not_found');
     }
 
-    public function test_pdf_embeds_the_qr_code_and_the_code_is_never_audited(): void
+    public function test_ticket_embeds_the_qr_code_and_the_code_is_never_audited(): void
     {
-        $pdf = (string) $this->actingAs($this->cashier)->get("/api/v1/invoices/{$this->invoice->uuid}/pdf")->assertOk()->getContent();
+        $pdf = $this->app->make(InvoiceTicketRenderer::class)->bytes($this->invoice);
 
         $this->assertStringContainsString('/Subtype /Image', $pdf);
         $this->assertStringNotContainsString($this->invoice->verification_code, (string) json_encode(AuditLog::query()->get()->toArray()));

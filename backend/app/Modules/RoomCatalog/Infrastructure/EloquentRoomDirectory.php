@@ -63,6 +63,7 @@ final class EloquentRoomDirectory implements RoomDirectory
             roomTypeLabel: $room->roomType->label,
             capacity: $room->capacity,
             underMaintenance: $room->isUnderMaintenance(),
+            kind: $room->roomType->kind,
         );
     }
 }

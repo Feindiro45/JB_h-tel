@@ -1,3 +1,4 @@
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
@@ -52,10 +53,22 @@ export function RoomsPage() {
       hint: 'Majuscules, chiffres ou « _ », 2 à 30 caractères (ex. VIP). Il ne pourra plus être modifié.',
     },
     { name: 'label', label: 'Libellé', required: true, maxLength: 100 },
+    {
+      name: 'kind',
+      label: 'Nature',
+      required: true,
+      options: [
+        { value: 'ROOM', label: 'Chambre' },
+        { value: 'CONFERENCE', label: 'Salle de conférence' },
+      ],
+      hint: 'Une salle de conférence se réserve pour un événement, sans occupants (D-072). La nature ne pourra plus être modifiée.',
+    },
     { name: 'description', label: 'Description', type: 'textarea', maxLength: 2000 },
   ]
-  // Le code d'une catégorie existante est figé côté serveur (`prohibited`) : on ne le renvoie pas.
-  const typeEditFields = typeFields.filter((field) => field.name !== 'code')
+  // Le code et la nature d'une catégorie existante sont figés côté serveur (`prohibited`).
+  const typeEditFields = typeFields.filter(
+    (field) => field.name !== 'code' && field.name !== 'kind',
+  )
   const roomFields: EditField[] = [
     { name: 'number', label: 'Numéro', required: true, pattern: '[A-Za-z0-9-]{1,30}' },
     {
@@ -64,7 +77,15 @@ export function RoomsPage() {
       required: true,
       options: (types.data ?? []).map((t) => ({ value: t.id, label: t.label })),
     },
-    { name: 'capacity', label: 'Capacité', type: 'number', min: 1, max: 50, required: true },
+    {
+      name: 'capacity',
+      label: 'Capacité',
+      type: 'number',
+      min: 1,
+      max: 1000,
+      required: true,
+      hint: 'Chambre : 50 personnes au plus. Salle de conférence : 1 000 places au plus.',
+    },
     { name: 'notes', label: 'Notes', type: 'textarea', maxLength: 2000 },
   ]
   return (
@@ -75,6 +96,7 @@ export function RoomsPage() {
         title="Chambres et catégories"
         actions={
           <>
+            <ExportButton path="/api/v1/room-catalog/export" module="chambres-tarifs" />
             <button className="secondary" onClick={() => setDialog({ kind: 'type' })}>
               <Icon name="plus" size={17} />
               <span className="sr-only">+</span> Catégorie
@@ -246,6 +268,7 @@ export function RoomsPage() {
                   <tr>
                     <th>Code</th>
                     <th>Libellé</th>
+                    <th>Nature</th>
                     <th>Chambres</th>
                     <th>Action</th>
                   </tr>
@@ -255,6 +278,7 @@ export function RoomsPage() {
                     <tr key={t.id}>
                       <td>{t.code}</td>
                       <td>{t.label}</td>
+                      <td>{t.kind_label ?? 'Chambre'}</td>
                       <td>{t.rooms_count ?? 0}</td>
                       <td>
                         <button
@@ -297,7 +321,7 @@ export function RoomsPage() {
               : dialog.kind === 'type'
                 ? dialog.category
                   ? `Catégorie ${dialog.category.code}`
-                  : 'Nouvelle catégorie de chambre'
+                  : 'Nouvelle catégorie'
                 : dialog.room
                   ? `Chambre ${dialog.room.number}`
                   : 'Nouvelle chambre'
@@ -359,7 +383,9 @@ export function RoomsPage() {
                       capacity: String(dialog.room.capacity),
                       notes: dialog.room.notes ?? '',
                     }
-                  : { capacity: '2' }
+                  : dialog.kind === 'type'
+                    ? { kind: 'ROOM' }
+                    : { capacity: '2' }
           }
           transform={(v) =>
             dialog.kind === 'room'

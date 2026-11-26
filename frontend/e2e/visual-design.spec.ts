@@ -12,7 +12,8 @@ const { password } = JSON.parse(
 test('charte du contenu sur toutes les pages, aside conservé et adaptation mobile', async ({
   page,
 }) => {
-  test.setTimeout(180_000)
+  // 20 écrans contrôlés, chacun avec un audit Axe, sur un serveur PHP à un seul processus.
+  test.setTimeout(240_000)
   await page.setViewportSize({ width: 1752, height: 1000 })
   await page.goto('/connexion')
   await page.screenshot({ path: 'test-results/design-connexion.png', fullPage: true })
@@ -38,6 +39,8 @@ test('charte du contenu sur toutes les pages, aside conservé et adaptation mobi
     ['/admin/parametres', 'parametres'],
     ['/admin/audit', 'audit'],
     ['/admin/etat', 'etat'],
+    ['/admin/postes', 'postes'],
+    ['/synchronisation', 'synchronisation'],
   ]
   const payments = await page.request.get('http://localhost:8011/api/v1/payments', {
     headers: { Origin: 'http://localhost:5174', Referer: 'http://localhost:5174/' },
@@ -49,7 +52,6 @@ test('charte du contenu sur toutes les pages, aside conservé et adaptation mobi
     screens.push(
       [`/reservations/${payment.reservation.id}`, 'fiche-reservation'],
       [`/clients/${payment.customer.id}`, 'fiche-client'],
-      [`/documents/recus/${payment.id}`, 'fiche-recu'],
     )
   }
   for (const [path, name] of screens) {

@@ -21,7 +21,7 @@ class InvoiceListTest extends TestCase
     public function test_lists_invoices_and_credit_notes_with_totals(): void
     {
         $first = $this->bookOk(); // 101 VIP, 50 000
-        $second = $this->bookOk(['room_id' => $this->room102->uuid]); // 102 Standard, 30 000
+        $second = $this->bookLegacyUninvoiced(['room_id' => $this->room102->uuid]); // Document émis le lendemain (ancienne réservation).
         $invoice = $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$first}/invoices")->assertCreated()->json('data');
         $this->travelTo(CarbonImmutable::parse('2026-12-02 11:00', 'Africa/Bangui'));
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$second}/invoices")->assertCreated();

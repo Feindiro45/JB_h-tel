@@ -23,10 +23,21 @@ export interface CurrentUser {
   last_login_at: string | null
 }
 
+/** D-072 : chambre d'hébergement ou salle de conférence (choisie à la création de la catégorie). */
+export type RoomKind = 'ROOM' | 'CONFERENCE'
+
+/** Vrai pour une salle de conférence ; une nature absente (ancienne copie locale) est une chambre. */
+export function isConferenceRoom(room: { room_type?: { kind?: RoomKind } } | null | undefined) {
+  return room?.room_type?.kind === 'CONFERENCE'
+}
+
 export interface RoomType {
   id: string
   code: string
   label: string
+  /** Absente d'une copie locale gardée avant D-072 : c'est alors une chambre. */
+  kind?: RoomKind
+  kind_label?: string
   description: string | null
   rooms_count?: number
 }
@@ -45,7 +56,7 @@ export interface Room {
 export interface RoomBrief {
   id: string
   number: string
-  room_type: { code: string; label: string }
+  room_type: { code: string; label: string; kind?: RoomKind }
   capacity: number
   under_maintenance: boolean
 }
@@ -88,6 +99,26 @@ export interface ReservationBrief extends BlockedPeriodView {
   status_label: string
 }
 
+/** Type d'occupant d'une salle de conférence (D-072, liste validée par l'utilisateur). */
+export type OrganizerType =
+  | 'NGO'
+  | 'INTERNATIONAL_ORGANIZATION'
+  | 'COMPANY'
+  | 'PUBLIC_ADMINISTRATION'
+  | 'ASSOCIATION'
+  | 'INDIVIDUAL'
+  | 'OTHER'
+
+export interface ReservationEvent {
+  name: string
+  organizer_type: OrganizerType
+  organizer_type_label: string
+  organizer_type_other: string | null
+  organization_name: string | null
+  contact_name: string | null
+  contact_phone: string | null
+}
+
 export interface Reservation {
   id: string
   status: string
@@ -108,6 +139,8 @@ export interface Reservation {
     amount_due_fcfa: number
   } & PriceView
   occupants: { id: string; name: string; is_primary: boolean }[] | null
+  /** D-072 : réservation d'une salle de conférence ; `null` pour une chambre. */
+  event?: ReservationEvent | null
   notes: string | null
   checked_in_at: string | null
   checked_out_at: string | null
@@ -295,8 +328,18 @@ export interface CashJournal {
   movements: CashMovement[]
 }
 
+/** Période d'un séjour telle que réservée (heures facultatives). */
+export interface StayPeriod {
+  start_date: string
+  start_time: string | null
+  end_date: string
+  end_time: string | null
+}
+
 export interface Receipt extends Payment {
   reservation: { id: string; status_label: string }
+  /** Période du séjour, imprimée sur le ticket 80 mm (D-061). */
+  stay: (StayPeriod & { billing_unit_label: string; quantity: number }) | null
   customer: { id: string; full_name: string } | null
   room: { id: string; number: string; room_type: string } | null
   summary: AccountSummary
@@ -315,6 +358,69 @@ export interface RefundDue extends DashboardRow {
   phone: string | null
   paid_net_fcfa: number
   to_refund_fcfa: number
+}
+
+/**
+ * Instantané figé d'une facture ou d'un avoir (`snapshot_json`, InvoiceSnapshotBuilder) : seule
+ * source des montants réimprimés, jamais les tarifs actuels.
+ */
+export interface InvoiceSnapshot {
+  document: { type: 'INVOICE' | 'CREDIT_NOTE'; label: string; number: string; issued_at: string }
+  hotel: Record<string, string | null>
+  customer: {
+    full_name: string
+    phone: string | null
+    email: string | null
+    address: string | null
+  } | null
+  /** `kind` absent des factures émises avant D-072 : c'était une chambre. */
+  room: { number: string; type: string | null; kind?: RoomKind } | null
+  /** D-072 : salle de conférence ; absent ou `null` pour une chambre. */
+  event?: {
+    name: string
+    organizer: string
+    organization_name: string | null
+    contact_name: string | null
+    contact_phone: string | null
+  } | null
+  stay: StayPeriod & { reservation_uuid?: string; period_is_estimated?: boolean }
+  lines: {
+    kind: string
+    label: string
+    billing_unit: string
+    quantity: number
+    unit_price_fcfa: number
+    amount_fcfa: number
+  }[]
+  totals: {
+    gross_fcfa: number
+    discount_label: string | null
+    discount_reason: string | null
+    discount_fcfa: number
+    net_fcfa: number
+  }
+  payments: {
+    lines: {
+      receipt_number: string
+      received_at: string
+      method: string
+      amount_fcfa: number
+      refunded_fcfa: number
+    }[]
+    paid_fcfa: number
+    refunded_fcfa: number
+    net_paid_fcfa: number
+    balance_fcfa: number
+  }
+  issued_by: { name: string } | null
+  credit?: { credited_invoice_number: string; credited_invoice_issued_at: string; reason: string }
+  replaces?: { invoice_number: string; reason?: string | null }
+}
+
+export interface InvoiceDetail extends InvoiceSummary {
+  snapshot: InvoiceSnapshot
+  /** QR code de vérification (PNG en `data:`), imprimé sur le ticket (D-065). */
+  verification_qr?: string
 }
 
 export interface InvoiceRow extends InvoiceSummary {

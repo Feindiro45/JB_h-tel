@@ -7,6 +7,7 @@ use App\Modules\Billing\Domain\InvoiceStatus;
 use App\Modules\Billing\Domain\InvoiceType;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Identity\Models\User;
+use App\Modules\Reservations\Contracts\InvoiceReference;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Shared\Exceptions\BusinessRuleException;
@@ -30,6 +31,20 @@ final class BillingStayInvoicing implements StayInvoicing
         $active = $this->active($reservationId);
 
         return $active === null ? null : $this->invoices->credit($active, $reason, $actor)->invoice_number;
+    }
+
+    public function issueOnConfirmation(int $reservationId, User $actor): void
+    {
+        $due = $this->reservations->find($reservationId)
+            ?? throw new BusinessRuleException("La réservation n'existe pas.", 'Élément introuvable', 404, 'reservation_not_found');
+        $this->invoices->ensureIssued($due, $actor);
+    }
+
+    public function activeInvoiceReference(int $reservationId): ?InvoiceReference
+    {
+        $invoice = $this->active($reservationId);
+
+        return $invoice === null ? null : new InvoiceReference($invoice->uuid, $invoice->invoice_number);
     }
 
     public function replaceAfterExtension(int $reservationId, User $actor): ?string

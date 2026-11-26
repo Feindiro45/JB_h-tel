@@ -1,7 +1,9 @@
 # Secrets et configuration locale (chaque application a aussi son propre .gitignore)
 .env
 .env.*
+.env*
 !.env.example
+!.env.production.example
 *.local
 
 # Systèmes et éditeurs
@@ -21,6 +23,28 @@ backups/
 # Prototype de référence fourni (design), conservé hors du dépôt
 /JB_Hotel_Prototype/
 
-# Rendus de contrôle et exemple PDF local
+# Rendus de contrôle, journaux, diagnostics et livraisons construites (output/lws contient des
+# copies du backend avec vendor), exemple PDF local
 /tmp/pdfs/
-/output/pdf/
+/output/
+
+# Copie de travail locale du backend, avec un vrai .env : jamais versionnée
+/Nouveau dossier/
+
+# Archives construites à la main (reproduites par deploiement/preparer.py et infra/build_lws.py)
+/backend/backend.zip
+/frontend/dist.zip
+/deploiement/backend.zip
+/deploiement/frontend.zip
+
+# Dossier de deploiement : les artefacts construits se reproduisent avec deploiement/preparer.py
+# (le script, les modeles et le README restent versionnes).
+/deploiement/frontend/
+/deploiement/backend/
+/deploiement/archives/
+/deploiement/MANIFESTE.json
+/deploiement/SHA256SUMS.txt
+# Canal des mises à jour du logiciel Windows (installateur ≈ 122 Mo), reproduit par
+# « npm run update-channel » dans electron/.
+/deploiement/desktop/
+__pycache__/

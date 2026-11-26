@@ -21,13 +21,27 @@ class SettingsTest extends TestCase
     {
         $settings = $this->actingAs($this->admin)->getJson('/api/v1/settings')->assertOk()->collect('data')->keyBy('key');
 
-        $this->assertCount(9, $settings);
+        // 15 règles, plus les 7 informations de l'établissement (D-073, HotelIdentityTest).
+        $this->assertCount(22, $settings);
         $cap = $settings->get('discounts.cashier_max_percent');
         $this->assertSame(10, data_get($cap, 'value'));
         $this->assertSame(['PROVISIONAL', true, '%'], [data_get($cap, 'status'), data_get($cap, 'editable'), data_get($cap, 'unit')]);
         $halfDay = $settings->get('billing.half_day_max_hours');
         $this->assertSame(['VALIDATED', false, 12], [data_get($halfDay, 'status'), data_get($halfDay, 'editable'), data_get($halfDay, 'value')]);
         $this->assertFalse(data_get($settings->get('billing.allow_overpayment'), 'editable'));
+        // Postes de caisse (D-062) : règle désactivée par défaut, délai de 5 minutes, tous deux modifiables.
+        $enforce = $settings->get('workstations.enforce_main_post');
+        $this->assertSame(['PROVISIONAL', true, false, 'boolean'], [data_get($enforce, 'status'), data_get($enforce, 'editable'), data_get($enforce, 'value'), data_get($enforce, 'type')]);
+        $this->assertSame(5, data_get($settings->get('workstations.silent_after_minutes'), 'value'));
+        // Règles hors ligne (lot 4A.5) : provisoires et modifiables ; toutes les opérations permises.
+        $allowed = $settings->get('offline.allowed_operations');
+        $this->assertSame(['PROVISIONAL', true, 'choices'], [data_get($allowed, 'status'), data_get($allowed, 'editable'), data_get($allowed, 'type')]);
+        $this->assertCount(11, (array) data_get($allowed, 'value'));
+        // D-074 : la mise en veille remplace le verrouillage hors ligne seul.
+        $this->assertSame(15, data_get($settings->get('security.idle_lock_minutes'), 'value'));
+        $this->assertNull($settings->get('offline.lock_after_minutes'));
+        $this->assertSame(60, data_get($settings->get('offline.backup_reminder_minutes'), 'value'));
+        $this->assertSame('LOC', data_get($settings->get('offline.provisional_prefix'), 'value'));
     }
 
     /** Le nouveau plafond s'applique dès la requête suivante et le changement est audité. */

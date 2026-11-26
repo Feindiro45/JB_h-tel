@@ -2,11 +2,20 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { logout, ME_KEY, useCurrentUser } from '../features/auth'
-import { AlertLink } from '../features/reservations'
+import { AlertLink, DueDeparturesReminder } from '../features/reservations'
+import { WorkstationChip } from '../features/workstations'
+import { ConnectivityChip, OfflineBanner, OfflineLock } from '../features/offline'
+import { StandbyScreen, useStandby } from '../features/standby'
+import { clearQueryCache } from '../shared/offline/persistence'
+import { forgetSession } from '../shared/offline/session'
+import { flagStandby } from '../shared/standby'
 import { config } from '../shared/config'
 import { Icon } from '../shared/ui/Icon'
 import { formatDate, initials, todayIso } from '../shared/utils/format'
 import { NAVIGATION } from './navigation'
+import { TUTORIALS } from './tutorials'
+import { PageHeadingExtrasContext } from '../shared/ui/pageHeadingExtras'
+import { TutorialButton } from '../shared/ui/Tutorial'
 import './sidebar.css'
 
 const SIDEBAR_PREFERENCE = 'jb-hotel.sidebar-collapsed'
@@ -45,15 +54,24 @@ export function AppShell() {
   )
     .filter((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
     .sort((a, b) => b.path.length - a.path.length)[0]
+  // Tutoriel propre à la section affichée (lot T), proposé dans l'en-tête de la page.
+  const tutorial = currentPage ? TUTORIALS[currentPage.path] : undefined
 
   const signOut = useMutation({
     mutationFn: logout,
     onSettled: () => {
+      // La copie hors ligne et l’empreinte du mot de passe quittent le poste (D-064).
+      void clearQueryCache()
+      void forgetSession()
+      flagStandby(null)
       queryClient.clear()
       queryClient.setQueryData(ME_KEY, null)
       navigate('/connexion', { replace: true })
     },
   })
+
+  // D-074 : mise en veille après le délai réglé dans Paramètres, ou tout de suite par « Verrouiller ».
+  const standby = useStandby()
 
   if (!user) return null
 
@@ -77,7 +95,7 @@ export function AppShell() {
           </span>
           <span className="brand-name">
             <b>{config.appName}</b>
-            <small>BANGUI · HÔTELLERIE</small>
+            <small>BAMBARI · HÔTELLERIE</small>
           </span>
         </NavLink>
         <nav aria-label="Navigation principale">
@@ -112,6 +130,15 @@ export function AppShell() {
               <strong>{user.name}</strong>
               <small>{user.role_label ?? 'Sans rôle'}</small>
             </span>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Verrouiller"
+              title="Verrouiller : mise en veille immédiate, le mot de passe sera demandé"
+              onClick={standby.lock}
+            >
+              <Icon name="lock" />
+            </button>
             <button
               type="button"
               className="icon-button"
@@ -165,13 +192,32 @@ export function AppShell() {
               <Icon name="calendar" size={17} />
               <time dateTime={todayIso()}>{formatDate(todayIso())}</time>
             </span>
+            <ConnectivityChip />
             <span className="role-chip">{user.role_label ?? 'Sans rôle'}</span>
+            <WorkstationChip />
             <AlertLink />
           </div>
         </header>
         <main id="contenu" tabIndex={-1}>
-          <Outlet />
+          <OfflineBanner />
+          {/* D-071 : fenêtre insistante des départs en retard, au-dessus de tous les écrans. */}
+          <DueDeparturesReminder />
+          <PageHeadingExtrasContext.Provider
+            value={
+              tutorial ? (
+                <TutorialButton
+                  key={tutorial.section}
+                  tutorial={tutorial}
+                  icon={currentPage?.icon}
+                />
+              ) : null
+            }
+          >
+            <Outlet />
+          </PageHeadingExtrasContext.Provider>
         </main>
+        <OfflineLock onSignOut={() => signOut.mutate()} />
+        <StandbyScreen standby={standby} user={user} onSignOut={() => signOut.mutate()} />
       </div>
     </div>
   )

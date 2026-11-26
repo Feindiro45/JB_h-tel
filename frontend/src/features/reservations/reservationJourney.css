@@ -1,0 +1,264 @@
+.reservation-journey {
+  margin: 0 0 24px;
+  border: 1px solid #a7d7c3;
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+}
+.reservation-journey__heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  color: #065f46;
+  background: #ecfdf5;
+}
+.reservation-journey__heading h2 {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+}
+.reservation-journey__heading p {
+  margin: 0;
+  color: #334155;
+}
+.reservation-journey__heading h2:focus-visible {
+  outline: 3px solid #047857;
+  outline-offset: 5px;
+}
+.reservation-journey__steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px;
+  margin: 0;
+}
+.reservation-journey__steps li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  color: #334155;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.reservation-journey__steps li[data-done='true'] {
+  background: #f0fdf4;
+  border-color: #86bda0;
+}
+.reservation-journey__steps li[aria-current='step'] {
+  border: 2px solid #1d4ed8;
+  background: #eff6ff;
+}
+.reservation-journey__number {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #1e293b;
+  font-weight: 700;
+}
+.reservation-journey__steps li[data-done='true'] .reservation-journey__number {
+  background: #047857;
+  color: #fff;
+}
+.reservation-journey__steps small {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.reservation-journey__next {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px;
+  border-top: 1px solid #dbe5df;
+  background: #f8fafc;
+}
+.reservation-journey__next p {
+  margin: 7px 0 0;
+  max-width: 68ch;
+}
+.reservation-journey__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+@media (max-width: 1200px) {
+  .reservation-journey__steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .reservation-journey__steps {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+  .reservation-journey__heading,
+  .reservation-journey__next {
+    padding: 16px;
+  }
+}
+@media print {
+  .reservation-journey {
+    display: none;
+  }
+}
+
+/* ---------- Assistant « Nouvelle réservation » (D-071) ---------- */
+.wizard-steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+}
+.wizard-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #475569;
+  font-size: 0.88rem;
+}
+.wizard-steps li[data-done='true'] {
+  border-color: #86bda0;
+  background: #f0fdf4;
+  color: #065f46;
+}
+.wizard-steps li[aria-current='step'] {
+  border: 2px solid #1d4ed8;
+  background: #eff6ff;
+  color: #0f172a;
+  font-weight: 600;
+}
+.wizard-steps__number {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.wizard-steps li[data-done='true'] .wizard-steps__number {
+  background: #047857;
+  color: #fff;
+}
+.wizard-steps li[aria-current='step'] .wizard-steps__number {
+  background: #1d4ed8;
+  color: #fff;
+}
+.wizard-recap__title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+.wizard-recap {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.wizard-recap dt {
+  color: #475569;
+  font-size: 0.82rem;
+}
+.wizard-recap dd {
+  margin: 3px 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.wizard-recap__total {
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  border-top: 1px solid #cbd5e1;
+}
+.wizard-recap__total dd {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.wizard-recap__amount {
+  margin: 0 0 12px;
+}
+.wizard-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 2px solid #047857;
+  border-radius: 10px;
+  background: #ecfdf5;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wizard-confirm input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: none;
+}
+
+/* ---------- Départ guidé et départs à enregistrer (D-071) ---------- */
+.notice--success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ecfdf5;
+  color: #065f46;
+}
+.checkout-balance {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+.checkout-balance > button {
+  justify-self: start;
+}
+.checkout-overdue {
+  color: #b45309;
+}
+.due-departures {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.due-departures li {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #fca5a5;
+  border-left: 5px solid #b91c1c;
+  border-radius: 10px;
+  background: #fff;
+}
+.due-departures__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 14px;
+}
+.due-departures__late {
+  color: #b91c1c;
+  font-weight: 700;
+}
+.due-departures__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

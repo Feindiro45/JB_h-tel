@@ -2,6 +2,7 @@
 
 use App\Modules\Identity\Http\Middleware\EnsureUserIsActive;
 use App\Shared\Exceptions\ApiExceptionRenderer;
+use App\Shared\Http\Middleware\EnsureIdempotency;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,6 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permission' => PermissionMiddleware::class,
             'role' => RoleMiddleware::class,
+            // Écritures rejouables sans doublon grâce à l’en-tête Idempotency-Key (lot 3).
+            'idempotent' => EnsureIdempotency::class,
         ]);
 
         // Routes métier : utilisateur authentifié ET compte actif.

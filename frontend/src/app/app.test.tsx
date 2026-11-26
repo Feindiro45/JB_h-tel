@@ -12,7 +12,7 @@ describe('Connexion et navigation', () => {
   it('sans session, renvoie à la connexion puis à la page demandée après login', async () => {
     let loggedIn = false
     const calls = mockApi({
-      'GET /api/v1/auth/me': () => (loggedIn ? { body: { data: cashier() } } : UNAUTHENTICATED),
+      'GET /api/v1/auth/me': () => ({ body: { data: loggedIn ? cashier() : null } }),
       'GET /sanctum/csrf-cookie': { status: 204 },
       'POST /api/v1/auth/login': () => {
         loggedIn = true
@@ -27,7 +27,7 @@ describe('Connexion et navigation', () => {
     expect(
       await screen.findByRole('heading', { name: 'Connexion de l’équipe' }),
     ).toBeInTheDocument()
-    // Le 401 de /auth/me est attendu : aucune modale d'erreur au démarrage.
+    // L'absence de session est une réponse normale : aucune modale d'erreur au démarrage.
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 
     const user = userEvent.setup()

@@ -171,10 +171,12 @@ describe('Caisse', () => {
     )
     // La caissière n'a ni le remboursement ni l'annulation.
     expect(within(movements).queryByRole('button', { name: /Rembourser/ })).not.toBeInTheDocument()
-    expect(within(movements).getByRole('link', { name: 'Reçu REC-2026-000002' })).toHaveAttribute(
-      'href',
-      '/documents/recus/pay-2',
-    )
+    // D-065 : le reçu n'existe plus qu'en ticket 80 mm, et la page ne s'imprime plus.
+    expect(
+      within(movements).getByRole('link', { name: 'Ticket 80 mm du reçu REC-2026-000002' }),
+    ).toHaveAttribute('href', '/documents/recus/pay-2/ticket')
+    expect(within(movements).queryByRole('link', { name: 'Reçu REC-2026-000002' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Imprimer/ })).toBeNull()
 
     const receivables = screen.getByRole('region', { name: 'Soldes à encaisser' })
     expect(normalize(receivables.textContent)).toContain('Total 55 000 FCFA')

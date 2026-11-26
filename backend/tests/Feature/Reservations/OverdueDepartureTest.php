@@ -54,7 +54,7 @@ class OverdueDepartureTest extends TestCase
             ->assertOk()->assertJsonPath('data.status', 'IN_PROGRESS')
             ->assertJsonPath('data.departure_overdue', true)->assertJsonPath('data.price.net_fcfa', 30000);
 
-        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out")->assertOk();
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out", ['unpaid_reason' => 'Paiement prévu plus tard'])->assertOk();
         $this->actingAs($this->cashier)->getJson('/api/v1/alerts/summary')->assertJsonPath('data.total', 0);
         $this->actingAs($this->cashier)->getJson('/api/v1/availability'.$query)
             ->assertOk()->assertJsonPath('data.0.state', 'FREE');
@@ -105,7 +105,7 @@ class OverdueDepartureTest extends TestCase
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/extension", [
             'end_date' => '2026-12-02', 'end_time' => '12:00', 'additional_quantity' => 2, 'confirm' => true,
         ])->assertConflict()->assertJsonPath('code', 'room_unavailable');
-        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out")->assertOk();
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out", ['unpaid_reason' => 'Paiement prévu plus tard'])->assertOk();
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$next}/check-in")->assertOk();
     }
 

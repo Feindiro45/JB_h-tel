@@ -5,6 +5,7 @@ namespace App\Modules\Reservations\DTO;
 use App\Modules\Reservations\Domain\BlockedPeriod;
 use App\Modules\Reservations\Domain\Discount;
 use App\Modules\RoomCatalog\Contracts\BillingUnit;
+use Carbon\CarbonInterface;
 
 /** Demande de réservation (ou de devis), avec les identifiants internes déjà résolus. */
 final readonly class ReservationRequestData
@@ -25,6 +26,11 @@ final readonly class ReservationRequestData
         public ?Discount $discount = null,
         public ?string $notes = null,
         public bool $confirm = true,
+        /** N-09 : moment du tarif (opération faite hors ligne) ; `null` = maintenant. */
+        public ?CarbonInterface $pricedAt = null,
+        public ?int $expectedUnitPriceFcfa = null,
+        /** D-072 : salle de conférence ; `null` pour une chambre. */
+        public ?EventData $event = null,
     ) {}
 
     public function period(): BlockedPeriod

@@ -13,6 +13,7 @@ final class UpdateRoomTypeRequest extends FormRequest
     {
         return [
             'code' => ['prohibited'],
+            'kind' => ['prohibited'],
             'label' => ['sometimes', 'string', 'max:100'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
@@ -27,7 +28,10 @@ final class UpdateRoomTypeRequest extends FormRequest
     /** @return array<string, string> */
     public function messages(): array
     {
-        return ['code.prohibited' => "Le code d'un type de chambre ne peut pas être modifié."];
+        return [
+            'code.prohibited' => "Le code d'un type de chambre ne peut pas être modifié.",
+            'kind.prohibited' => "La nature d'une catégorie (chambre ou salle de conférence) ne peut pas être modifiée : créez une autre catégorie.",
+        ];
     }
 
     public function toData(): RoomTypeData

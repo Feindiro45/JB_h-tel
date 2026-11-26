@@ -33,7 +33,7 @@ class DashboardAndPlanningTest extends TestCase
 
         $this->assertSame('2026-12-01', $data['date']);
         $this->assertSame(15000, $data['collected_today_fcfa']);
-        $this->assertSame(60000, $data['invoiced_month_fcfa']);
+        $this->assertSame(90000, $data['invoiced_month_fcfa']); // Deux séjours facturés automatiquement ; l'annulation est compensée par son avoir.
         $this->assertSame(30000 + 45000, $data['receivables_fcfa']);
         $this->assertCount(7, $data['collected_last_7_days']);
         $this->assertSame(['date' => '2026-12-01', 'net_fcfa' => 15000], end($data['collected_last_7_days']));

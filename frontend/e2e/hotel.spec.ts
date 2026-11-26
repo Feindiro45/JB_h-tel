@@ -43,6 +43,8 @@ test('connexion réelle, administration, réservation avec avance, facture, rapp
   await dialog.getByLabel('Nom', { exact: true }).fill('Recette E2E')
   await dialog.getByLabel('Téléphone', { exact: true }).fill('+23672009999')
   await dialog.getByLabel('Titulaire du séjour').fill('Recette E2E')
+  // Assistant D-071 : client → séjour et prix → récapitulatif confirmé → encaissement.
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
   await expect(
     dialog.getByLabel('Chambre', { exact: true }).locator('option').filter({ hasText: 'E2E-901' }),
   ).toHaveCount(1)
@@ -52,15 +54,29 @@ test('connexion réelle, administration, réservation avec avance, facture, rapp
     .filter({ hasText: 'E2E-901' })
     .getAttribute('value')
   await dialog.getByLabel('Chambre', { exact: true }).selectOption(option!)
+  await expect(dialog.getByText('Total net')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
+  await expect(dialog.getByText('Recette E2E').first()).toBeVisible()
+  await dialog.getByLabel('Le client a vérifié ces informations et les confirme').check()
+  await dialog.getByRole('button', { name: 'Suivant' }).click()
   await dialog.getByRole('radio', { name: 'Avance', exact: true }).check()
   await dialog.getByLabel('Montant de l’avance (FCFA)').fill('20000')
   await expect(dialog.getByRole('button', { name: 'Créer la réservation' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Créer la réservation' }).click()
   await expect(page).toHaveURL(/\/reservations\/[a-f0-9-]{36}$/)
+  // Le séjour commence aujourd'hui : la fenêtre d'arrivée s'ouvre d'elle-même (D-071).
+  const arrival = page.getByRole('dialog', { name: 'Enregistrer l’arrivée' })
+  await expect(arrival).toBeVisible()
+  await arrival.getByRole('button', { name: 'Annuler' }).click()
   await expect(page.getByText(/20[\s\u202f\u00a0]?000 FCFA/).first()).toBeVisible()
-  await page.getByRole('button', { name: 'Émettre une facture' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Émettre la facture' }).click()
-  await expect(page.getByText(/FAC-\d{4}-\d+/).first()).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Réservation enregistrée : les prochaines étapes' }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Émettre une facture' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Ouvrir le ticket de facture' })).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.screenshot({ path: 'test-results/reservation-guide-desktop.png', fullPage: true })
   for (const [path, title] of [
     ['/admin/tarifs', 'Tarifs'],
     ['/admin/utilisateurs', 'Utilisateurs et accès'],
@@ -85,6 +101,18 @@ test('connexion réelle, administration, réservation avec avance, facture, rapp
   const pdf = await pdfDownload
   expect(pdf.suggestedFilename()).toMatch(/rapport-.*\.pdf/)
   await pdf.saveAs('test-results/rapport.pdf')
+  // Classeur Excel du vrai serveur : session, CORS et nom de fichier lu dans Content-Disposition.
+  const xlsxDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exporter (Excel)' }).click()
+  const xlsx = await xlsxDownload
+  expect(xlsx.suggestedFilename()).toMatch(/^jb-hotel-rapport-\d{4}-\d{2}-\d{2}-\d{4}\.xlsx$/)
+  await xlsx.saveAs('test-results/rapport.xlsx')
+  await expect(page.getByText('Classeur Excel téléchargé.')).toBeVisible()
+  await page.goto('/reservations')
+  const stays = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exporter (Excel)' }).click()
+  expect((await stays).suggestedFilename()).toMatch(/^jb-hotel-reservations-.*\.xlsx$/)
+  await page.goto('/rapports')
   await page.screenshot({ path: 'test-results/rapports-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 768, height: 1024 })
   await page.goto('/admin/chambres')

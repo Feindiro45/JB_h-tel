@@ -2,6 +2,7 @@
 
 namespace App\Modules\Settings\Mail;
 
+use App\Shared\Settings\HotelIdentity;
 use App\Shared\Support\Format;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -14,13 +15,13 @@ final class MailTestMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'E-mail de test — '.config('jbhotel.hotel.name', 'JB Hôtel'));
+        return new Envelope(subject: 'E-mail de test — '.app(HotelIdentity::class)->name());
     }
 
     public function content(): Content
     {
         return new Content(markdown: 'mail.test', with: [
-            'hotel' => (string) config('jbhotel.hotel.name', 'JB Hôtel'),
+            'hotel' => app(HotelIdentity::class)->name(),
             'requestedBy' => $this->requestedBy,
             'sentAt' => Format::dateTime(now()),
         ]);

@@ -4,6 +4,7 @@ namespace Tests\Concerns;
 
 use App\Modules\Customers\Models\Customer;
 use App\Modules\Identity\Models\User;
+use App\Modules\Reservations\Models\Reservation;
 use App\Modules\RoomCatalog\Contracts\BillingUnit;
 use App\Modules\RoomCatalog\Models\Room;
 use App\Modules\RoomCatalog\Models\RoomRate;
@@ -90,6 +91,19 @@ trait BuildsHotel
     protected function bookOk(array $overrides = [], ?User $as = null): string
     {
         return (string) $this->book($overrides, $as)->assertCreated()->json('data.id');
+    }
+
+    /**
+     * Fixture d'un séjour confirmé avant D-068, sans document automatique.
+     *
+     * @param  array<string, mixed>  $overrides
+     */
+    protected function bookLegacyUninvoiced(array $overrides = [], ?User $as = null): string
+    {
+        $id = $this->bookOk([...$overrides, 'confirm' => false], $as);
+        Reservation::query()->where('uuid', $id)->update(['status' => 'CONFIRMED']);
+
+        return $id;
     }
 
     /**

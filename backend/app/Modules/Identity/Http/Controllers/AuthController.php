@@ -3,6 +3,7 @@
 namespace App\Modules\Identity\Http\Controllers;
 
 use App\Modules\Identity\Application\Services\AuthenticationService;
+use App\Modules\Identity\Http\Requests\ConfirmPasswordRequest;
 use App\Modules\Identity\Http\Requests\LoginRequest;
 use App\Modules\Identity\Http\Requests\SetPasswordRequest;
 use App\Modules\Identity\Http\Resources\UserResource;
@@ -78,6 +79,16 @@ final class AuthController
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
+
+        return response()->noContent();
+    }
+
+    /** Sortie de veille (D-074) : 204 si le mot de passe est le bon, 422 sinon. */
+    public function confirmPassword(ConfirmPasswordRequest $request): Response
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $this->auth->confirmPassword($user, $request->password());
 
         return response()->noContent();
     }

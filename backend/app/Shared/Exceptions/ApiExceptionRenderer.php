@@ -29,6 +29,14 @@ final class ApiExceptionRenderer
             return null;
         }
 
+        // La sonde de session du frontend accepte l'absence d'utilisateur : ce n'est pas
+        // une erreur de connexion. Toutes les autres routes gardent leur refus HTTP 401.
+        if ($e instanceof AuthenticationException
+            && $request->isMethod('GET')
+            && $request->routeIs('api.v1.auth.me')) {
+            return new JsonResponse(['data' => null], 200, ['Cache-Control' => 'no-store']);
+        }
+
         return $this->render($e);
     }
 

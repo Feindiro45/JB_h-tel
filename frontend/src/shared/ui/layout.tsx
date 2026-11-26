@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
 import { Icon, type IconName } from './Icon'
+import { PageHeadingExtrasContext } from './pageHeadingExtras'
+import { useConnectivity } from '../offline/connectivity'
 
 export function PageHeading({
   eyebrow,
@@ -14,6 +16,8 @@ export function PageHeading({
   actions?: ReactNode
   icon?: IconName
 }) {
+  // Bouton « Tutoriel » de la section, fourni par le shell (lot T).
+  const extra = useContext(PageHeadingExtrasContext)
   return (
     <header className="page-heading">
       <div className="page-heading__intro">
@@ -26,7 +30,12 @@ export function PageHeading({
           {description && <p className="description">{description}</p>}
         </div>
       </div>
-      {actions && <div className="heading-actions">{actions}</div>}
+      {(actions || extra) && (
+        <div className="heading-actions">
+          {actions}
+          {extra}
+        </div>
+      )}
     </header>
   )
 }
@@ -101,14 +110,31 @@ export function EmptyState({
   )
 }
 
-/** Squelette de chargement (lignes animées), annoncé aux lecteurs d'écran. */
+/**
+ * Squelette de chargement (lignes animées), annoncé aux lecteurs d'écran. Hors ligne, une donnée
+ * jamais gardée sur le poste ne viendra pas : un message explique comment la rendre disponible, au
+ * lieu d’un chargement sans fin (lot 2).
+ */
 export function LoadingBlock({
   lines = 4,
   label = 'Chargement…',
+  offlineHint = true,
 }: {
   lines?: number
   label?: string
+  /** `false` pour un chargement qui ne dépend pas du réseau (ouverture de l’application). */
+  offlineHint?: boolean
 }) {
+  const { online } = useConnectivity()
+  if (!online && offlineHint) {
+    return (
+      <div className="notice loading-offline" role="status">
+        <strong>Pas encore disponible hors ligne.</strong> Ces données n’ont pas été gardées sur ce
+        poste. Ouvrez cet écran une fois en ligne, ou lancez « Mettre à jour en local » dans le menu
+        Synchronisation avant une coupure.
+      </div>
+    )
+  }
   return (
     <div className="loading-block" role="status" aria-live="polite">
       <span className="sr-only">{label}</span>

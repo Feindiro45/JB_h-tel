@@ -16,6 +16,8 @@ final class RoomTypeResource extends JsonResource
             'id' => $this->uuid,
             'code' => $this->code,
             'label' => $this->label,
+            'kind' => $this->kind->value,
+            'kind_label' => $this->kind->label(),
             'description' => $this->description,
             'rooms_count' => $this->whenCounted('rooms'),
         ];

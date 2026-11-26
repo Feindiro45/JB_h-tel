@@ -7,6 +7,7 @@ use App\Modules\Cashier\Contracts\PaymentHistory;
 use App\Modules\Reservations\Contracts\ReservationInvoiceData;
 use App\Modules\Reservations\Contracts\ReservationLedger;
 use App\Modules\RoomCatalog\Contracts\RoomDirectory;
+use App\Shared\Settings\HotelIdentity;
 use App\Shared\Support\Format;
 use Carbon\CarbonImmutable;
 
@@ -112,8 +113,8 @@ final class StayMessageFactory
         }
 
         $lines = $document->isCreditNote
-            ? ["Veuillez trouver ci-joint l’avoir {$document->number}, qui annule la facture {$document->creditedNumber}."]
-            : ['Veuillez trouver ci-joint votre facture.'];
+            ? ["Veuillez trouver ci-joint le ticket de l’avoir {$document->number}, qui annule la facture {$document->creditedNumber}."]
+            : ['Veuillez trouver ci-joint le ticket de votre facture.'];
         $lines[] = 'Vous pouvez vérifier son authenticité à tout moment en scannant le QR code qui y figure.';
 
         return new StayMessage(
@@ -128,7 +129,7 @@ final class StayMessageFactory
             ],
             'Vérifier ce document',
             $document->verificationUrl,
-            [['name' => "{$document->number}.pdf", 'data' => $document->pdf(...), 'mime' => 'application/pdf']],
+            [['name' => "ticket-{$document->number}.pdf", 'data' => $document->pdf(...), 'mime' => 'application/pdf']],
         );
     }
 
@@ -180,6 +181,6 @@ final class StayMessageFactory
 
     private static function hotel(): string
     {
-        return (string) config('jbhotel.hotel.name', 'JB Hôtel');
+        return app(HotelIdentity::class)->name();
     }
 }

@@ -55,7 +55,24 @@ final class UserAdministrationService
         });
     }
 
-    public function create(CreateUserData $data): User
+    public function create(CreateUserData $data, User $actor): User
+    {
+        $this->authorizePrivilegedRole($actor, null, $data->role);
+
+        return $this->persist($data);
+    }
+
+    /** Seule la commande CLI privée peut amorcer un administrateur sans session préexistante. */
+    public function createFromConsole(CreateUserData $data): User
+    {
+        if (! app()->runningInConsole() || $data->role !== RoleName::Admin) {
+            throw new \LogicException('Création initiale réservée à la console.');
+        }
+
+        return $this->persist($data);
+    }
+
+    private function persist(CreateUserData $data): User
     {
         return DB::transaction(function () use ($data): User {
             $user = User::query()->create([
@@ -78,15 +95,19 @@ final class UserAdministrationService
     /** Renvoie l'invitation (6M) : nouveau lien pour choisir son mot de passe, l'ancien devient caduc. */
     public function invite(User $user, User $actor): void
     {
+        $this->authorizePrivilegedRole($actor, $user);
         $this->audit->record('user.invitation_requested', 'user', $user->id, actorId: $actor->id);
         event(new UserInvited($user->id, withPasswordLink: true));
     }
 
     public function update(User $user, UpdateUserData $data, User $actor): User
     {
+        $this->authorizePrivilegedRole($actor, $user, $data->role);
+
         return DB::transaction(function () use ($user, $data, $actor): User {
             /** @var User $user */
             $user = User::query()->lockForUpdate()->findOrFail($user->id);
+            $this->authorizePrivilegedRole($actor, $user, $data->role);
             $before = $this->snapshot($user);
 
             $currentRole = $user->primaryRole();
@@ -142,6 +163,14 @@ final class UserAdministrationService
             ->whereKeyNot($user->id)
             ->lockForUpdate()
             ->count();
+    }
+
+    private function authorizePrivilegedRole(User $actor, ?User $target = null, ?RoleName $role = null): void
+    {
+        if (! $actor->hasRole(RoleName::Admin->value)
+            && ($role === RoleName::Admin || $target?->hasRole(RoleName::Admin->value))) {
+            throw new BusinessRuleException('Seul un administrateur peut attribuer ce rôle ou modifier un compte administrateur.', 'Droit réservé', 403, 'admin_role_required');
+        }
     }
 
     /** @return array{name: string, email: string, active: bool, role: string|null} */

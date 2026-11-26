@@ -1,0 +1,21 @@
+# LWS Panel uniquement : renommer ce fichier en .htaccess a la racine du projet Laravel.
+# Le dossier public conserve son propre .htaccess fourni avec Laravel.
+Options -Indexes
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Laisser les validations de certificat HTTPS de l'hebergeur accessibles.
+    RewriteRule ^\.well-known/acme-challenge/ - [L]
+
+    # Ne jamais servir les fichiers caches du projet, notamment .env.
+    RewriteRule (^|/)\. - [F,L]
+
+    # Toutes les requetes vont dans public, meme si un fichier prive existe a la racine.
+    # Conserver le chemin et les parametres ; ne pas rediriger OPTIONS vers une autre URL.
+    RewriteRule ^(?!public(?:/|$))(.*)$ public/$1 [L]
+</IfModule>

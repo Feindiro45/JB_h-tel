@@ -1,3 +1,5 @@
+import { exportQuery } from '../../shared/export/exportQuery'
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { Icon } from '../../shared/ui/Icon'
@@ -44,6 +46,7 @@ export function UsersPage() {
     {
       name: 'role',
       label: 'Rôle',
+      hint: 'Tous les comptes Caissière partagent les mêmes droits, dont la création de réservations par défaut.',
       required: true,
       options: [
         { value: 'admin', label: 'Administrateur' },
@@ -83,12 +86,19 @@ export function UsersPage() {
         eyebrow="Administration"
         title="Utilisateurs et accès"
         actions={
-          can('users.manage') && (
-            <button className="primary" onClick={() => setEditing('new')}>
-              <Icon name="plus" size={17} />
-              <span className="sr-only">+</span> Utilisateur
-            </button>
-          )
+          <>
+            <ExportButton
+              path="/api/v1/users/export"
+              module="utilisateurs"
+              query={exportQuery(filters)}
+            />
+            {can('users.manage') && (
+              <button className="primary" onClick={() => setEditing('new')}>
+                <Icon name="plus" size={17} />
+                <span className="sr-only">+</span> Utilisateur
+              </button>
+            )}
+          </>
         }
       />
       <PageOverview
@@ -221,7 +231,7 @@ export function UsersPage() {
       {can('roles.manage') && cashier && (
         <Panel
           title="Droits de la caissière"
-          subtitle="Les permissions sont appliquées par le serveur dès la prochaine requête."
+          subtitle="Ces droits sont communs à toutes les caissières, y compris les nouveaux comptes."
           action={
             <button className="secondary" onClick={() => setPermissions([...cashier.permissions])}>
               <Icon name="shield" size={17} />
@@ -232,6 +242,10 @@ export function UsersPage() {
           <p className="caption">
             {cashier.permissions.length} permissions accordées. Les droits de l’administrateur
             restent protégés.
+          </p>
+          <p className="caption">
+            Les sessions en ligne actualisent leurs droits au retour sur la fenêtre et toutes les 30
+            secondes. Sans connexion, elles conservent les derniers droits connus.
           </p>
         </Panel>
       )}

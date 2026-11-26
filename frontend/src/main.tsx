@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app/App'
+import { registerServiceWorker } from './shared/offline/registerServiceWorker'
 import './index.css'
 import './content-theme.css'
 
@@ -12,3 +13,6 @@ createRoot(rootElement).render(
     <App />
   </StrictMode>,
 )
+
+// Ouverture sans réseau (lot 2, D-064), en production seulement.
+registerServiceWorker()

@@ -1,5 +1,7 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 import { ApiError } from '../shared/api/errors'
+import { getConnectivity } from '../shared/offline/connectivity'
+import { isSyncing } from '../shared/offline/localSync'
 
 interface AppMeta extends Record<string, unknown> {
   /** `true` : l'erreur est affichée par l'écran lui-même, pas par la modale globale. */
@@ -12,6 +14,9 @@ declare module '@tanstack/react-query' {
     mutationMeta: AppMeta
   }
 }
+
+/** Début de la coupure déjà signalée par la modale (une seule fenêtre par coupure). */
+let notifiedOfflineSince = 0
 
 /** Réessaie une seule fois, et seulement pour une erreur réseau ou serveur. */
 function shouldRetry(failureCount: number, error: unknown): boolean {
@@ -28,6 +33,15 @@ export function createQueryClient(onError: (error: unknown) => void): QueryClien
   return new QueryClient({
     queryCache: new QueryCache({
       onError: (error, query) => {
+        // Donnée téléchargée par une mise à jour locale : l'échec va au journal de synchronisation.
+        if (isSyncing(query.queryHash)) return
+        // Coupure du réseau : « Connexion impossible » une seule fois par coupure, puis le
+        // bandeau « Hors ligne » remplace une fenêtre par écran (lot 2).
+        if (error instanceof ApiError && error.isNetworkError) {
+          const { online, since } = getConnectivity()
+          if (!online && since === notifiedOfflineSince) return
+          if (!online) notifiedOfflineSince = since
+        }
         if (!query.meta?.silentError) onError(error)
       },
     }),
@@ -37,8 +51,20 @@ export function createQueryClient(onError: (error: unknown) => void): QueryClien
       },
     }),
     defaultOptions: {
-      queries: { retry: shouldRetry, refetchOnWindowFocus: false, staleTime: 30_000 },
-      mutations: { retry: false },
+      // Au retour du réseau, la mise à jour locale (journalisée) recharge les données.
+      queries: {
+        retry: shouldRetry,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        staleTime: 30_000,
+        // Jamais oubliées, même sans écran ouvert : la copie du poste (D-064) est prise dans ce
+        // cache ; une donnée effacée au bout de 5 min (valeur par défaut) disparaîtrait de la
+        // copie, alors qu'une coupure peut durer un mois (N-05 révisée).
+        gcTime: Number.POSITIVE_INFINITY,
+      },
+      // Hors ligne, seules les écritures passées par `runOrQueue` (lot 4) sont gardées sur le
+      // poste ; les autres échouent avec le message « Connexion impossible ».
+      mutations: { retry: false, networkMode: 'always' },
     },
   })
 }

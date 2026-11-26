@@ -4,20 +4,24 @@ namespace App\Modules\Reservations\Http\Controllers;
 
 use App\Modules\Customers\Contracts\CustomerDirectory;
 use App\Modules\Identity\Models\User;
+use App\Modules\Reservations\Application\Queries\ReservationSearch;
 use App\Modules\Reservations\Application\Services\ReservationBookingService;
 use App\Modules\Reservations\Application\Services\ReservationLifecycleService;
 use App\Modules\Reservations\Application\Services\ReservationQuoter;
-use App\Modules\Reservations\Domain\ReservationStatus;
+use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Modules\Reservations\Http\Requests\CancelReservationRequest;
+use App\Modules\Reservations\Http\Requests\CheckOutRequest;
+use App\Modules\Reservations\Http\Requests\ConfirmReservationRequest;
 use App\Modules\Reservations\Http\Requests\OccupantsRequest;
 use App\Modules\Reservations\Http\Requests\QuoteReservationRequest;
+use App\Modules\Reservations\Http\Requests\ReservationListRequest;
 use App\Modules\Reservations\Http\Requests\ReservationRequest;
 use App\Modules\Reservations\Http\ReservationPresenter;
 use App\Modules\Reservations\Models\Reservation;
-use App\Modules\RoomCatalog\Contracts\RoomDirectory;
 use App\Shared\Audit\AuditLog;
 use App\Shared\Exceptions\BusinessRuleException;
 use App\Shared\Http\PerPage;
+use App\Shared\Offline\OfflineReplay;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,39 +31,17 @@ final class ReservationController
         private readonly ReservationPresenter $presenter,
         private readonly ReservationBookingService $booking,
         private readonly ReservationLifecycleService $lifecycle,
+        private readonly StayInvoicing $invoicing,
     ) {}
 
     /** Liste filtrable : statut, chambre, client (UUID), période qui chevauche `from`–`to`. */
-    public function index(Request $request, RoomDirectory $rooms, CustomerDirectory $customers): JsonResponse
+    public function index(ReservationListRequest $request, ReservationSearch $search): JsonResponse
     {
-        $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-            'search' => ['nullable', 'string', 'max:160'], 'room_type_id' => ['nullable', 'uuid'],
-            'billing_unit' => ['nullable', 'in:DAY,HALF_DAY'],
-        ]);
-        $typeId = $request->filled('room_type_id') ? $rooms->roomTypeIdByUuid($request->string('room_type_id')->toString()) : null;
-        $typeRooms = $request->filled('room_type_id') ? array_map(fn ($r) => $r->id, array_values(array_filter($rooms->all(), fn ($r) => $r->roomTypeId === $typeId))) : [];
-        $status = ReservationStatus::tryFrom($request->string('status')->toString());
-        $room = $request->filled('room_id') ? $rooms->findByUuid($request->string('room_id')->toString()) : null;
-        $customer = $request->filled('customer_id') ? $customers->findByUuid($request->string('customer_id')->toString()) : null;
-
-        if (($request->filled('room_id') && $room === null) || ($request->filled('customer_id') && $customer === null)) {
+        $query = $search->filtered($request->toData());
+        if ($query === null) {
             return new JsonResponse(['data' => [], 'meta' => ['total' => 0, 'current_page' => 1, 'last_page' => 1]]);
         }
-
-        $page = Reservation::query()
-            ->with('occupants')
-            ->when($status !== null, fn ($q) => $q->where('status', $status?->value))
-            ->when($room !== null, fn ($q) => $q->where('room_id', $room?->id))
-            ->when($customer !== null, fn ($q) => $q->where('customer_id', $customer?->id))
-            ->when($request->filled('search'), fn ($q) => $q->whereIn('customer_id', $customers->searchIds($request->string('search')->trim()->toString())))
-            ->when($request->filled('room_type_id'), fn ($q) => $q->whereIn('room_id', $typeRooms))
-            ->when($request->filled('billing_unit'), fn ($q) => $q->where('billing_unit', $request->string('billing_unit')->toString()))
-            ->when($request->filled('from'), fn ($q) => $q->where('blocked_until', '>', $request->date('from')))
-            ->when($request->filled('to'), fn ($q) => $q->where('blocked_from', '<', $request->date('to')?->addDay()))
-            ->orderByDesc('blocked_from')
-            ->paginate(PerPage::from($request))
-            ->withQueryString();
+        $page = $query->paginate(PerPage::from($request))->withQueryString();
 
         return new JsonResponse([
             'data' => $this->presenter->many($page->items()),
@@ -92,12 +74,12 @@ final class ReservationController
     {
         $reservation = $this->booking->create($request->toData(), $this->actor($request));
 
-        return new JsonResponse(['data' => $this->presenter->one($reservation)], 201);
+        return $this->respond($reservation, 201);
     }
 
-    public function confirm(Request $request, Reservation $reservation): JsonResponse
+    public function confirm(ConfirmReservationRequest $request, Reservation $reservation): JsonResponse
     {
-        return $this->respond($this->booking->confirm($reservation, $this->actor($request)));
+        return $this->respond($this->booking->confirm($reservation, $this->actor($request), OfflineReplay::fromRequest($request)?->pricedAt(), $request->has('expected_unit_price_fcfa') ? $request->integer('expected_unit_price_fcfa') : null));
     }
 
     public function checkIn(Request $request, Reservation $reservation): JsonResponse
@@ -105,9 +87,9 @@ final class ReservationController
         return $this->respond($this->lifecycle->checkIn($reservation, $this->actor($request)));
     }
 
-    public function checkOut(Request $request, Reservation $reservation): JsonResponse
+    public function checkOut(CheckOutRequest $request, Reservation $reservation): JsonResponse
     {
-        return $this->respond($this->lifecycle->checkOut($reservation, $this->actor($request)));
+        return $this->respond($this->lifecycle->checkOut($reservation, $request->toData(), $this->actor($request)));
     }
 
     public function cancel(CancelReservationRequest $request, Reservation $reservation): JsonResponse
@@ -163,9 +145,12 @@ final class ReservationController
         return $state === null ? null : array_diff_key($state, array_flip(['room_id', 'customer_id', 'rate_id']));
     }
 
-    private function respond(Reservation $reservation): JsonResponse
+    private function respond(Reservation $reservation, int $status = 200): JsonResponse
     {
-        return new JsonResponse(['data' => $this->presenter->one($reservation->load('occupants'))]);
+        return new JsonResponse([
+            'data' => $this->presenter->one($reservation->load('occupants')),
+            'meta' => ['automatic_invoice' => $this->invoicing->activeInvoiceReference($reservation->id)],
+        ], $status);
     }
 
     private function actor(Request $request): User

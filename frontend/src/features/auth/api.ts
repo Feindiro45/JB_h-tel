@@ -5,7 +5,7 @@ import type { CurrentUser, Envelope } from '../../shared/api/types'
 
 export const ME_KEY = ['auth', 'me'] as const
 
-/** Utilisateur connecté, ou `null` si la session est absente ou expirée (401). */
+/** Utilisateur connecté, ou `null` sans session ; le 401 reste accepté pour les anciens serveurs. */
 export const meQueryOptions = queryOptions({
   queryKey: ME_KEY,
   queryFn: async ({ signal }): Promise<CurrentUser | null> => {
@@ -17,6 +17,8 @@ export const meQueryOptions = queryOptions({
     }
   },
   staleTime: 5 * 60_000,
+  refetchOnWindowFocus: 'always',
+  refetchOnReconnect: 'always',
   retry: false,
   meta: { silentError: true },
 })

@@ -1,0 +1,37 @@
+# JB Hôtel — frontend React sur https://app.jb-hotel.com
+# Le contenu du dossier deploiement/frontend est la racine de ce sous-domaine.
+# Copié automatiquement en « .htaccess » par deploiement/preparer.py.
+#
+# Ce fichier remplace frontend/public/.htaccess, qui est écrit pour la livraison mono-domaine
+# (banguiweb-tech.com, API dans /backend) et dont la condition HTTP_HOST ne correspondrait pas ici.
+
+DirectoryIndex index.html
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Laisser les validations de certificat HTTPS de l'hébergeur accessibles.
+    RewriteRule ^\.well-known/acme-challenge/ - [L]
+
+    # React Router 8 résout les routes dans le navigateur : toute adresse inconnue rend index.html.
+    # Les vrais fichiers (assets, sw.js, manifeste, icônes) et les dossiers sont servis tels quels.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# Mise en cache. Les fichiers produits par Vite portent une empreinte dans leur nom
+# (« index-a1b2c3d4.js ») et ne changent jamais : ils peuvent être gardés un an. index.html, le
+# service worker et le manifeste doivent être revalidés à chaque visite, sinon une ancienne page
+# continue de réclamer des assets supprimés par la mise à jour suivante.
+# Les fichiers sans empreinte (favicon, icônes) gardent la politique par défaut du serveur.
+<IfModule mod_headers.c>
+    <FilesMatch "-[A-Za-z0-9_-]{8,}\.(?:js|css|woff2?|png|jpe?g|svg|gif|webp)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "^(?:index\.html|sw\.js|manifest\.webmanifest)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>

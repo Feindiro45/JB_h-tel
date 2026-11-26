@@ -23,7 +23,7 @@ final class StoreRoomRequest extends FormRequest
         return [
             'number' => ['required', 'string', 'regex:/^[A-Za-z0-9-]{1,30}$/', Rule::unique('rooms', 'number')],
             'room_type_id' => ['required', 'uuid', Rule::exists('room_types', 'uuid')],
-            'capacity' => ['required', 'integer', 'min:1', 'max:50'],
+            'capacity' => ['required', 'integer', 'min:1', 'max:'.RoomRequestAttributes::maxCapacity($this->input('room_type_id'))],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

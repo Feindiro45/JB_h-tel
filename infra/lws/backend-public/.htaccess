@@ -1,0 +1,24 @@
+# Publier dans /htdocs/backend/.htaccess, a cote du point d'entree index.php.
+DirectoryIndex index.php
+Options -Indexes -MultiViews
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /backend/
+
+    RewriteRule (^|/)\. - [F,L]
+
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    RewriteCond %{HTTP:X-XSRF-TOKEN} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-TOKEN}]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [END]
+</IfModule>

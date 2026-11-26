@@ -17,5 +17,12 @@ final readonly class RoomSnapshot
         public string $roomTypeLabel,
         public int $capacity,
         public bool $underMaintenance,
+        /** D-072 : chambre ou salle de conférence. */
+        public RoomKind $kind = RoomKind::Room,
     ) {}
+
+    public function isConference(): bool
+    {
+        return $this->kind === RoomKind::Conference;
+    }
 }

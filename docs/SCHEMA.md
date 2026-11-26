@@ -1,5 +1,7 @@
 # Schéma de base de données — JB Hôtel
 
+**D-067, 22/11/2026 :** structure SQL inchangée pour ces corrections. `idempotency_keys` conserve désormais durablement les identifiants/réponses d'opérations ; la purge automatique à 30 jours est retirée. Les nouvelles références de facture automatique passent par les contrats et métadonnées API, sans colonne interne exposée. IndexedDB conserve sa version et ses clés existantes ; les écritures deviennent transactionnelles, sans remise à zéro des postes.
+
 Ce document décrit le schéma réellement implémenté par les migrations (`backend/database/migrations/`). Il recense aussi les écarts avec la référence `09_schema_reference.sql` et le MCD `04_MCD_JB_Hotel.drawio`.
 
 - **Moteur :** MySQL 8+ InnoDB, en `utf8mb4_unicode_ci` (D-002). Le développement local se fait sur MariaDB 10.4 ; le code est compatible avec les deux moteurs.
@@ -34,15 +36,16 @@ Ce document décrit le schéma réellement implémenté par les migrations (`bac
 ### RoomCatalog
 | Table | Colonnes notables |
 |---|---|
-| `room_types` | `code` unique (`VIP`, `STANDARD`), `label`, `description` |
-| `rooms` | `number` unique, `room_type_id`, `capacity` (> 0), `maintenance_status` ∈ {`AVAILABLE`, `MAINTENANCE`}, `maintenance_note` |
+| `room_types` | `code` unique (`VIP`, `STANDARD`, `SALLE_CONFERENCE`), `label`, `kind` ∈ {`ROOM`, `CONFERENCE`} (contrainte `chk_room_types_kind`, défaut `ROOM`, jamais modifié — D-072), `description` |
+| `rooms` | `number` unique, `room_type_id`, `capacity` (> 0 ; 50 au plus pour une chambre, 1 000 pour une salle de conférence, validé par l'API), `maintenance_status` ∈ {`AVAILABLE`, `MAINTENANCE`}, `maintenance_note` |
 | `room_rates` | `room_type_id`, `billing_unit` ∈ {`HALF_DAY`, `DAY`}, `amount_fcfa`, `effective_from`, `effective_to` (> début ou nul), `reason`, `created_by`. Index **unique** (`room_type_id`, `billing_unit`, `effective_from`) : deux versions ne démarrent pas au même instant (D-027). |
 
 ### Reservations
 | Table | Colonnes notables |
 |---|---|
 | `reservations` | **Période :** `start_date`, `end_date`, `start_time?`, `end_time?`, ainsi que `blocked_from`, `blocked_until` et `period_is_estimated`.<br>**Prix figé :** `rate_id`, `billing_unit`, `quantity`, `applied_unit_price_fcfa`, `gross_fcfa`, `discount_type` (`PERCENT` ou `FIXED`), `discount_value`, `discount_fcfa`, `discount_reason`, `discount_by`, `net_fcfa`.<br>**Statut :** `status` ∈ {`PENDING`, `CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`}.<br>**Arrivée et départ effectifs :** `checked_in_at/by`, `checked_out_at/by`.<br>**Annulation :** `cancelled_at/by`, `cancellation_reason`.<br>**Auteur :** `created_by`. |
-| `reservation_occupants` | `reservation_id`, `name`, `is_primary` |
+| `reservation_occupants` | `reservation_id`, `name`, `is_primary` (chambres seulement) |
+| `reservation_events` | Salle de conférence (D-072, migration `2026_11_25_100000`), une ligne par réservation (`reservation_id` unique) : `event_name`, `organizer_type` (`NGO`, `INTERNATIONAL_ORGANIZATION`, `COMPANY`, `PUBLIC_ADMINISTRATION`, `ASSOCIATION`, `INDIVIDUAL`, `OTHER`), `organizer_type_other?`, `organization_name?`, `contact_name?`, `contact_phone?`. Ligne interne sans UUID, lue et écrite avec sa réservation. |
 | `reservation_extensions` | Une ligne par prolongation (D-053), jamais modifiée ni supprimée : `previous_end_date`, `previous_end_time?`, `previous_blocked_until`, `end_date`, `end_time?`, `blocked_until`, `added_quantity` (≥ 0), `unit_price_fcfa`, `amount_fcfa` (= quantité × prix, contrainte `CHECK`), `previous_net_fcfa`, `net_fcfa`, `extended_by`, `extended_at`. Sert à détailler la facture (séjour initial puis chaque prolongation). Ligne interne sans UUID : elle n’est jamais adressée par une route. |
 
 Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits et `(room_id, start_date, end_date)`, repris de 09.
@@ -55,11 +58,20 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | `invoices` | `invoice_number` unique, `type` ∈ {`INVOICE`, `CREDIT_NOTE`}, `credited_invoice_id` (avoir), `issued_at`, `issued_by`, montants (net + remise = brut), `snapshot_json`, `status` ∈ {`ISSUED`, `CREDITED`} |
 | `document_sequences` | `name` (par exemple `invoice:2026`), `last_number` : numérotation continue attribuée sous verrou |
 
+### Workstations (postes de caisse, D-062)
+| Table | Colonnes notables |
+|---|---|
+| `workstations` | `uuid`, `name` unique (≤ 40), `token_hash` unique (SHA-256 du jeton du navigateur, jamais le jeton), `user_agent`, `registered_by`, `last_seen_at/by` (signal de présence), `revoked_at/by`, `revocation_reason`. État hors ligne déclaré avec le signal (lot 4A, migration `2026_11_22_100000`) : `pending_operations`, `rejected_operations`, `oldest_pending_at`, `last_sync_at`, `last_sync_status`, `last_backup_at`, `storage_persisted`, `reported_at`. Jamais supprimé : révoqué. |
+| `offline_operations` | `uuid`, `idempotency_key`, `user_id`, `workstation_id`, `kind`, `label`, `method`, `path`, `created_offline_at`, `received_at`, `attempts`, `outcome` (ACCEPTED, DUPLICATE, REJECTED, contrainte CHECK), `http_status`, `reason_title`, `reason`, `reason_code`, `review_status` (TO_REVIEW, REENTERED, REJECTED), `reviewed_by/at`, `review_reason` : opérations faites hors ligne reçues par le serveur (lot 4A.4). Unique (`user_id`, `idempotency_key`). Jamais supprimées. |
+| `workstation_assignments` | `uuid`, `number` unique (≥ 1, croissant), `workstation_id`, `previous_workstation_id`, `mode` ∈ {`FIRST`, `PLANNED`, `FORCED`}, `reason`, `previous_last_seen_at`, `assigned_by`, `assigned_at`. Le poste principal courant est la dernière attribution ; lignes figées (ni modifiées ni supprimées). Migration `2026_11_21_100000`. |
+
 ### Transverse
 | Table | Rôle |
 |---|---|
+| `idempotency_keys` | `user_id`, `idempotency_key` (UUID), `method`, `path`, `request_hash` (SHA-256), `response_status`, `response_body` : réponse réussie d’une écriture, rejouée à l’identique (D-063). Unique (`user_id`, `idempotency_key`) ; purge après 30 jours. Migration `2026_11_21_110000`. |
 | `audit_logs` | `actor_id`, `action`, `entity_type`, `entity_id`, `before_json`, `after_json`, `ip_address`, `occurred_at`. Append-only. **Sert aussi de journal des modifications des réservations** (D-022). |
-| `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (8 valeurs par défaut, dont plusieurs provisoires). |
+| `settings` | `key`, `value` (JSON), `description`, `updated_by` : paramètres modifiables par l'administrateur (11 valeurs par défaut, dont plusieurs provisoires ; `workstations.*` ajoutés par la migration `2026_11_21_100100`, D-062 ; `offline.*` par la migration `2026_11_22_100000`, lot 4A). |
+| `sync_changes` | `entity` (type suivi : customer, room, room_type, room_rate, reservation, reservation_extension, reservation_occupant, payment, refund, invoice, user, workstation, setting, role), `entity_uuid` (UUID public ou vide), `action` (created, updated, deleted), `occurred_at` (index). Journal ordonné des changements lu par curseur par les postes (D-069) ; écrit dans la transaction de l'écriture par les événements Eloquent ; aucune donnée personnelle ; purgé après `SYNC_RETENTION_DAYS` (365 j). Migration `2026_11_23_100000`. |
 | `cache`, `jobs`, `password_reset_tokens` | Tables techniques de Laravel (`password_reset_tokens` : liens « mot de passe oublié », 60 min) |
 | `invitation_tokens` | Liens d’invitation d’un nouveau compte (72 h), séparés des liens « mot de passe oublié » pour qu’aucun ne puisse servir à la place de l’autre (D-059, migration `2026_11_20_110000`) |
 
@@ -76,9 +88,11 @@ Index : `(room_id, blocked_from, blocked_until)` pour la détection des conflits
 | Factures | — | `type`, `credited_invoice_id`, `issued_by` | Avoirs, sous réserve de Q-09 |
 | Auteurs | Clés étrangères nullables | `NOT NULL` pour `reservations.created_by`, `payments.cashier_id`, `refunds.processed_by` et `invoices.issued_by` | Chaque opération financière a un auteur |
 | Horodatages | Absents | `created_at`, `updated_at` (`DATETIME`) | Traçabilité |
-| Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions` | Paramètres, numérotation, droits, sessions |
+| Nouvelles tables | — | `settings`, `document_sequences`, tables Spatie, `sessions`, `workstations`, `workstation_assignments`, `idempotency_keys`, `offline_operations` | Paramètres, numérotation, droits, sessions, poste principal unique (D-062), écritures idempotentes (D-063), journal des opérations hors ligne (lot 4A) |
 | Maintenance | `maintenance_status` | Statut courant seulement | Périodes planifiées en attente de Q-12 (D-019) |
 | Identifiants publics | Absents | Colonne `uuid` sur 11 tables | Les routes et les liens n’exposent jamais la clé entière (D-026) |
 | Prolongations | Absentes (historique dans l’audit seulement) | Table `reservation_extensions` (migration `190000`) | Facture détaillée séjour initial + prolongation (D-053, demande du 19/11/2026) |
+| Salles de conférence | Absentes | `room_types.kind` et table `reservation_events` (migration `2026_11_25_100000`), catégorie `SALLE_CONFERENCE` créée | Réservation d'une salle pour un événement, sans occupants (D-072, demande du 25/11/2026) |
+| Informations de l'hôtel | Absentes (configuration serveur) | Paramètres `hotel.*` dans `settings` (migration `2026_11_25_110000`), ville Bambari | Modifiables par l'administrateur, figées dans chaque facture (D-073, demande du 25/11/2026) |
 
 > Le fichier `04_MCD_JB_Hotel.drawio` a été régénéré le 19/11/2026 depuis le schéma réel : 27 tables et 27 relations de clés étrangères ; complété le 20/11/2026 avec `reservation_extensions` (28 tables, 29 relations), puis `invitation_tokens` (29 tables), y compris UUID, Spatie, paramètres, audits et tables techniques. Les associations polymorphes de Spatie restent documentées par leurs colonnes, sans fausse clé étrangère.

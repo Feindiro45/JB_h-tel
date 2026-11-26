@@ -4,6 +4,7 @@ use App\Modules\Identity\Domain\PermissionName;
 use App\Modules\Identity\Http\Controllers\AuthController;
 use App\Modules\Identity\Http\Controllers\RoleController;
 use App\Modules\Identity\Http\Controllers\UserController;
+use App\Modules\Identity\Http\Controllers\UserExportController;
 use App\Modules\Identity\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -21,8 +22,11 @@ Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->
 Route::middleware('authenticated')->group(function (): void {
     Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
     Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
+    // Sortie de veille (D-074) : 6 essais par minute et par utilisateur.
+    Route::post('auth/confirm-password', [AuthController::class, 'confirmPassword'])->middleware('throttle:6,1')->name('auth.confirm-password');
 
     Route::get('users', [UserController::class, 'index'])->name('users.index')->can('viewAny', User::class);
+    Route::get('users/export', UserExportController::class)->name('users.export')->can('viewAny', User::class);
     Route::post('users', [UserController::class, 'store'])->name('users.store')->can('create', User::class);
     Route::get('users/{user}', [UserController::class, 'show'])->name('users.show')->can('view', 'user');
     Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update')->can('update', 'user');

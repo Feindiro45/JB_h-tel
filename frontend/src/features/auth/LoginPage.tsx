@@ -5,6 +5,9 @@ import { TextField } from '../../shared/ui/fields'
 import { Icon } from '../../shared/ui/Icon'
 import { login, ME_KEY } from './api'
 import { AuthLayout } from './AuthLayout'
+import { clearQueryCache } from '../../shared/offline/persistence'
+import { recordActivity, rememberSession } from '../../shared/offline/session'
+import { flagStandby } from '../../shared/standby'
 
 /** Connexion de l'équipe (D-059) : session Sanctum par cookie, jamais de jeton stocké. */
 export function LoginPage() {
@@ -20,6 +23,17 @@ export function LoginPage() {
   const mutation = useMutation({
     mutationFn: () => login(email.trim(), password),
     onSuccess: (user) => {
+      // Autre utilisateur que la copie hors ligne gardée : rien de l’ancien ne reste affiché.
+      const previous = queryClient.getQueryData<{ id: string } | null>(ME_KEY)
+      if (previous && previous.id !== user.id) {
+        queryClient.clear()
+        void clearQueryCache()
+      }
+      // Empreinte du mot de passe pour sortir de veille, même hors ligne (D-064, D-074).
+      void rememberSession(user, password)
+      // Nouvelle connexion : présence enregistrée, aucune veille restée d'une session précédente.
+      recordActivity()
+      flagStandby(null)
       queryClient.setQueryData(ME_KEY, user)
       navigate(from, { replace: true })
     },

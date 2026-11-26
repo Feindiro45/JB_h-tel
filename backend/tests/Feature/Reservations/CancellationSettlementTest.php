@@ -5,6 +5,7 @@ namespace Tests\Feature\Reservations;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Cashier\Models\Refund;
 use App\Modules\Identity\Models\User;
+use App\Modules\Reservations\Contracts\InvoiceReference;
 use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Reservations\Models\ReservationExtension;
@@ -126,7 +127,7 @@ class CancellationSettlementTest extends TestCase
 
     public function test_unpaid_uninvoiced_cancellation_still_works_for_the_cashier(): void
     {
-        $reservation = $this->bookOk();
+        $reservation = $this->bookLegacyUninvoiced();
 
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$reservation}/cancel", ['reason' => 'Client absent'])
             ->assertOk()->assertJsonPath('data.status', 'CANCELLED')->assertJsonPath('data.price.amount_due_fcfa', 0);
@@ -185,6 +186,13 @@ class CancellationSettlementTest extends TestCase
 final class FailingStayInvoicing implements StayInvoicing
 {
     public function __construct(private readonly bool $onCancel) {}
+
+    public function issueOnConfirmation(int $reservationId, User $actor): void {}
+
+    public function activeInvoiceReference(int $reservationId): ?InvoiceReference
+    {
+        return null;
+    }
 
     public function creditOnCancellation(int $reservationId, string $reason, User $actor): ?string
     {

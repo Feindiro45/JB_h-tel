@@ -1,0 +1,204 @@
+/*
+ * Ticket thermique 80 mm (D-061). Noir sur blanc uniquement : les gris sont tramés par les
+ * imprimantes thermiques. Les mêmes règles servent à l'écran et à l'impression, pour que la
+ * hauteur mesurée à l'écran soit celle du papier.
+ */
+.ticket-stage {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  overflow-x: auto;
+}
+
+.thermal-ticket {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 80mm;
+  padding: 4mm 4mm 6mm;
+  background: #fff;
+  color: #000;
+  font:
+    12px/1.35 Arial,
+    'Helvetica Neue',
+    Helvetica,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 10px #0f172a24;
+}
+
+.thermal-ticket--58 {
+  width: 58mm;
+  padding: 3mm 2.5mm 5mm;
+  font-size: 10.5px;
+}
+
+.thermal-ticket p {
+  margin: 0 0 2px;
+  line-height: 1.35;
+}
+
+.thermal-ticket .ticket-center {
+  text-align: center;
+}
+
+.thermal-ticket .ticket-brand {
+  font-size: 1.45em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.thermal-ticket .ticket-title {
+  margin-top: 6px;
+  font-size: 1.1em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.thermal-ticket .ticket-stamp {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border: 2px solid #000;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.thermal-ticket .ticket-rule {
+  height: 0;
+  margin: 6px 0;
+  border: 0;
+  border-top: 1px dashed #000;
+}
+
+.thermal-ticket .ticket-pair {
+  display: flex;
+  justify-content: space-between;
+  gap: 3mm;
+  margin: 2px 0;
+}
+
+/* Le libellé ne se coupe qu’entre deux mots ; c’est la valeur (un nom long) qui se replie. */
+.thermal-ticket .ticket-pair > :first-child {
+  flex: 0 1 auto;
+  min-width: auto;
+  overflow-wrap: normal;
+}
+
+.thermal-ticket .ticket-pair > :last-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+}
+
+/* Un montant ne se réduit ni ne se coupe jamais. */
+.thermal-ticket .ticket-pair > .ticket-amount {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.thermal-ticket .ticket-pair--strong {
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px solid #000;
+  font-size: 1.15em;
+  font-weight: 700;
+}
+
+.thermal-ticket .ticket-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thermal-ticket .ticket-lines li {
+  margin: 0 0 4px;
+}
+
+.thermal-ticket .ticket-lines li > .ticket-pair {
+  margin: 0;
+}
+
+.thermal-ticket .ticket-lines-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #000;
+  font-weight: 700;
+}
+
+.thermal-ticket .ticket-note {
+  font-size: 0.9em;
+}
+
+/* QR code de vérification (D-065) : net à l'impression, sans lissage des modules. */
+.thermal-ticket .ticket-qr {
+  display: block;
+  width: 30mm;
+  height: 30mm;
+  margin: 4px auto 2px;
+  image-rendering: pixelated;
+}
+
+.thermal-ticket--58 .ticket-qr {
+  width: 26mm;
+  height: 26mm;
+}
+
+.thermal-ticket .ticket-section-title {
+  margin: 2px 0;
+  font-weight: 700;
+}
+
+.ticket-help {
+  margin-top: 16px;
+}
+
+/*
+ * Impression : seul le ticket reste, sans les marges de l'application. Le format de page
+ * (largeur du papier × hauteur mesurée) est injecté par TicketPrintLayout pendant qu'il est
+ * affiché, sans toucher au format A4 des autres documents.
+ */
+@media print {
+  html.ticket-printing,
+  html.ticket-printing body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  html.ticket-printing
+    body
+    *:not(:has(.thermal-ticket)):not(.thermal-ticket):not(.thermal-ticket *) {
+    display: none !important;
+  }
+
+  html.ticket-printing body *:has(.thermal-ticket) {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  html.ticket-printing .thermal-ticket {
+    margin: 0 !important;
+    box-shadow: none !important;
+    break-inside: auto;
+  }
+}

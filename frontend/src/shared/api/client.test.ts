@@ -11,9 +11,37 @@ function jsonResponse(status: number, body: unknown): Response {
 
 afterEach(() => {
   document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
+  vi.unstubAllEnvs()
+  vi.resetModules()
 })
 
 describe('api client', () => {
+  it('conserve le dossier du backend pour la session, les appels et les documents', async () => {
+    vi.resetModules()
+    vi.stubEnv('VITE_API_URL', 'https://banguiweb-tech.com/backend/')
+    const { api: mountedApi, apiUrl } = await import('./client')
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }))
+
+    await mountedApi.csrf()
+    await mountedApi.get('/api/v1/auth/me')
+    await mountedApi.get('api/v1/reservations', { query: { page: 2, search: 'Doko' } })
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://banguiweb-tech.com/backend/sanctum/csrf-cookie',
+      'https://banguiweb-tech.com/backend/api/v1/auth/me',
+      'https://banguiweb-tech.com/backend/api/v1/reservations?page=2&search=Doko',
+    ])
+    expect(fetchMock.mock.calls.every(([, init]) => init?.credentials === 'include')).toBe(true)
+    expect(apiUrl('/api/v1/invoices/exemple/pdf')).toBe(
+      'https://banguiweb-tech.com/backend/api/v1/invoices/exemple/pdf',
+    )
+    expect(apiUrl('/api/v1/reports/financial?format=pdf')).toBe(
+      'https://banguiweb-tech.com/backend/api/v1/reports/financial?format=pdf',
+    )
+  })
+
   it('appelle l’API avec les cookies de session et renvoie le JSON', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')

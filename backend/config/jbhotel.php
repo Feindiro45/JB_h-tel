@@ -22,12 +22,21 @@ return [
     // son mot de passe (6M). Par défaut, la première origine de FRONTEND_URL.
     'frontend_url' => rtrim((string) env('APP_FRONTEND_URL', explode(',', (string) env('FRONTEND_URL', 'http://localhost:5173'))[0]), '/'),
 
-    // En-tête des factures et reçus. PROVISOIRE (Q-09, Q-16) : raison sociale, adresse, NIF et RCCM
-    // à fournir par l'hôtel ; ces valeurs sont copiées dans chaque facture au moment de son émission.
+    // Synchronisation des postes (D-069) : conservation du journal des changements (un poste peut
+    // rester longtemps hors ligne), délai de sécurité avant d'avancer un curseur, rythme conseillé.
+    'sync' => [
+        'retention_days' => (int) env('SYNC_RETENTION_DAYS', 365),
+        'commit_lag_seconds' => (int) env('SYNC_COMMIT_LAG_SECONDS', 15),
+        'poll_seconds' => (int) env('SYNC_POLL_SECONDS', 30),
+    ],
+
+    // En-tête des factures et reçus : valeurs de départ. D-073 : l'administrateur les modifie dans
+    // Paramètres (clés hotel.*, App\Shared\Settings\HotelIdentity) ; copiées dans chaque facture à son
+    // émission. Mentions légales (NIF, RCCM) PROVISOIRES (Q-09, Q-16).
     'hotel' => [
         'name' => env('HOTEL_NAME', 'JB Hôtel'),
         'address' => env('HOTEL_ADDRESS'),
-        'city' => env('HOTEL_CITY', 'Bangui, République centrafricaine'),
+        'city' => env('HOTEL_CITY', 'Bambari, République centrafricaine'),
         'phone' => env('HOTEL_PHONE'),
         'email' => env('HOTEL_EMAIL'),
         'tax_id' => env('HOTEL_TAX_ID'),

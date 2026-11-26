@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toUserError } from '../../shared/api/errors'
+import { useIdempotencyKey } from '../../shared/api/idempotency'
 import type { Customer } from '../../shared/api/types'
 import { TextAreaField, TextField } from '../../shared/ui/fields'
 import { Modal } from '../../shared/ui/Modal'
@@ -28,10 +29,11 @@ export function CustomerFormDialog({
   const { notify } = useToast()
   const [form, setForm] = useState<CustomerForm>(() => toCustomerForm(customer))
   const [errors, setErrors] = useState<CustomerFormErrors>({})
+  const idempotencyKey = useIdempotencyKey()
 
   const mutation = useMutation({
     mutationFn: (input: CustomerInput) =>
-      customer ? updateCustomer(customer.id, input) : createCustomer(input),
+      customer ? updateCustomer(customer.id, input) : createCustomer(input, idempotencyKey),
     onSuccess: (saved) => {
       void queryClient.invalidateQueries({ queryKey: customerKeys.all })
       notify(customer ? 'Fiche client mise à jour' : 'Client enregistré')

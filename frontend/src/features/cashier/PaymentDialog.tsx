@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIdempotencyKey } from '../../shared/api/idempotency'
 import { paymentMethodsQuery } from '../../shared/api/lookups'
 import { useState } from 'react'
 import { SelectField, TextField } from '../../shared/ui/fields'
@@ -12,10 +13,13 @@ export function PaymentDialog({
   reservationId,
   balance,
   onClose,
+  onPaid,
 }: {
   reservationId: string
   balance: number
   onClose: () => void
+  /** Appelé après un encaissement réussi, avant la fermeture (enchaînement des étapes, D-071). */
+  onPaid?: () => void
 }) {
   const methods = useQuery(paymentMethodsQuery)
   const queryClient = useQueryClient()
@@ -25,21 +29,32 @@ export function PaymentDialog({
   const [reference, setReference] = useState('')
   const [error, setError] = useState<string>()
 
+  // Même clé pour tous les essais de ce dialogue : un double clic n’encaisse qu’une fois (lot 3).
+  const idempotencyKey = useIdempotencyKey()
   const mutation = useMutation({
     mutationFn: () =>
-      recordPayment(reservationId, {
-        amount_fcfa: Number(amount),
-        method: methods.data?.some((m) => m.value === method)
-          ? method
-          : (methods.data?.[0]?.value ?? ''),
-        reference: reference.trim() || null,
-      }),
+      recordPayment(
+        reservationId,
+        {
+          amount_fcfa: Number(amount),
+          method: methods.data?.some((m) => m.value === method)
+            ? method
+            : (methods.data?.[0]?.value ?? ''),
+          reference: reference.trim() || null,
+        },
+        idempotencyKey,
+      ),
     onSuccess: (payment) => {
       // Fiche du séjour, caisse, liste des reçus, soldes et tableau de bord.
       for (const key of [...CASH_KEYS, ['reservations', reservationId]]) {
         void queryClient.invalidateQueries({ queryKey: key })
       }
-      notify(`Encaissement enregistré — reçu ${payment.receipt_number}`)
+      notify(
+        payment.receipt_number.startsWith('LOC-')
+          ? `Encaissement gardé sur ce poste — reçu provisoire ${payment.receipt_number}, envoyé au retour du réseau`
+          : `Encaissement enregistré — reçu ${payment.receipt_number}`,
+      )
+      onPaid?.()
       onClose()
     },
   })
@@ -96,6 +111,7 @@ export function PaymentDialog({
           className="full"
           label="Référence (facultative)"
           placeholder="N° de transaction mobile money, virement…"
+          hint="Jamais de numéro de carte bancaire ni de code secret : ce champ est imprimé sur le reçu."
           value={reference}
           onChange={(e) => setReference(e.target.value)}
         />

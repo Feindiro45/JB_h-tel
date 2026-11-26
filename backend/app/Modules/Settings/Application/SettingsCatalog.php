@@ -14,10 +14,95 @@ use App\Modules\Cashier\Domain\PaymentMethods;
  */
 final class SettingsCatalog
 {
+    /** Opérations possibles hors ligne (N-02), dans l'ordre d'affichage. */
+    public const OFFLINE_OPERATIONS = [
+        'payment.record' => 'Encaissement',
+        'reservation.create' => 'Nouvelle réservation',
+        'customer.create' => 'Nouveau client',
+        'reservation.confirm' => 'Confirmation d’une réservation',
+        'reservation.check-in' => 'Arrivée',
+        'reservation.check-out' => 'Départ',
+        'reservation.extend' => 'Prolongation',
+        'reservation.cancel' => 'Annulation',
+        'reservation.modify' => 'Modification d’une réservation',
+        'reservation.occupants' => 'Occupants',
+        'invoice.issue' => 'Facture provisoire (FAC-LOC-…)',
+    ];
+
     /**
-     * @var array<string, array{label: string, status: 'VALIDATED'|'PROVISIONAL', reference: string, type: 'integer'|'methods'|'text'|'boolean'|'choice', editable: bool, unit?: string, min?: int, max?: int, options?: array<string, string>, help: string}>
+     * @var array<string, array{label: string, status: 'VALIDATED'|'PROVISIONAL', reference: string, type: 'integer'|'methods'|'choices'|'text'|'boolean'|'choice', editable: bool, unit?: string, min?: int, max?: int, options?: array<string, string>, help: string}>
      */
     public const DEFINITIONS = [
+        // D-074 (demande de l'utilisateur, 26/11/2026) : remplace le verrouillage hors ligne seul.
+        'security.idle_lock_minutes' => [
+            'label' => 'Mise en veille après',
+            'status' => 'VALIDATED',
+            'reference' => 'D-074',
+            'type' => 'integer',
+            'editable' => true,
+            'unit' => 'min',
+            'min' => 1,
+            'max' => 240,
+            'help' => 'Sans clic ni frappe pendant ce délai, le logiciel se met en veille, en ligne comme hors ligne : le mot de passe est demandé pour reprendre. Le travail en cours reste à l’écran.',
+        ],
+        // D-073 (demande de l'utilisateur, 25/11/2026) : informations de l'établissement imprimées
+        // en tête des factures et reçus. Figées dans chaque facture à son émission.
+        'hotel.name' => [
+            'label' => 'Nom de l’établissement',
+            'status' => 'VALIDATED',
+            'reference' => 'D-073',
+            'type' => 'text',
+            'editable' => true,
+            'help' => 'En tête des factures, des reçus et dans les e-mails envoyés aux clients.',
+        ],
+        'hotel.city' => [
+            'label' => 'Ville',
+            'status' => 'VALIDATED',
+            'reference' => 'D-073',
+            'type' => 'text',
+            'editable' => true,
+            'help' => 'Imprimée sous le nom de l’hôtel (ex. « Bambari, République centrafricaine »).',
+        ],
+        'hotel.address' => [
+            'label' => 'Adresse',
+            'status' => 'VALIDATED',
+            'reference' => 'D-073',
+            'type' => 'text',
+            'editable' => true,
+            'help' => 'Quartier, rue ou repère. Laisser vide pour ne rien imprimer.',
+        ],
+        'hotel.phone' => [
+            'label' => 'Téléphone de l’hôtel',
+            'status' => 'VALIDATED',
+            'reference' => 'D-073',
+            'type' => 'text',
+            'editable' => true,
+            'help' => 'Imprimé « Tél. : … » sur les factures et reçus. Laisser vide pour ne rien imprimer.',
+        ],
+        'hotel.email' => [
+            'label' => 'E-mail de l’hôtel',
+            'status' => 'VALIDATED',
+            'reference' => 'D-073',
+            'type' => 'text',
+            'editable' => true,
+            'help' => 'Imprimé sur les factures et reçus. Laisser vide pour ne rien imprimer.',
+        ],
+        'hotel.tax_id' => [
+            'label' => 'NIF',
+            'status' => 'PROVISIONAL',
+            'reference' => 'D-073 · Q-09',
+            'type' => 'text',
+            'editable' => true,
+            'help' => 'Numéro d’identification fiscale, imprimé « NIF … ». Mentions légales en RCA à confirmer.',
+        ],
+        'hotel.trade_register' => [
+            'label' => 'RCCM',
+            'status' => 'PROVISIONAL',
+            'reference' => 'D-073 · Q-09',
+            'type' => 'text',
+            'editable' => true,
+            'help' => 'Registre du commerce, imprimé « RCCM … ». Mentions légales en RCA à confirmer.',
+        ],
         'discounts.cashier_max_percent' => [
             'label' => 'Plafond de remise de la caissière',
             'status' => 'PROVISIONAL',
@@ -97,9 +182,56 @@ final class SettingsCatalog
             'editable' => false,
             'help' => 'Fixe pour garantir une numérotation continue (REC-AAAA-NNNNNN).',
         ],
+        'workstations.enforce_main_post' => [
+            'label' => 'Écritures réservées au poste principal',
+            'status' => 'PROVISIONAL',
+            'reference' => 'D-062',
+            'type' => 'boolean',
+            'editable' => true,
+            'help' => 'Oui : réservations et encaissements refusés sur les autres postes. Sans effet tant qu’aucun poste principal n’est désigné.',
+        ],
+        'workstations.silent_after_minutes' => [
+            'label' => 'Poste principal silencieux après',
+            'status' => 'PROVISIONAL',
+            'reference' => 'D-062',
+            'type' => 'integer',
+            'editable' => true,
+            'unit' => 'min',
+            'min' => 1,
+            'max' => 120,
+            'help' => 'Sans signal depuis ce délai, le poste principal est affiché hors ligne et son remplacement devient un transfert forcé, avec motif.',
+        ],
+        'offline.allowed_operations' => [
+            'label' => 'Opérations permises sans Internet',
+            'status' => 'PROVISIONAL',
+            'reference' => 'N-02 · D-064',
+            'type' => 'choices',
+            'editable' => true,
+            'options' => self::OFFLINE_OPERATIONS,
+            'help' => 'Hors ligne, les opérations décochées sont refusées sur le poste avec un message clair ; en ligne, rien ne change. Le serveur revérifie toujours tout à l’envoi.',
+        ],
+        'offline.backup_reminder_minutes' => [
+            'label' => 'Rappel de sauvegarde après',
+            'status' => 'PROVISIONAL',
+            'reference' => 'N-06 · D-064',
+            'type' => 'integer',
+            'editable' => true,
+            'unit' => 'min',
+            'min' => 15,
+            'max' => 1440,
+            'help' => 'Quand une opération attend l’envoi depuis ce délai sans figurer dans une sauvegarde, le poste rappelle d’exporter une sauvegarde chiffrée.',
+        ],
+        'offline.provisional_prefix' => [
+            'label' => 'Préfixe des numéros provisoires',
+            'status' => 'PROVISIONAL',
+            'reference' => 'N-03 · D-064',
+            'type' => 'text',
+            'editable' => true,
+            'help' => 'Reçus et factures émis hors ligne : <préfixe>-<poste>-<séquence>, puis FAC-<préfixe>-… pour une facture. 2 à 5 lettres majuscules.',
+        ],
     ];
 
-    /** @return array{label: string, status: 'VALIDATED'|'PROVISIONAL', reference: string, type: 'integer'|'methods'|'text'|'boolean'|'choice', editable: bool, unit?: string, min?: int, max?: int, options?: array<string, string>, help: string}|null */
+    /** @return array{label: string, status: 'VALIDATED'|'PROVISIONAL', reference: string, type: 'integer'|'methods'|'choices'|'text'|'boolean'|'choice', editable: bool, unit?: string, min?: int, max?: int, options?: array<string, string>, help: string}|null */
     public static function definition(string $key): ?array
     {
         return self::DEFINITIONS[$key] ?? null;
@@ -113,7 +245,22 @@ final class SettingsCatalog
     public static function rules(string $key): array
     {
         return match ($key) {
+            'hotel.name' => ['value' => ['required', 'string', 'max:100']],
+            'hotel.city' => ['value' => ['required', 'string', 'max:120']],
+            'hotel.address' => ['value' => ['present', 'nullable', 'string', 'max:200']],
+            'hotel.phone' => ['value' => ['present', 'nullable', 'string', 'max:40', 'regex:/^[0-9+().\s\/-]{6,40}$/']],
+            'hotel.email' => ['value' => ['present', 'nullable', 'string', 'email', 'max:150']],
+            'hotel.tax_id', 'hotel.trade_register' => ['value' => ['present', 'nullable', 'string', 'max:60']],
             'discounts.cashier_max_percent' => ['value' => ['required', 'integer', 'min:0', 'max:100']],
+            'workstations.enforce_main_post' => ['value' => ['required', 'boolean']],
+            'workstations.silent_after_minutes' => ['value' => ['required', 'integer', 'min:1', 'max:120']],
+            'offline.allowed_operations' => [
+                'value' => ['present', 'array'],
+                'value.*' => ['string', 'distinct', 'in:'.implode(',', array_keys(self::OFFLINE_OPERATIONS))],
+            ],
+            'security.idle_lock_minutes' => ['value' => ['required', 'integer', 'min:1', 'max:240']],
+            'offline.backup_reminder_minutes' => ['value' => ['required', 'integer', 'min:15', 'max:1440']],
+            'offline.provisional_prefix' => ['value' => ['required', 'string', 'regex:/^[A-Z]{2,5}$/']],
             'payments.methods' => [
                 'value' => ['required', 'array', 'min:1'],
                 'value.*' => ['string', 'distinct', 'in:'.implode(',', array_keys(PaymentMethods::LABELS))],

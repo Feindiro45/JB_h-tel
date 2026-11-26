@@ -1,3 +1,6 @@
+import { customersOfflineWorkbook } from './exportOffline'
+import { exportQuery } from '../../shared/export/exportQuery'
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
@@ -39,12 +42,20 @@ export function CustomersPage() {
         title="Clients"
         description="Retrouvez un client par son nom, son téléphone ou son e-mail."
         actions={
-          can('customers.manage') && (
-            <button type="button" className="primary" onClick={() => setCreating(true)}>
-              <Icon name="plus" size={17} />
-              <span className="sr-only">+</span> Nouveau client
-            </button>
-          )
+          <>
+            <ExportButton
+              path="/api/v1/customers/export"
+              module="clients"
+              query={exportQuery(filters)}
+              offline={(client) => customersOfflineWorkbook(client, filters)}
+            />
+            {can('customers.manage') && (
+              <button type="button" className="primary" onClick={() => setCreating(true)}>
+                <Icon name="plus" size={17} />
+                <span className="sr-only">+</span> Nouveau client
+              </button>
+            )}
+          </>
         }
       />
       <PageOverview

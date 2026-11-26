@@ -1,42 +1,34 @@
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { PageOverview } from '../../shared/ui/PageOverview'
 import { Icon } from '../../shared/ui/Icon'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
-import type { InvoiceSummary, Reservation } from '../../shared/api/types'
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { isConferenceRoom, type InvoiceSummary, type Reservation } from '../../shared/api/types'
+import { isLocalId, operationIdOf } from '../../shared/offline/localRefs'
+import { outboxQuery, type QueuedOperation } from '../../shared/offline/outbox'
 import { Badge, ReservationStatusBadge } from '../../shared/ui/Badge'
 import { DeleteDialog } from '../../shared/ui/DeleteDialog'
 import { EmptyState, LoadingBlock, PageHeading, Pair, Panel } from '../../shared/ui/layout'
 import { useToast } from '../../shared/ui/toastContext'
-import { formatDateTime, formatDay, formatFcfa, todayIso } from '../../shared/utils/format'
+import { formatDateTime, formatDay, formatFcfa } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
-import {
-  CASH_KEYS,
-  PaymentActions,
-  PaymentDialog,
-  paymentsKey,
-  reservationPaymentsQuery,
-} from '../cashier'
-import {
-  CreditNoteDialog,
-  invoicePdfUrl,
-  invoicesKey,
-  issueInvoice,
-  reservationInvoicesQuery,
-} from '../invoices'
+import { PaymentActions, PaymentDialog, paymentsKey, reservationPaymentsQuery } from '../cashier'
+import { CreditNoteDialog, reservationInvoicesQuery } from '../invoices'
+import { ReservationJourney } from './ReservationJourney'
 import {
   cancelReservation,
   checkIn,
-  checkOut,
   confirmReservation,
   historyQuery,
   reservationKeys,
   reservationQuery,
   type CancellationInput,
 } from './api'
+import { CheckOutDialog } from './CheckOutDialog'
 import { CancelDialog, ConfirmDialog, ExtendDialog, ModifyDialog, OccupantsDialog } from './dialogs'
-import { ALERTS_KEY } from './alerts'
+import { nextOperation, type CompletedStep } from './nextOperation'
+import { refreshStay } from './stayRefresh'
 
 type Dialog =
   | 'confirm'
@@ -46,18 +38,28 @@ type Dialog =
   | 'extend'
   | 'occupants'
   | 'payment'
-  | 'invoice'
   | 'modify'
   | 'delete'
   | null
 
 export function ReservationDetailPage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const reservation = useQuery({
     ...reservationQuery(id),
-    refetchInterval: (query) => (query.state.data?.status === 'IN_PROGRESS' ? 30_000 : false),
-    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'IN_PROGRESS' && !isLocalId(id) ? 30_000 : false,
+    refetchOnWindowFocus: !isLocalId(id),
   })
+  // Réservation créée hors ligne : une fois reçue par le serveur, la fiche définitive s'ouvre.
+  const outbox = useQuery({ ...outboxQuery, enabled: isLocalId(id) })
+  const origin = isLocalId(id)
+    ? (outbox.data?.find((operation) => operation.id === operationIdOf(id)) ?? null)
+    : null
+  const serverId = origin?.status === 'accepted' ? origin.resultId : null
+  useEffect(() => {
+    if (serverId) void navigate(`/reservations/${serverId}`, { replace: true })
+  }, [navigate, serverId])
 
   if (reservation.isPending) return <LoadingBlock lines={6} label="Chargement de la réservation…" />
   if (!reservation.data) {
@@ -75,42 +77,45 @@ export function ReservationDetailPage() {
       />
     )
   }
-  return <ReservationDetail reservation={reservation.data} />
+  // Une clé par séjour : en passant à la fiche définitive (réservation reçue par le serveur), les
+  // fenêtres et l'enchaînement des étapes repartent de zéro.
+  return (
+    <ReservationDetail key={reservation.data.id} reservation={reservation.data} origin={origin} />
+  )
 }
 
-function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
+function ReservationDetail({
+  reservation: r,
+  origin,
+}: {
+  reservation: Reservation
+  /** Opération qui a créé la réservation hors ligne, tant qu'elle n'est pas reçue par le serveur. */
+  origin: QueuedOperation | null
+}) {
+  const local = isLocalId(r.id)
   const { can } = useCurrentUser()
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [dialog, setDialog] = useState<Dialog>(null)
+  // D-071 : opération qui vient d'aboutir ; la fenêtre de la suivante s'ouvre une fois la fiche
+  // relue. Une réservation qui arrive de l'assistant enchaîne sur l'arrivée si elle commence ce jour.
+  const [chainAfter, setChainAfter] = useState<CompletedStep | null>(() =>
+    (location.state as { reservationCreated?: boolean } | null)?.reservationCreated
+      ? 'created'
+      : null,
+  )
   const [crediting, setCrediting] = useState<InvoiceSummary | null>(null)
   const payments = useQuery({ ...reservationPaymentsQuery(r.id), enabled: can('payments.view') })
   const invoices = useQuery({ ...reservationInvoicesQuery(r.id), enabled: can('invoices.view') })
   const history = useQuery(historyQuery(r.id))
+  const rereading =
+    useIsFetching({ queryKey: reservationKeys.detail(r.id) }) +
+    useIsFetching({ queryKey: paymentsKey(r.id) })
 
-  const refresh = () => {
-    for (const key of [
-      reservationKeys.detail(r.id),
-      reservationKeys.history(r.id),
-      paymentsKey(r.id),
-      invoicesKey(r.id),
-    ]) {
-      void queryClient.invalidateQueries({ queryKey: key })
-    }
-    // Annulation et prolongation touchent aussi la caisse et les factures (D-053).
-    for (const key of [
-      ['reservations', 'list'],
-      ['occupancy'],
-      ['planning'],
-      ['free-rooms'],
-      ALERTS_KEY,
-      ['invoices'],
-      ...CASH_KEYS,
-    ]) {
-      void queryClient.invalidateQueries({ queryKey: key })
-    }
-  }
+  // Annulation, prolongation et départ touchent aussi la caisse et les factures (D-053).
+  const refresh = () => refreshStay(queryClient, r.id)
   const done = (message: string) => {
     refresh()
     setDialog(null)
@@ -118,22 +123,15 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
   }
 
   const transition = useMutation({
-    mutationFn: async (kind: 'confirm' | 'check-in' | 'check-out' | 'invoice') => {
+    mutationFn: async (kind: 'confirm' | 'check-in') => {
       if (kind === 'confirm') await confirmReservation(r.id)
       if (kind === 'check-in') await checkIn(r.id)
-      if (kind === 'check-out') await checkOut(r.id)
-      if (kind === 'invoice') await issueInvoice(r.id)
       return kind
     },
-    onSuccess: (kind) =>
-      done(
-        {
-          confirm: 'Réservation confirmée',
-          'check-in': 'Arrivée enregistrée',
-          'check-out': 'Départ enregistré',
-          invoice: 'Facture émise',
-        }[kind],
-      ),
+    onSuccess: (kind) => {
+      done(kind === 'confirm' ? 'Réservation confirmée' : 'Arrivée enregistrée')
+      setChainAfter(kind)
+    },
   })
   const cancel = useMutation({
     mutationFn: (input: CancellationInput) => cancelReservation(r.id, input),
@@ -146,24 +144,33 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
   })
 
   const summary = payments.data?.summary
+  const summaryReady = !can('payments.view') || payments.data !== undefined
+  // Ajustement pendant le rendu (et non dans un effet) : dès que la fiche et sa caisse sont
+  // relues, la fenêtre de l'opération suivante s'ouvre, une seule fois.
+  if (chainAfter && dialog === null && rereading === 0 && summaryReady) {
+    const next = nextOperation(chainAfter, r, summary, can)
+    setChainAfter(null)
+    if (next) setDialog(next)
+  }
   const open = ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(r.status)
   const activeInvoice =
     invoices.data?.find((invoice) => invoice.type === 'INVOICE' && invoice.status === 'ISSUED') ??
     null
-  const hasActiveInvoice = activeInvoice !== null
   const cancelled = r.status === 'CANCELLED'
+  // D-072 : salle de conférence réservée pour un événement.
+  const conference = isConferenceRoom(r.room) || Boolean(r.event)
 
   return (
     <>
       <PageHeading
         icon="calendar"
         eyebrow="Réservations"
-        title={r.customer?.full_name ?? 'Réservation'}
-        description={`Chambre ${r.room?.number} · ${r.room?.room_type.label} · ${formatDay(r.period.start_date)} → ${formatDay(r.period.end_date)}`}
+        title={r.event?.name ?? r.customer?.full_name ?? 'Réservation'}
+        description={`${conference ? `Salle ${r.room?.number}` : `Chambre ${r.room?.number}`} · ${r.room?.room_type.label} · ${formatDay(r.period.start_date)} → ${formatDay(r.period.end_date)}${r.event && r.customer ? ` · ${r.customer.full_name}` : ''}`}
         actions={
           <>
             <ReservationStatusBadge status={r.status} label={r.status_label} />
-            {can('records.delete') && (
+            {can('records.delete') && !local && (
               <button type="button" className="danger" onClick={() => setDialog('delete')}>
                 <Icon name="trash" size={17} />
                 Supprimer
@@ -173,12 +180,30 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         }
       />
 
+      {local && origin?.status === 'rejected' ? (
+        <p className="notice departure-warning" role="alert">
+          <Icon name="close" size={21} />
+          <span>
+            <strong>Refusée par le serveur :</strong> {origin.error?.message ?? 'cause inconnue'}{' '}
+            <Link to="/synchronisation">Voir dans Synchronisation</Link>
+          </span>
+        </p>
+      ) : local ? (
+        <p className="notice notice--info departure-warning" role="status">
+          <Icon name="upload" size={21} />
+          <span>
+            <strong>Gardée sur ce poste, pas encore reçue par le serveur.</strong> Toutes les
+            actions restent possibles, sauf la suppression ; tout part au retour du réseau.
+          </span>
+        </p>
+      ) : null}
       {r.departure_overdue && (
         <p className="notice departure-warning" role="status">
           <Icon name="bell" size={21} />
           <span>
-            <strong>Départ prévu dépassé.</strong> La chambre reste occupée. Enregistrez le départ
-            réel ou prolongez le séjour avec validation du supplément.
+            <strong>{conference ? 'Fin prévue dépassée.' : 'Départ prévu dépassé.'}</strong> La{' '}
+            {conference ? 'salle' : 'chambre'} reste occupée. Enregistrez le départ réel ou
+            prolongez avec validation du supplément.
           </span>
         </p>
       )}
@@ -237,41 +262,18 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
           <Icon name="back" size={17} />
           <span className="sr-only">←</span> Réservations
         </Link>
-        {r.status === 'PENDING' && can('reservations.update') && (
-          <button type="button" className="primary" onClick={() => setDialog('confirm')}>
-            <Icon name="check" size={17} />
-            Confirmer la réservation
-          </button>
-        )}
-        {r.status === 'CONFIRMED' &&
-          can('reservations.check_in_out') &&
-          // Confort uniquement : le serveur refuse de toute façon une arrivée anticipée (409).
-          (r.period.start_date <= todayIso() ? (
-            <button type="button" className="primary" onClick={() => setDialog('check-in')}>
-              <Icon name="login" size={17} />
-              Enregistrer l’arrivée
-            </button>
-          ) : (
-            <span className="caption">
-              Arrivée enregistrable à partir du {formatDay(r.period.start_date)}
-            </span>
-          ))}
-        {r.status === 'IN_PROGRESS' && can('reservations.check_in_out') && (
-          <button type="button" className="primary" onClick={() => setDialog('check-out')}>
-            <Icon name="logout" size={17} />
-            Enregistrer le départ
-          </button>
-        )}
         {open && can('reservations.update') && (
           <>
             <button type="button" className="secondary" onClick={() => setDialog('extend')}>
               <Icon name="clock" size={17} />
               Prolonger
             </button>
-            <button type="button" className="secondary" onClick={() => setDialog('occupants')}>
-              <Icon name="edit" size={17} />
-              Modifier les occupants
-            </button>
+            {!conference && (
+              <button type="button" className="secondary" onClick={() => setDialog('occupants')}>
+                <Icon name="edit" size={17} />
+                Modifier les occupants
+              </button>
+            )}
           </>
         )}
         {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.update') && (
@@ -280,23 +282,6 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
             Modifier la réservation
           </button>
         )}
-        {summary &&
-          summary.balance_fcfa > 0 &&
-          r.status !== 'CANCELLED' &&
-          can('payments.record') && (
-            <button type="button" className="secondary" onClick={() => setDialog('payment')}>
-              <Icon name="wallet" size={17} />
-              Encaisser
-            </button>
-          )}
-        {!['PENDING', 'CANCELLED'].includes(r.status) &&
-          !hasActiveInvoice &&
-          can('invoices.issue') && (
-            <button type="button" className="secondary" onClick={() => setDialog('invoice')}>
-              <Icon name="document" size={17} />
-              Émettre une facture
-            </button>
-          )}
         {['PENDING', 'CONFIRMED'].includes(r.status) && can('reservations.cancel') && (
           <button type="button" className="danger" onClick={() => setDialog('cancel')}>
             <Icon name="close" size={17} />
@@ -305,21 +290,47 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         )}
       </div>
 
+      <ReservationJourney
+        reservation={r}
+        summary={summary}
+        invoice={activeInvoice}
+        invoicePending={invoices.isPending && can('invoices.view')}
+        can={can}
+        onAction={setDialog}
+      />
+
       <div className="dashboard-grid">
-        <Panel title="Informations sur le séjour">
+        <Panel title={conference ? 'Informations sur l’événement' : 'Informations sur le séjour'}>
           <div className="panel-body pairs grid-pairs">
-            <Pair label="Arrivée">
+            {r.event && (
+              <>
+                <Pair label="Événement">{r.event.name}</Pair>
+                <Pair label="Type d’occupant">{r.event.organizer_type_label}</Pair>
+                {r.event.organization_name && (
+                  <Pair label="Organisation">{r.event.organization_name}</Pair>
+                )}
+                {(r.event.contact_name || r.event.contact_phone) && (
+                  <Pair label="Responsable sur place">
+                    {[r.event.contact_name, r.event.contact_phone].filter(Boolean).join(' · ')}
+                  </Pair>
+                )}
+                {r.customer && <Pair label="Client (réservation)">{r.customer.full_name}</Pair>}
+              </>
+            )}
+            <Pair label={conference ? 'Début' : 'Arrivée'}>
               {formatDay(r.period.start_date)} · {r.period.start_time ?? 'Heure libre'}
             </Pair>
-            <Pair label="Départ">
+            <Pair label={conference ? 'Fin' : 'Départ'}>
               {formatDay(r.period.end_date)} · {r.period.end_time ?? 'Heure libre'}
             </Pair>
-            <Pair label="Chambre bloquée">
+            <Pair label={conference ? 'Salle bloquée' : 'Chambre bloquée'}>
               {formatDateTime(r.period.blocked_from)} → {formatDateTime(r.period.blocked_until)}
             </Pair>
-            <Pair label="Occupants">
-              {(r.occupants ?? []).map((o) => o.name).join(', ') || '—'}
-            </Pair>
+            {!conference && (
+              <Pair label="Occupants">
+                {(r.occupants ?? []).map((o) => o.name).join(', ') || '—'}
+              </Pair>
+            )}
             {r.checked_in_at && (
               <Pair label="Arrivée enregistrée">{formatDateTime(r.checked_in_at)}</Pair>
             )}
@@ -487,25 +498,27 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
                           </td>
                           <td className="num">{formatFcfa(invoice.net_fcfa)}</td>
                           <td className="num">
-                            <a
+                            <Link
                               className="text-button"
-                              href={invoicePdfUrl(invoice.id)}
-                              target="_blank"
-                              rel="noopener"
+                              to={`/documents/factures/${invoice.id}/ticket`}
+                              aria-label={`Ticket 80 mm de ${invoice.type_label.toLowerCase()} ${invoice.number}`}
                             >
-                              <Icon name="download" size={17} />
-                              PDF A4 ↗
-                            </a>
-                            <a
-                              className="text-button"
-                              href={invoice.verification_url}
-                              target="_blank"
-                              rel="noopener"
-                            >
-                              <Icon name="shield" size={17} />
-                              Vérification ↗
-                            </a>
+                              <Icon name="print" size={17} />
+                              Ticket
+                            </Link>
+                            {!isLocalId(invoice.id) && (
+                              <a
+                                className="text-button"
+                                href={invoice.verification_url}
+                                target="_blank"
+                                rel="noopener"
+                              >
+                                <Icon name="shield" size={17} />
+                                Vérification ↗
+                              </a>
+                            )}
                             {invoice.type === 'INVOICE' &&
+                              !isLocalId(invoice.id) &&
                               invoice.status === 'ISSUED' &&
                               can('invoices.credit') && (
                                 <button
@@ -605,31 +618,11 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         </ConfirmDialog>
       )}
       {dialog === 'check-out' && (
-        <ConfirmDialog
-          title="Enregistrer le départ"
-          confirmLabel="Enregistrer le départ"
-          pending={transition.isPending}
+        <CheckOutDialog
+          reservation={r}
           onClose={() => setDialog(null)}
-          onConfirm={() => transition.mutate('check-out')}
-        >
-          <p>
-            Le séjour sera clôturé et la chambre libérée.
-            {summary && summary.balance_fcfa > 0 && (
-              <strong> Attention : il reste {formatFcfa(summary.balance_fcfa)} à encaisser.</strong>
-            )}
-          </p>
-        </ConfirmDialog>
-      )}
-      {dialog === 'invoice' && (
-        <ConfirmDialog
-          title="Émettre une facture"
-          confirmLabel="Émettre la facture"
-          pending={transition.isPending}
-          onClose={() => setDialog(null)}
-          onConfirm={() => transition.mutate('invoice')}
-        >
-          <p>La facture sera figée et numérotée. Toute correction passera ensuite par un avoir.</p>
-        </ConfirmDialog>
+          onDone={() => done('Départ enregistré')}
+        />
       )}
       {dialog === 'cancel' && (
         <CancelDialog
@@ -666,6 +659,7 @@ function ReservationDetail({ reservation: r }: { reservation: Reservation }) {
         <PaymentDialog
           reservationId={r.id}
           balance={summary.balance_fcfa}
+          onPaid={() => setChainAfter('payment')}
           onClose={() => {
             setDialog(null)
             refresh()

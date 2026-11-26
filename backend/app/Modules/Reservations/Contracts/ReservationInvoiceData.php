@@ -34,5 +34,12 @@ final readonly class ReservationInvoiceData
          * @var list<ReservationInvoiceLine>
          */
         public array $lines = [],
+        /**
+         * Salle de conférence (D-072) : événement, type d'occupant, organisation et contact ;
+         * `null` pour une chambre.
+         *
+         * @var array{name: string, organizer: string, organization_name: ?string, contact_name: ?string, contact_phone: ?string}|null
+         */
+        public ?array $event = null,
     ) {}
 }

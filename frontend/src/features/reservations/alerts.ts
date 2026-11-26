@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import type { Envelope, Paginated, Reservation } from '../../shared/api/types'
+import { registerOfflineEssential } from '../../shared/offline/essentials'
 
 export interface AlertFilters {
   search?: string
@@ -47,3 +48,7 @@ export function overdueDuration(minutes: number): string {
     .filter(Boolean)
     .join(' ')
 }
+
+// Écran « Alertes » par défaut, gardé pour le travail sans réseau (lot 2).
+registerOfflineEssential('reservations.view', () => departureAlertsQuery({ page: 1, per_page: 25 }))
+registerOfflineEssential('reservations.view', () => alertSummaryQuery)

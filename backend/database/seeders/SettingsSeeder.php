@@ -50,6 +50,39 @@ class SettingsSeeder extends Seeder
             'value' => ['CASH', 'MOBILE_MONEY', 'CARD', 'BANK_TRANSFER'],
             'description' => 'PROVISOIRE (Q-11) : moyens de paiement acceptés.',
         ],
+        'workstations.enforce_main_post' => [
+            'value' => false,
+            'description' => 'PROVISOIRE (D-062) : réservations et encaissements réservés au poste principal (désactivé tant que l’administrateur ne l’active pas).',
+        ],
+        'workstations.silent_after_minutes' => [
+            'value' => 5,
+            'description' => 'PROVISOIRE (D-062) : délai sans signal après lequel le poste principal est considéré hors ligne ; un transfert devient alors forcé.',
+        ],
+        'offline.allowed_operations' => [
+            'value' => ['payment.record', 'reservation.create', 'customer.create', 'reservation.confirm', 'reservation.check-in', 'reservation.check-out', 'reservation.extend', 'reservation.cancel', 'reservation.modify', 'reservation.occupants', 'invoice.issue'],
+            'description' => 'PROVISOIRE (N-02, D-064) : opérations permises sans Internet, toutes par défaut.',
+        ],
+        'security.idle_lock_minutes' => [
+            'value' => 15,
+            'description' => 'D-074 : mise en veille du logiciel après ce délai sans action, en ligne comme hors ligne.',
+        ],
+        'offline.backup_reminder_minutes' => [
+            'value' => 60,
+            'description' => 'PROVISOIRE (N-06, D-064) : rappel d’exporter une sauvegarde quand une opération attend depuis ce délai.',
+        ],
+        'offline.provisional_prefix' => [
+            'value' => 'LOC',
+            'description' => 'PROVISOIRE (N-03, D-064) : préfixe des numéros provisoires (LOC-<poste>-<séquence>).',
+        ],
+        // D-073 : informations de l'établissement. La migration 2026_11_25_110000 les crée avec les
+        // valeurs du serveur ; ces valeurs ne servent que si la table a été vidée.
+        'hotel.name' => ['value' => 'JB Hôtel', 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.city' => ['value' => 'Bambari, République centrafricaine', 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.address' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.phone' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.email' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.tax_id' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
+        'hotel.trade_register' => ['value' => null, 'description' => 'Informations de l’établissement (D-073)'],
     ];
 
     public function run(): void

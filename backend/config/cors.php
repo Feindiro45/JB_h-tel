@@ -20,9 +20,10 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-XSRF-TOKEN'],
+    'allowed_headers' => ['Accept', 'Content-Type', 'X-Requested-With', 'X-XSRF-TOKEN', 'X-Workstation-Token', 'Idempotency-Key', 'X-Offline-Replay'],
 
-    'exposed_headers' => ['Retry-After'],
+    // Content-Disposition : nom des fichiers exportés (Excel), lu par le navigateur.
+    'exposed_headers' => ['Retry-After', 'Idempotent-Replayed', 'Content-Disposition'],
 
     'max_age' => 600,
 

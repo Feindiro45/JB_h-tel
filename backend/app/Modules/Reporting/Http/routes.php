@@ -3,6 +3,7 @@
 use App\Modules\Identity\Domain\PermissionName;
 use App\Modules\Identity\Models\User;
 use App\Modules\Reporting\Http\Controllers\AuditLogController;
+use App\Modules\Reporting\Http\Controllers\AuditLogExportController;
 use App\Modules\Reporting\Http\Controllers\DashboardController;
 use App\Modules\Reporting\Http\Controllers\FinancialReportController;
 use App\Modules\Reporting\Http\Controllers\ReceivablesController;
@@ -23,5 +24,7 @@ Route::middleware(['authenticated', 'permission:'.PermissionName::PaymentsView->
 // Journal d'audit : administrateur (droit de consulter l'audit).
 Route::middleware(['authenticated', 'permission:'.PermissionName::AuditView->value])
     ->get('audit-logs', AuditLogController::class)->name('audit-logs');
+Route::middleware(['authenticated', 'permission:'.PermissionName::AuditView->value])
+    ->get('audit-logs/export', AuditLogExportController::class)->name('audit-logs.export');
 Route::middleware(['authenticated', 'permission:'.PermissionName::AuditView->value])
     ->get('audit-actors', fn () => response()->json(['data' => User::query()->orderBy('name')->get(['uuid', 'name'])->map(fn (User $user) => ['id' => $user->uuid, 'name' => $user->name])]));

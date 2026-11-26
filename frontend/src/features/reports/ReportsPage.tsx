@@ -1,15 +1,16 @@
+import { ExportButton } from '../../shared/ui/ExportButton'
 import { LocalTable } from '../../shared/ui/LocalTable'
 import { useAutoFilters } from '../../shared/ui/useAutoFilters'
 import { AutoFilterStatus } from '../../shared/ui/AutoFilterStatus'
 import { Icon } from '../../shared/ui/Icon'
-import { queryOptions, useQuery } from '@tanstack/react-query'
-import { api, apiUrl } from '../../shared/api/client'
-import type { Envelope } from '../../shared/api/types'
+import { useQuery } from '@tanstack/react-query'
+import { apiUrl } from '../../shared/api/client'
 import { SelectField, TextField } from '../../shared/ui/fields'
 import { LoadingBlock, Metric, PageHeading, Panel } from '../../shared/ui/layout'
 import { formatFcfa, todayIso } from '../../shared/utils/format'
 import { useCurrentUser } from '../auth'
 import { roomsQuery, roomTypesQuery } from '../catalog'
+import { defaultReportFilters, reportAgentsQuery, reportQuery } from './api'
 
 interface Report {
   totals: {
@@ -32,38 +33,27 @@ interface Report {
   }[]
   reconciliation: { difference_fcfa: number }
   definitions: string[]
-  occupancy: { at: string; occupied: number; reserved: number; maintenance: number; free: number }
+  occupancy: {
+    at: string
+    occupied: number
+    reserved: number
+    maintenance: number
+    free: number
+    /** D-072 : salles de conférence comptées à part. */
+    conference?: { occupied: number; reserved: number; maintenance: number; free: number }
+  }
 }
 export function ReportsPage() {
   const today = todayIso()
   const { can } = useCurrentUser()
-  const { filters, draft, change, pending, valid } = useAutoFilters(
-    {
-      from: `${today.slice(0, 8)}01`,
-      to: today,
-      room_id: '',
-      room_type_id: '',
-      agent_id: '',
-    },
-    { requiredPeriod: true, maxDays: 366 },
-  )
+  const { filters, draft, change, pending, valid } = useAutoFilters(defaultReportFilters(today), {
+    requiredPeriod: true,
+    maxDays: 366,
+  })
   const rooms = useQuery(roomsQuery)
   const types = useQuery(roomTypesQuery)
-  const agents = useQuery(
-    queryOptions({
-      queryKey: ['report-agents'],
-      queryFn: ({ signal }) =>
-        api.get<Envelope<{ id: string; name: string }[]>>('/api/v1/report-agents', { signal }),
-    }),
-  )
-  const report = useQuery(
-    queryOptions({
-      queryKey: ['reports', filters],
-      queryFn: async ({ signal }) =>
-        (await api.get<Envelope<Report>>('/api/v1/reports/financial', { query: filters, signal }))
-          .data,
-    }),
-  )
+  const agents = useQuery(reportAgentsQuery)
+  const report = useQuery(reportQuery<Report>(filters))
   const data = report.data
   const exportUrl = (format: string) =>
     apiUrl(`/api/v1/reports/financial?${new URLSearchParams({ ...filters, format })}`)
@@ -78,6 +68,11 @@ export function ReportsPage() {
         actions={
           can('reports.export') && (
             <>
+              <ExportButton
+                path="/api/v1/reports/financial"
+                module="rapport"
+                query={{ ...filters, format: 'xlsx' }}
+              />
               <a className="secondary" href={exportUrl('csv')}>
                 <Icon name="download" size={17} />
                 Exporter CSV
@@ -193,6 +188,15 @@ export function ReportsPage() {
                   Chambres occupées : {data.occupancy.occupied} · libres : {data.occupancy.free} ·
                   réservées : {data.occupancy.reserved} · maintenance : {data.occupancy.maintenance}
                 </span>
+                {data.occupancy.conference &&
+                  Object.values(data.occupancy.conference).some((count) => count > 0) && (
+                    <span>
+                      Salles de conférence occupées : {data.occupancy.conference.occupied} · libres
+                      : {data.occupancy.conference.free} · réservées :{' '}
+                      {data.occupancy.conference.reserved} · maintenance :{' '}
+                      {data.occupancy.conference.maintenance}
+                    </span>
+                  )}
               </div>
             </Panel>
             <Panel title="Évolution de l’encaissé net">

@@ -3,6 +3,7 @@
 namespace App\Modules\Notifications\Mail;
 
 use App\Modules\Notifications\Application\StayMessage;
+use App\Shared\Settings\HotelIdentity;
 use Illuminate\Mail\Attachment;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -21,7 +22,7 @@ final class StayMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: $this->message->subject.' — '.config('jbhotel.hotel.name', 'JB Hôtel'));
+        return new Envelope(subject: $this->message->subject.' — '.app(HotelIdentity::class)->name());
     }
 
     public function content(): Content
@@ -30,7 +31,7 @@ final class StayMail extends Mailable
             'stay' => $this->message,
             'customerName' => $this->customerName,
             'unsubscribeUrl' => $this->unsubscribeUrl,
-            'hotel' => (string) config('jbhotel.hotel.name', 'JB Hôtel'),
+            'hotel' => app(HotelIdentity::class)->name(),
         ]);
     }
 

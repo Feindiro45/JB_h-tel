@@ -2,6 +2,7 @@
 
 namespace App\Modules\Identity\Mail;
 
+use App\Shared\Settings\HotelIdentity;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -33,7 +34,7 @@ final class StaffMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: $this->subjectLine.' — '.config('jbhotel.hotel.name', 'JB Hôtel'));
+        return new Envelope(subject: $this->subjectLine.' — '.app(HotelIdentity::class)->name());
     }
 
     public function content(): Content
@@ -46,7 +47,7 @@ final class StaffMail extends Mailable
             'actionLabel' => $this->actionLabel,
             'actionUrl' => $this->actionUrl,
             'footnote' => $this->footnote,
-            'hotel' => (string) config('jbhotel.hotel.name', 'JB Hôtel'),
+            'hotel' => app(HotelIdentity::class)->name(),
         ]);
     }
 }

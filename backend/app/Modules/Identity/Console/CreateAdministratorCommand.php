@@ -44,7 +44,7 @@ final class CreateAdministratorCommand extends Command
             return self::FAILURE;
         }
 
-        $user = $users->create(new CreateUserData($name, $email, $password, RoleName::Admin));
+        $user = $users->createFromConsole(new CreateUserData($name, $email, $password, RoleName::Admin));
         $this->info("Administrateur créé : {$user->email}");
 
         return self::SUCCESS;

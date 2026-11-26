@@ -3,6 +3,8 @@
 namespace App\Modules\Reporting\Http\Controllers;
 
 use App\Modules\Reporting\Application\Queries\FinancialReport;
+use App\Modules\Reporting\Http\Exports\FinancialReportExport;
+use App\Shared\Export\Workbook;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -12,14 +14,14 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class FinancialReportController
 {
-    public function __invoke(Request $request, FinancialReport $report): Response
+    public function __invoke(Request $request, FinancialReport $report, FinancialReportExport $workbook): Response
     {
         $values = $request->validate([
             'from' => ['required', 'date_format:Y-m-d'], 'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
             'room_id' => ['nullable', 'uuid', Rule::exists('rooms', 'uuid')],
             'room_type_id' => ['nullable', 'uuid', Rule::exists('room_types', 'uuid')],
             'agent_id' => ['nullable', 'uuid', Rule::exists('users', 'uuid')],
-            'format' => ['nullable', Rule::in(['csv', 'pdf'])],
+            'format' => ['nullable', Rule::in(['csv', 'pdf', 'xlsx'])],
         ], attributes: ['from' => 'date de début', 'to' => 'date de fin', 'room_id' => 'chambre', 'room_type_id' => 'catégorie', 'agent_id' => 'agent']);
         $from = CarbonImmutable::parse($values['from'], (string) config('app.timezone'))->startOfDay();
         $until = CarbonImmutable::parse($values['to'], (string) config('app.timezone'))->startOfDay()->addDay();
@@ -32,6 +34,9 @@ final class FinancialReportController
         $filters = array_filter(array_intersect_key($values, array_flip(['room_id', 'room_type_id', 'agent_id'])), fn ($v) => $v !== null && $v !== '');
         $data = $report->summary($from, $until, $filters);
         $name = 'rapport-'.$values['from'].'-'.$values['to'];
+        if (($values['format'] ?? null) === 'xlsx') {
+            return $workbook->build($data, $request->user())->download(Workbook::filename(FinancialReportExport::MODULE));
+        }
         if (($values['format'] ?? null) === 'pdf') {
             return Pdf::loadView('reporting.financial', ['report' => $data])->setPaper('a4')->download($name.'.pdf');
         }

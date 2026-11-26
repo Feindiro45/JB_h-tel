@@ -26,7 +26,7 @@ final class UpdateRoomRequest extends FormRequest
         return [
             'number' => ['sometimes', 'string', 'regex:/^[A-Za-z0-9-]{1,30}$/', Rule::unique('rooms', 'number')->ignore($room->id)],
             'room_type_id' => ['sometimes', 'uuid', Rule::exists('room_types', 'uuid')],
-            'capacity' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'capacity' => ['sometimes', 'integer', 'min:1', 'max:'.RoomRequestAttributes::maxCapacity($this->input('room_type_id'), $room->room_type_id)],
             'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
     }

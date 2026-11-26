@@ -37,13 +37,16 @@ class RoomTypeAndRoomTest extends TestCase
     {
         $this->seed(RoomTypesSeeder::class);
 
-        $this->actingAs($this->cashier)
+        // VIP, Standard et la salle de conférence (D-072), sans doublon au second passage.
+        $types = $this->actingAs($this->cashier)
             ->getJson('/api/v1/room-types')
             ->assertOk()
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.code', 'VIP')
-            ->assertJsonPath('data.0.id', $this->vip->uuid)
-            ->assertJsonPath('data.1.label', 'Standard');
+            ->assertJsonCount(3, 'data')
+            ->collect('data')
+            ->keyBy('code');
+        $this->assertSame($this->vip->uuid, $types['VIP']['id']);
+        $this->assertSame('Standard', $types['STANDARD']['label']);
+        $this->assertSame('CONFERENCE', $types['SALLE_CONFERENCE']['kind']);
     }
 
     public function test_admin_creates_and_renames_a_room_type_but_cannot_change_its_code(): void

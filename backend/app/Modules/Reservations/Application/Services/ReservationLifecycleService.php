@@ -9,6 +9,7 @@ use App\Modules\Reservations\Contracts\CancellationRefunds;
 use App\Modules\Reservations\Contracts\StayInvoicing;
 use App\Modules\Reservations\Domain\ReservationStatus;
 use App\Modules\Reservations\DTO\CancellationData;
+use App\Modules\Reservations\DTO\CheckOutData;
 use App\Modules\Reservations\DTO\OccupantData;
 use App\Modules\Reservations\Events\ReservationCancelled;
 use App\Modules\Reservations\Events\ReservationCheckedIn;
@@ -87,14 +88,33 @@ final class ReservationLifecycleService
         });
     }
 
-    public function checkOut(Reservation $reservation, User $actor): Reservation
+    /**
+     * Départ. D-071 (décision de l'utilisateur) : un séjour qui n'est pas entièrement payé peut
+     * être clôturé, mais seulement avec le motif pour lequel le client part sans tout régler ; le
+     * solde et le motif sont écrits dans le journal d'audit. Le solde est lu sous verrou.
+     */
+    public function checkOut(Reservation $reservation, CheckOutData $data, User $actor): Reservation
     {
-        return DB::transaction(function () use ($reservation, $actor): Reservation {
+        return DB::transaction(function () use ($reservation, $data, $actor): Reservation {
             // Même ordre de verrouillage que la réservation et la prolongation (D-056).
             $this->rooms->lockForReservation($reservation->room_id) ?? throw ReservationQuoter::roomNotFound();
             $reservation = $this->lock($reservation);
             if ($reservation->status !== ReservationStatus::InProgress) {
                 throw self::invalidStatus($reservation, 'enregistrer le départ');
+            }
+
+            $unpaid = max(0, $reservation->net_fcfa - $this->refunds->netCollected($reservation->id));
+            if ($unpaid > 0 && $data->unpaidReason === null) {
+                throw new BusinessRuleException(
+                    'Il reste '.Format::fcfa($unpaid).' à encaisser sur ce séjour.',
+                    'Solde impayé au départ',
+                    409,
+                    'checkout_unpaid_balance',
+                    [
+                        'Encaissez le solde, puis enregistrez le départ.',
+                        'Si le client part sans tout payer, indiquez le motif : il sera enregistré dans le journal.',
+                    ],
+                );
             }
 
             event(new ReservationCheckedOut($reservation->id));
@@ -103,7 +123,7 @@ final class ReservationLifecycleService
                 'status' => ReservationStatus::Completed,
                 'checked_out_at' => now(),
                 'checked_out_by' => $actor->id,
-            ]);
+            ], $unpaid > 0 ? ['unpaid_balance_fcfa' => $unpaid, 'unpaid_reason' => $data->unpaidReason] : []);
         });
     }
 
@@ -211,8 +231,11 @@ final class ReservationLifecycleService
         return $locked;
     }
 
-    /** @param  array<string, mixed>  $changes */
-    private function transition(Reservation $reservation, User $actor, string $action, array $changes): Reservation
+    /**
+     * @param  array<string, mixed>  $changes
+     * @param  array<string, mixed>  $auditExtra  champs ajoutés à l'état « après » du journal (D-071)
+     */
+    private function transition(Reservation $reservation, User $actor, string $action, array $changes, array $auditExtra = []): Reservation
     {
         $before = ReservationSnapshot::of($reservation);
         $reservation->fill($changes)->save();
@@ -220,7 +243,7 @@ final class ReservationLifecycleService
             'at' => isset($changes['checked_in_at']) || isset($changes['checked_out_at']) || isset($changes['cancelled_at'])
                 ? Format::dateTime(CarbonImmutable::now()) : null,
             'reason' => $changes['cancellation_reason'] ?? null,
-        ]);
+        ]) + $auditExtra;
         $this->audit->record($action, 'reservation', $reservation->id, $before, $after, $actor->id);
 
         return $reservation;

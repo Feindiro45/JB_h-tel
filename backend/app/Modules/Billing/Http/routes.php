@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Billing\Http\Controllers\InvoiceController;
+use App\Modules\Billing\Http\Controllers\InvoiceExportController;
 use App\Modules\Billing\Http\Controllers\PublicVerificationController;
 use App\Modules\Identity\Domain\PermissionName;
 use Illuminate\Support\Facades\Route;
@@ -15,14 +16,14 @@ Route::get('public/invoices/{invoice}/verification', [PublicVerificationControll
 Route::middleware('authenticated')->group(function (): void {
     Route::middleware('permission:'.PermissionName::InvoicesView->value)->group(function (): void {
         Route::get('invoices', [InvoiceController::class, 'all'])->name('invoices.list');
+        Route::get('invoices/export', InvoiceExportController::class)->name('invoices.export');
         Route::get('reservations/{reservation}/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
-        Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
     });
 
     Route::middleware('permission:'.PermissionName::InvoicesIssue->value)
-        ->post('reservations/{reservation}/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+        ->post('reservations/{reservation}/invoices', [InvoiceController::class, 'store'])->middleware('idempotent')->name('invoices.store');
 
     Route::middleware('permission:'.PermissionName::InvoicesCredit->value)
-        ->post('invoices/{invoice}/credit-notes', [InvoiceController::class, 'credit'])->name('invoices.credit');
+        ->post('invoices/{invoice}/credit-notes', [InvoiceController::class, 'credit'])->middleware('idempotent')->name('invoices.credit');
 });

@@ -4,6 +4,245 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Non publié]
 
+### Page de veille et délai réglable — 26/11/2026 (D-074)
+- Page de veille : heure et date, cadenas animé qui se referme, tremble sur un mauvais mot de passe et éclate au déverrouillage, avatar, nom et rôle de l'utilisateur, mot de passe affichable, « Changer d'utilisateur ». Bouton « Verrouiller » dans le menu.
+- Paramètres → « Veille et sécurité » : délai sans action avant la mise en veille (1 à 240 min), en ligne comme hors ligne ; remplace le verrouillage hors ligne seul (migration `2026_11_26_100000_add_idle_lock_setting`).
+- Mot de passe vérifié par le serveur (`POST /api/v1/auth/confirm-password`, 6 essais par minute) ou, sans réseau, sur le poste. La veille résiste au rechargement et s'étend aux autres onglets.
+- Initiales des avatars sans ponctuation.
+
+### Salles de conférence, informations de l'établissement et Bambari — 25/11/2026 (D-072, D-073)
+- Catégorie « Salle de conférence » (nature choisie à la création, jamais modifiée). Une salle se réserve dans le même assistant pour un événement : type d'occupant (ONG, entreprise…), organisation, responsable sur place, nom de l'événement, début et fin ; sans occupants. Tarif à la journée ou à la demi-journée comme les chambres ; capacité jusqu'à 1 000 places.
+- Fiche, liste, guide des étapes et facture (écran, PDF, provisoire hors ligne) adaptés : « Location de salle », « Début », « Fin », bloc « Événement ». Occupation des chambres et des salles comptée à part (tableau de bord, rapport, PDF, Excel).
+- Paramètres → « Établissement » : nom, ville, adresse, téléphone, e-mail, NIF, RCCM imprimés sur les factures et reçus, figés dans chaque facture à son émission. Ville : Bambari (facture, menu, page de connexion, modèles `.env`).
+- Le ticket de facture ne porte plus le lien de vérification écrit : seulement le QR code.
+- Migrations : `2026_11_25_100000_add_conference_rooms`, `2026_11_25_110000_add_hotel_identity_settings`.
+
+### Parcours de réservation guidé et départs à enregistrer — 25/11/2026 (D-071)
+- « Nouvelle réservation » devient un assistant en 4 étapes : client et occupants, séjour et prix, récapitulatif que le client confirme (case obligatoire), encaissement sans choix présélectionné. La réservation et sa facture ne sont créées qu'à la fin ; un refus du serveur ramène à l'étape à corriger.
+- Sur la fiche, la fenêtre de l'opération suivante s'ouvre d'elle-même après chaque opération : arrivée du jour, encaissement du solde, départ du dernier jour.
+- Départ guidé : solde affiché, « Encaisser le solde », ou départ avec solde impayé seulement avec un motif. Le serveur refuse ce départ sans motif (409 `checkout_unpaid_balance`) et écrit le solde et le motif dans le journal ; hors ligne, le motif part avec l'opération.
+- Fenêtre « Départs à enregistrer » sur tous les écrans dès qu'un séjour dépasse sa fin : enregistrer le départ ou prolonger ; « Me le rappeler dans 10 min ».
+- Test corrigé : `SubdirectoryDeploymentTest` vérifie le refus 401 sur une route protégée, `/auth/me` répondant volontairement `data: null` à un visiteur.
+
+### Canal des mises à jour du logiciel Windows, version 1.0.3 — 25/11/2026
+- Correctif : le canal est déclaré dans `electron/package.json` (`build.publish`, `generic`, `https://app.jb-hotel.com/desktop`). Sans cette déclaration, la construction ne produisait ni `latest.yml` ni `resources/app-update.yml`, et electron-updater échouait à chaque téléchargement : les versions 1.0.0 à 1.0.2 ne peuvent pas se mettre à jour seules. Nouvelle version **1.0.3**, à installer à la main une fois.
+- `npm run update-channel` (`electron/scripts/update-channel.mjs`) prépare `deploiement/desktop/` : installateur, `.blockmap` (gardés pour le téléchargement partiel), `latest.yml`, `.htaccess` (pas de renvoi vers React, pas de cache sur `latest.yml`) et `SHA256SUMS.txt`. Il refuse un canal incohérent (version, taille ou empreinte différente de `latest.yml`, `app-update.yml` absent ou mal dirigé).
+- Recette : exécutable 1.0.3 empaqueté pointé sur le dossier servi en local, « à jour » avec le vrai `latest.yml`, puis téléchargement complet et vérifié d'une version annoncée 9.9.9 ; arrêt forcé sans installation, fichiers de l'essai retirés.
+
+### Logiciel Windows 1.0.2 sur les vrais domaines — 25/11/2026
+- `electron/release/JB-Hotel-Setup-1.0.2.exe` : le poste parle à l'API `https://api.jb-hotel.com` (racine du sous-domaine, sans `/backend`) avec l'origine `https://app.jb-hotel.com`, et cherche ses mises à jour dans `https://app.jb-hotel.com/desktop`. Ces trois adresses sont désormais les valeurs par défaut du code (`PRODUCTION`, `electron/src/main/config.ts`) au lieu de `banguiweb-tech.com/backend`.
+- Les postes déjà installés n'ont que l'imprimante dans `config.json` : la nouvelle adresse s'applique en installant par-dessus. Reconnexion en ligne nécessaire (nouveau domaine des cookies).
+- Contrôles : 28 tests Electron (dont les adresses de production), types OK, aucune trace de l'ancien domaine dans l'exécutable, exécutable empaqueté lancé sans réglage contre la production (santé 200, CSRF 204, cookies `.jb-hotel.com`).
+
+### Dossier de déploiement « deux sous-domaines » — 25/11/2026
+- Nouveau dossier `deploiement/` : les deux applications préparées et vérifiées pour `https://app.jb-hotel.com` (contenu du build React) et `https://api.jb-hotel.com` (dossier `public` du projet Laravel), d'après `PROMPT_CONFIGURATION_JB_HOTEL.md`. Aucun déploiement effectué, aucun code applicatif modifié.
+- `deploiement/preparer.py` construit et contrôle la livraison : adresse d'API passée en variable d'environnement (priorité sur `frontend/.env.production.local`, qui vise la livraison mono-domaine), `.htaccess` React propre au sous-domaine, `composer install --no-dev`, vendor comparé au verrou, absence de `.env`, de `tests` et de journaux, démarrage de Laravel dans la livraison, archives et empreintes SHA-256. Le backend local, son `.env` et son `vendor` de travail ne sont jamais touchés.
+- Audit : CORS, Sanctum en mode SPA et appels HTTP centralisés étaient déjà corrects ; rien à corriger. Deux écarts documentés par rapport au prompt : `VITE_API_URL` est la racine de Laravel **sans** `/api` (le client ajoute `api/v1/...` et appelle `/sanctum/csrf-cookie` hors de ce préfixe) et `supports_credentials` reste à `true` (cookies de session, pas de jeton Bearer).
+- Point critique de l'architecture à deux sous-domaines : `SESSION_DOMAIN=.jb-hotel.com`. Sans le point initial, le frontend ne peut pas lire le cookie CSRF et toutes les écritures échouent en 419 alors que les lectures fonctionnent.
+- Documents `docs/deployment/01_CONFIGURATION_LOCALE.md`, `02_CONFIGURATION_CORS.md`, `03_DEPLOIEMENT_PRODUCTION.md`, `04_RAPPORT_IMPLEMENTATION.md`.
+- Contrôles réels : préparation complète réussie (105 routes applicatives chargées dans la livraison, extensions PHP toutes `success`), santé `200`, préflight CORS accepté sur origine autorisée et **sans aucun en-tête `Access-Control-*`** sur origine refusée, `XSRF-TOKEN` lisible par JavaScript et session en `HttpOnly` ; 280 tests backend et 227 tests frontend passés. Non exécutés : validation CORS en navigateur, démarrage hors ligne après redémarrage machine, routes React sur le serveur en ligne, migrations de production.
+
+### Copie locale mise à jour automatiquement — 23/11/2026 (D-070)
+- Logiciel Windows et PWA installée : téléchargement complet au démarrage, au retour d'Internet et toutes les 3 h ; écrans toutes les 15 min et 2 min après un changement du serveur ; fiches changées ailleurs relues aussitôt. Jamais hors ligne ni avec une opération en attente d'envoi ; 40 requêtes/min ; une mise à jour à la fois.
+- Les erreurs d'une mise à jour ne masquent plus celles des écrans de la caissière (seules les données téléchargées par la mise à jour sont silencieuses). Historique : passages automatiques réussis regroupés. Carte « Tout télécharger » : état, progression et dernière mise à jour automatiques.
+
+### Livraison LWS avec le module Sync — 23/11/2026
+- Archives `output/lws/livraison-2026-11-23-e9a16141/` (remplace `livraison-2026-11-23-7cb665ea`) reconstruites par `python infra/build_lws.py --date 2026-11-23` : public pour `htdocs` (application web qui lit le journal des changements et garde la session après une relecture échouée) et backend privé pour `home` (module Sync, migration `2026_11_23_100000`). Guide `LIVRAISON_LWS_HOME.md` complété (migration, vérification `sync/status`, purge planifiée). Contrôles : `output/lws/verify-livraison-2026-11-23.py`. Aucun déploiement distant.
+
+### Logiciel Windows Electron, hors ligne d'abord — 23/11/2026 (D-069)
+- Nouveau dossier `electron/` : même application React servie depuis les fichiers installés, base locale SQLite (file des opérations, copie des écrans, numérotation, journal, impressions) chiffrée par une clé protégée par Windows, sauvegardes quotidiennes vérifiées, restauration et reprise après corruption, relais de l'API avec cookies Sanctum, impression 80 mm par l'imprimante du poste, mises à jour par canal HTTPS, installateur NSIS `JB-Hotel-Setup-1.0.0.exe`.
+- Serveur : module `Sync` en lecture seule (`sync_changes`, `GET /sync/status`, `GET /sync/changes`) ; la PWA et le poste actualisent les écrans touchés toutes les 30 s.
+- Interface : adaptateur de stockage SQLite/IndexedDB, écran « Poste Windows » dans Synchronisation, impression par le poste, réveil de Windows. Correctif : la copie locale garde la session après une relecture échouée (serveur injoignable, réseau local actif).
+- Documents : audit, architecture, schéma SQLite, protocole de synchronisation, sécurité, build/installation, rapport de tests, guide d'exploitation.
+
+### Ressources PWA en ligne — 23/11/2026
+- Manifeste et service worker présents et identiques à la livraison ; quatre icônes servies en 404. Correctif public minimal assemblé depuis le ZIP existant, sans changement applicatif, à extraire dans `htdocs`.
+- Guide PWA et preuves de contrôle HTTP, intégrité ZIP et dimensions PNG. Aucun déploiement ni installation effectués sur le poste de l'utilisateur.
+
+### Diagnostic du menu en ligne — 23/11/2026
+- Chrome connecté : « Postes de caisse » et « Mode hors ligne » absents pour l'administrateur. Comparaison SHA-256 : le frontend public correspond exactement au ZIP actuel et inclut ces écrans.
+- Les deux routes API correspondantes renvoient 404, tandis que la session publique renvoie bien 401 ; diagnostic et procédure backend privé/caches/migrations ajoutés au guide de livraison. Aucun contournement de permissions ni changement distant.
+
+### Archives LWS avec backend privé dans home — 22/11/2026
+- Assemblage reproductible via `python infra/build_lws.py --date 2026-11-22` : build frontend pour `/backend`, ZIP public pour `htdocs` et ZIP du backend privé pour `/home/jb-hotel-backend`.
+- Installation Composer de production dans un dossier isolé, sans modifier le vendor de travail ; contrôle du verrouillage, intégrité ZIP et empreintes SHA-256. Aucun `.env`, stockage métier ou export SQL inclus.
+- Guide `LIVRAISON_LWS_HOME.md` : chemins distincts, conservation des secrets/données, commandes de mise à jour et reprise des postes hors ligne. Aucun déplacement ou déploiement distant.
+
+### Droits communs aux caissières — 22/11/2026
+- Confirmation par tests API que les nouveaux comptes Caissière reçoivent les mêmes permissions, dont `reservations.create`, et partagent les modifications du rôle commun.
+- Actualisation des droits au retour sur la fenêtre, au retour réseau et toutes les 30 secondes avant la synchronisation. Une panne conserve les derniers droits connus ; le serveur continue de contrôler les autorisations.
+- Administration : précision explicite que le rôle est commun à toutes les caissières. Aucun rétablissement forcé des permissions personnalisées et aucune modification de droits sur le site en ligne.
+
+### Hors ligne fiable, facture automatique et réservation guidée — 22/11/2026 (D-067, D-068)
+- Plan `PLAN_CORRECTIONS_OFFLINE_RESERVATIONS.md`, puis corrections prioritaires : transactions locales atomiques, refus des écritures volatiles, restauration validée, origine API imposée et registre serveur sans purge à 30 jours.
+- Reprise périodique et sur retour de fenêtre, coordination entre onglets ; tarifs divergents à examiner ; promotion administrateur protégée après délégation.
+- Facture dans la transaction de création/confirmation ; document provisoire enregistré avec l'opération hors ligne et rapproché du définitif. Guide en cinq étapes, prochaine action et accès direct au ticket.
+- Anciennes réservations sans facture et anciennes files compatibles ; instantanés figés, « Solde à l'émission », avoirs/remplacements conservés. Correction des séjours facturés par un compte autorisé.
+- CI étendue aux parcours hors ligne et audits de dépendances ; résultats et limites dans `RAPPORT.md`.
+
+### Vérification de préparation à la production — 22/11/2026
+- Rapport `AUDIT_PRODUCTION_2026-11-22.md` : verdict défavorable en l'état, constats priorisés sur l'intégrité et la sécurité du mode hors ligne, la délégation des rôles et la configuration de livraison.
+- Reproductions d'audit isolées dans `docs/audit-securite-2026-11-22/`, dont rejeu après purge de l'idempotence et disparition du stockage mémoire lors d'un rechargement simulé. Ces tests réussissent lorsque la faiblesse est reproduite.
+- Vérifications locales et contrôles publics distants sans correction applicative ni déploiement. Résultats détaillés et limites dans le rapport ; suivi de production mis à jour.
+
+### Page Paramètres redessinée — 22/11/2026
+- Colonne **Domaines** pour aller directement à une famille de règles (compteurs, point orange pour les règles à valider), **recherche** et filtre **Afficher** (à valider, validées, modifiables).
+- Règles en **cartes** : valeur en grand dans un cadre de la couleur du domaine, statut, référence, dernière modification, « Modifier » ou « Fixé par décision ».
+- Corrigé : la liste « Opérations permises sans Internet » écrasait le texte de la règle sur une colonne d’un mot.
+- Affichage tablette et mobile : domaines en bande défilante, filtres l’un sous l’autre.
+
+### Exports Excel sur chaque module (D-066) — 22/11/2026
+- Bouton **« Exporter (Excel) »** sur Réservations, Clients, Caisse, Factures, Rapports, Chambres, Tarifs, Utilisateurs, Journal d’audit, Postes de caisse et Mode hors ligne, avec les filtres de l’écran.
+- Chaque classeur : une feuille **Tableau de bord** (indicateurs, tableaux de synthèse, graphiques) et des feuilles de données mises en forme (montants FCFA, dates, filtres, totaux, en-tête figé, impression paysage).
+- **Sans réseau**, un classeur simplifié est construit sur le poste à partir des données gardées (réservations, clients, caisse, factures).
+- Refonte des filtres côté serveur : une requête validée et un objet de filtres partagés par chaque liste et son export.
+- Tests : 263 tests backend, 195 tests frontend, 10 + 2 scénarios navigateur (dont le téléchargement réel d’un classeur).
+
+### Ticket 80 mm seul, envoyé au client par e-mail (D-065) — 22/11/2026
+- Le client reçoit par e-mail le **ticket 80 mm** de sa facture ou de son avoir (PDF d’une seule bande, avec le QR code de vérification), à la place de la facture A4.
+- **Retirés** : facture PDF A4, reçu A4 et boutons « Imprimer » des pages (caisse, factures). L’ancienne adresse d’un reçu ouvre son ticket.
+- Le ticket de facture imprimé à la caisse porte désormais le QR code de vérification.
+
+### Recette du mode hors ligne (lot 5) et tarif hors ligne (N-09) — 22/11/2026
+- Dossier de recette `docs/RECETTE_HORS_LIGNE.md` : chaque scénario des deux spécifications relié à sa preuve, et fiche pas à pas pour les essais à l’hôtel (imprimante, coupure réelle, conflit, restauration).
+- **Tarif hors ligne (N-09)** : une réservation faite hors ligne garde le tarif en vigueur sur le poste à ce moment-là, même si un nouveau tarif entre en vigueur avant le retour du réseau.
+- Nouveaux essais : conflit de chambre entre deux postes contre le vrai serveur ; application rouverte sans réseau avec ticket imprimable ; panne du serveur (500, 503) ; réimpression sans nouvelle transaction.
+- Champ « Référence » de l’encaissement : consigne de n’y mettre ni numéro de carte ni code secret.
+- Tests : 255 tests backend, 194 tests frontend, 10 + 2 scénarios navigateur.
+
+### Module administrateur « Mode hors ligne » (lot 4A) et hors ligne vérifié écran par écran — 22/11/2026
+- **Administration → Mode hors ligne** : état du poste principal (en ligne, silencieux depuis…), opérations en attente, dernière synchronisation et sauvegarde, tous les postes ; chiffres du jour ; **centre de synchronisation** (acceptées, doublons évités, refus avec leur cause) et examen des refus, inscrit au journal d’audit ; **guide « Comment gérer »** ; encart sur le tableau de bord de l’administrateur.
+- Paramètres → **Hors ligne** : opérations permises sans Internet, verrouillage, rappel de sauvegarde, préfixe des numéros provisoires (valeurs provisoires), appliqués aussi sans réseau.
+- Hors ligne, **tous les écrans métier** s’ouvrent après « Tout télécharger » : soldes de la caisse, reçus, rapports et tarifs ajoutés ; planning et occupation calculés sur le poste pour toute période.
+- `npm run hors-ligne` : version de production sur ce PC (http://localhost:4173) pour essayer le vrai mode hors ligne.
+- Utilisateurs, journal d’audit et paramètres ne sont jamais copiés sur le poste.
+- Corrigé : en-tête de rejeu hors ligne autorisé par la configuration CORS (sans lui, le poste se croyait hors ligne au retour du réseau).
+- Tests : 253 tests backend, 192 tests frontend.
+
+### Tout fonctionne hors ligne, fin du lot 4 (4.13, N-08) — 22/11/2026
+- Hors ligne : **confirmer** une réservation en attente, **changer les occupants**, **modifier** une réservation (mêmes règles qu’en ligne) et **émettre une facture provisoire** `FAC-LOC-…`, imprimable en ticket 80 mm marqué « Provisoire » ; le serveur lui donne son numéro FAC définitif au retour du réseau (décision N-08).
+- Sur une réservation créée hors ligne, toutes les actions sont possibles, sauf la suppression.
+- Tests : 186 tests frontend ; recette de production : 5 opérations faites hors ligne acceptées par le serveur, facture `FAC-LOC-… → FAC-…`.
+
+### Réservation hors ligne (lot 4, 4.5) — 22/11/2026
+- Hors ligne, **nouvelle réservation** comme en ligne : chambres libres et prix calculés sur le poste avec les règles du serveur ; **nouveau client** et recherche parmi les clients gardés ; **prolongation** et **annulation**.
+- Un élément créé hors ligne peut déjà servir : encaisser une avance sur une réservation qui n’est pas encore sur le serveur. Au retour du réseau, tout part dans l’ordre, chaque élément reçoit son identifiant définitif et la fiche s’ouvre d’elle-même sur la version du serveur.
+- Page Synchronisation : la vue d’ensemble reprend les tuiles communes à toutes les pages.
+- Tests : 183 tests frontend ; recette de production : coupure, nouveau client, réservation, paiement intégral, retour du réseau, 4 opérations acceptées.
+
+### Hors ligne sans limite de durée, sauvegardes et page Synchronisation visuelle (lot 4, D-064) — 22/11/2026
+- **Aucune durée maximale hors ligne** (N-05 révisée par l’utilisateur : l’hôtel peut rester un mois sans Internet) ; le verrou après 15 min d’inactivité reste.
+- **« Tout télécharger pour le hors ligne »** : toutes les pages et leurs fiches gardées en un clic, avec barre de progression, au rythme accepté par le serveur.
+- **Sauvegarde chiffrée** des opérations en attente (export, restauration sans doublon, rappel après une heure) ; **tableau de bord** : opérations faites hors ligne signalées tant qu’elles ne sont pas confirmées.
+- Page **Synchronisation et sauvegardes** refaite : repères à icônes, camemberts (poste et serveur, stockage, opérations, synchronisations), barres du contenu de la copie.
+- **Stockage protégé** contre l’effacement par le navigateur ; écritures confirmées sur le disque ; envoi cadencé après une longue coupure.
+- **Corrigé :** une donnée non affichée depuis 5 minutes disparaissait de la copie du poste.
+- Tests : 169 tests frontend.
+
+### Tout fonctionne hors ligne, première étape (lot 4, D-064) — 22/11/2026
+- Hors ligne, **encaissement**, **arrivée** et **départ** sont gardés sur le poste et visibles aussitôt (reçu et ticket `LOC-…` provisoires, solde recalculé, fiche « en attente d’envoi ») ; au retour du réseau, ils partent automatiquement, avec leur clé anti-doublon, et le serveur donne le numéro `REC-…` définitif.
+- Menu Synchronisation : panneau « Mettre à jour en ligne » (en attente, envoyées, refusées avec leur cause, « Réessayer », « Abandonner » motivé) ; bandeau des opérations en attente.
+- En ligne, les données restaurées de la copie du poste sont toujours rechargées à l’affichage.
+- Tests : 153 tests frontend ; recette de production : coupure, encaissement hors ligne, retour du réseau, `REC-…` attribué, un seul enregistrement en base.
+
+### Tutoriels intégrés (lot T) — 21/11/2026
+- Bouton « Tutoriel » dans l’en-tête de chaque section du menu (16 sections) : fenêtre pas à pas au contenu propre à chaque section, fidèle aux règles réelles (forfaits, remises, poste principal, mode hors ligne…).
+- Design animé : bandeau de la section, barre de progression, illustration par étape, glissement selon le sens de lecture, points clés cochés, conseil, pastilles ; clavier (flèches, Échap) et lecteurs d’écran ; animations coupées si le système demande de réduire les mouvements.
+
+### Consultation hors ligne, synchronisation et application installable (D-064, lot 2) — 21/11/2026
+- Compléments après retour de l’utilisateur : listes principales (réservations, alertes, clients, factures, journal du jour) téléchargées par « Mettre à jour en local » ; un écran jamais gardé affiche « Pas encore disponible hors ligne » au lieu d’un chargement sans fin.
+- L’application s’ouvre sans réseau une fois chargée en ligne (service worker, production seulement) et **s’installe** comme une application (manifeste, icônes, bouton « Installer l’application »).
+- Données consultées gardées sur le poste (IndexedDB) 12 h au plus ; pastille « En ligne / Hors ligne » vérifiée par le serveur ; bandeau hors ligne ; écritures refusées avec le message réseau (enregistrement hors ligne : lot 4).
+- Verrou après 15 min d’inactivité hors ligne, mot de passe vérifié localement (empreinte PBKDF2) ; session hors ligne refusée au-delà de 12 h (D-064).
+- Nouveau menu **Synchronisation et sauvegardes** : « Mettre à jour en local », historique des synchronisations (résultat, éléments, durée, auteur, cause de chaque échec), dernière copie automatique, contenu de la copie, effacement.
+- Tests : 13 tests frontend (143 au total) ; recette navigateur `npm run test:e2e:offline` sur la version de production (coupure, consultation, échec journalisé, verrou, retour du réseau, installabilité).
+
+### Écritures idempotentes, sans doublon (D-063) — 21/11/2026
+- En-tête `Idempotency-Key` sur 14 routes d’écriture (réservations, caisse, factures, fiche client) : un envoi répété rend la réponse déjà enregistrée, sans deuxième encaissement ni deuxième séjour ; erreurs jamais mémorisées ; même clé avec d’autres valeurs refusée en français.
+- Clé écrite dans la même transaction que l’opération ; deux envois simultanés : un seul enregistrement (test à vrais processus PHP). Table `idempotency_keys`, purge après 30 jours.
+- Frontend : une clé par dialogue (encaissement, remboursement, annulation, nouvelle réservation, fiche client), gardée pour les nouveaux essais.
+- Tests : 7 tests backend (suite 250/250), 4 tests frontend (130/130).
+
+### Postes de caisse et poste principal unique (D-062) — 21/11/2026
+- Chaque navigateur connecté s’enregistre comme poste (jeton secret, empreinte SHA-256 en base) et signale sa présence toutes les 30 s ; pastille « Poste … · principal / consultation » dans la barre du haut.
+- Nouvelle page **Administration → Postes de caisse** (droit `workstations.manage`, admin seul) : renommer, désigner le poste principal (première désignation, transfert planifié, transfert forcé avec motif et confirmation), révoquer, réactiver, historique numéroté, procédure « Comment changer de poste principal ».
+- Règle provisoire `workstations.enforce_main_post` (désactivée par défaut) : une fois activée, réservations et encaissements sont refusés hors du poste principal (403 en français) ; consultation, devis et fiches clients restent permis. Délai « silencieux » réglable (`workstations.silent_after_minutes`, 5 min). Groupe « Postes de caisse » dans Paramètres, réglage Oui/Non éditable.
+- Tables `workstations` et `workstation_assignments` (migrations `2026_11_21_100000` et `100100`). Tests : 6 tests backend, 8 tests frontend, scénario navigateur `workstations`.
+
+### Ticket thermique 80 mm (D-061) — 21/11/2026
+- Tickets 80 mm (ou 58 mm) du **reçu d’un versement** (`/documents/recus/:id/ticket`) et d’une **facture ou d’un avoir** (`/documents/factures/:id/ticket`), construits depuis l’API existante ; la facture uniquement depuis l’instantané figé. Jamais « Payé » tant qu’un reste dû subsiste ; aucune taxe ajoutée.
+- Impression sur une seule bande : format de page = largeur du rouleau × hauteur mesurée du ticket, injecté seulement sur la page du ticket (les impressions A4 ne changent pas).
+- Boutons « Ticket » sur le reçu A4, les actions de paiement, la liste des factures et la fiche réservation. API : `GET /payments/{id}` renvoie aussi la période du séjour (`stay`).
+- Tests : 8 tests Vitest (118 au total), `CashierTest` étendu ; scénario navigateur `thermal-ticket` (PDF émulé à 80 et 58 mm).
+
+### Dossier new/ : lancement local et plan — 21/11/2026
+- Lecture des spécifications « ticket thermique 80 mm » et « architecture hors ligne ». Plan en lots et décisions N-01 à N-07 dans `SUIVI_NEW.md`.
+- Configuration remise entièrement en local à la demande de l’utilisateur (`backend/.env`, `frontend/.env.local`, API sur le port 8000) ; configuration de production sauvegardée dans `backend/.env.production.backup` et `frontend/.env.production.backup` (ignorés par git). Compte de démo administrateur local réactivé.
+- Décisions D-061 (ticket 80 mm en complément de l’A4) et D-062 (poste principal unique pour les écritures hors ligne).
+
+### Formulaire de fréquence cron LWS — 20/11/2026
+- Rejet de format diagnostiqué directement : quatre champs de fréquence sont vides. Correction de saisie précisée, sans création de tâche distante.
+
+### Diagnostic direct des notifications automatiques — 20/11/2026
+- Lecture de la production connectée : 5 messages en attente, 0 en échec ; lecture du panneau LWS : aucune tâche cron configurée (0/1). Le mail de test est synchrone, les notifications passent par la file.
+- Configuration du worker court documentée pour le projet privé. Aucun changement distant, aucun e-mail envoyé pendant le diagnostic.
+
+### Diagnostic confirmé du 419 de connexion — 20/11/2026
+- Santé API et CSRF distants répondent 200/204. Cookies encore émis pour `.hotel.banguiweb-tech.com` depuis le domaine principal : ils sont rejetés par le client.
+- Correction ciblée documentée : domaine de session nul dans le `.env` actif, retrait du cache de configuration et renouvellement des cookies. Aucun correctif distant appliqué par l’agent.
+
+### Correction de l’arborescence publiée — 20/11/2026
+- Vue LWS constatée : projet resté dans `/htdocs/jb-hotel-backend` et fichiers d’entrée de l’API à la racine. Procédure recentrée sur les chemins réels, sans autre hypothèse de configuration PHP.
+- Archive publique complète V3 vérifiée ; priorité à l’index HTML dans le routage frontend pour éviter l’ancien index PHP racine. Aucun changement distant par l’agent.
+
+### Publication manuelle sans terminal — 20/11/2026
+- Archive `backend-public.zip` de deux fichiers vérifiée et procédure LWS manuelle ajoutée : déplacement du projet privé, configuration et retrait ciblé des caches générés. Aucune intervention distante.
+
+### Réparateur d’emplacement V2 — 20/11/2026
+- Suppression de la précondition erronée imposant un `index.php` et un `.htaccess` à la racine du projet Laravel : le script embarque désormais leurs modèles et les génère lors de la séparation public/privé.
+- Trois scénarios sur fixtures vérifiés (projet sans entrée publique, projet incomplet, destination existante), syntaxe PHP valide et archive V2 contrôlée. Exécution sur LWS encore nécessaire.
+
+### Réparation de l’emplacement du projet après migration — 20/11/2026
+- 503 distant identifié comme garde du point d’entrée : le projet complet reste dans `/htdocs/backend` selon l’utilisateur.
+- Script CLI de déplacement sans suppression vers le dossier privé attendu, avec refus d’écrasement et restauration en cas d’échec ; archive de réparation fournie. Syntaxe et scénario sur fixture locale vérifiés, exécution distante encore nécessaire.
+
+### Correctif du point d’entrée PHP monté dans /backend — 20/11/2026
+- Variables du script normalisées dans l’entrée publique pour que Laravel retire le dossier `/backend` avant la recherche des routes, même si le frontal PHP annonce `/index.php`.
+- Reproduction CLI du véritable fichier : 404 avant, puis racine 200, session absente 401 et CSRF 204 après. ZIP correctif d’un seul fichier et archive complète vérifiés ; publication distante encore nécessaire.
+
+### API dans un dossier du domaine principal — 20/11/2026
+- Client HTTP corrigé : les chemins des appels, de CSRF et des documents conservent le sous-dossier de `VITE_API_URL`.
+- Publication préparée pour `/backend` : entrée PHP publique séparée du projet privé dans `/home/jb-hotel-backend`, repli React excluant le backend, modèles d’environnement et guide dédiés.
+- Six tests client et trois tests Laravel de montage réussis ; build et archive de sept fichiers publics vérifiés. Déploiement distant encore nécessaire.
+
+### Isolation du routage frontend et vérification des en-têtes — 20/11/2026
+- Repli React du `.htaccess` limité au domaine frontend pour préserver le traitement indépendant de l’API. En ligne, les routes API renvoient désormais le même HTML que React ; le problème ne vient pas de la liste d’en-têtes autorisés.
+- Build et copie du fichier vérifiés ; deux précontrôles Laravel locaux confirment les quatre en-têtes du client, l’origine et les cookies. Publication et contrôle du routage API encore nécessaires.
+
+### Vérification CORS du domaine principal — 20/11/2026
+- Fichier existant valide, sans changement nécessaire : origine lue depuis `FRONTEND_URL`. Syntaxe PHP et deux précontrôles Sanctum/API locaux vérifiés (204, origine explicite et cookies). Version propre fournie pour copie, activation distante par le `.env` et le cache Laravel encore nécessaire.
+
+### Frontend sur le domaine principal — 20/11/2026
+- Destination actuelle : `https://banguiweb-tech.com`, API maintenue sur `https://api.hotel.banguiweb-tech.com`. Modèles, configuration locale de production, domaine du cookie et liens d’invitation adaptés ; publication prévue directement dans `/htdocs`.
+- Page de connexion observée en ligne et quatre routes directes confirmées en 200 avec React. Build réussi, 11 contrôles de configuration et copie du `.htaccess` vérifiés. Aucun fichier distant modifié par l’agent ; configuration et connexion de l’API restent à valider sur LWS.
+
+### Erreur 500 des routes du frontend LWS — 20/11/2026
+- Après contrôle en ligne (racine et index en 200, routes en 500), `.htaccess` simplifié pour éviter une réécriture relative répétée : `RewriteBase /`, garde sur index.html, cible absolue et `[END]` ; suppression des directives serveur facultatives. Confirmation distante et journal Apache encore attendus.
+
+### Rechargement des pages React en ligne — 20/11/2026
+- `.htaccess` du frontend ajouté dans `frontend/public` et inclus automatiquement dans `dist` au build : repli vers `index.html` pour les routes React, fichiers/dossiers existants conservés, indexation et MultiViews désactivés. Build et présence du fichier compilé vérifiés.
+- Destination LWS Panel documentée : `/htdocs/hotel.banguiweb-tech.com/.htaccess`, au même niveau que `index.html` ; indépendant des deux fichiers de routage Laravel du sous-domaine API.
+
+### Diagnostic CORS et MySQL de l’API en ligne — 20/11/2026
+- API encore sur la page d’attente LWS ; accès direct à Laravel avec les bons en-têtes CORS, mais erreur 500 liée au MySQL configuré avec `localhost` et des identifiants d’exemple. Hébergement réel identifié : LWS Panel Perso, distinct de cPanel.
+- Adaptateur de réécriture `infra/lws/api-root.htaccess` préparé, sans modification du middleware CORS ; procédures de routage, configuration MySQL et rechargement du cache ajoutées au guide. Modèle `.env` rendu plus explicite pour les valeurs à remplacer.
+- Trois tests CORS locaux réussis (10 assertions) après isolation des variables de test. Déploiement et confirmation de la correction en ligne restent à réaliser par l’utilisateur avec ses paramètres MySQL réels.
+
+### Préparation des environnements LWS cPanel — 20/11/2026
+- Modèles de production sans secrets pour Laravel et React, adaptés au domaine communiqué (`hotel.banguiweb-tech.com`, `api.hotel.banguiweb-tech.com`). Cookie de session, origine CORS, domaine Sanctum, invitations et vérification des factures cohérents.
+- Guide LWS ajouté à EXPLOITATION : initialisation, PHP/MySQL, dossiers publics, build React et tâche cron courte pour les e-mails en mutualisé. Les paramètres réels de l’hébergement restent à renseigner ; aucun déploiement ni changement des `.env` locaux.
+- Les modèles `.env.production.example` peuvent être versionnés ; les vrais `.env` et fichiers locaux restent ignorés. Validation avec Dotenv : 8 contrôles réussis. Login simple sans image contrôlé sur PC/mobile, 4 tests d’authentification et 1 parcours navigateur verts, build/lint et serveur actif verts.
+
 ### Pages d’erreur et page Paramètres — 20/11/2026 (D-060)
 - Pages d’erreur de l’application redessinées sur un composant commun : 404 « Page introuvable », 403 « Accès refusé », « Accès à configurer » et 500 « Erreur inattendue », avec code, message, aide et boutons (accueil, page précédente, recharger).
 - Pages d’erreur du serveur pour les liens ouverts hors de l’application (QR code, liens d’e-mail) : 403, 404, 419, 429, 500, 503 et pages génériques 4xx/5xx (par exemple 505), en français, aux couleurs de l’hôtel, sans détail technique ni lien vers l’espace du personnel. L’API garde ses erreurs JSON.

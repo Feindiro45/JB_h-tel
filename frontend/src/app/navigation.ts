@@ -40,6 +40,12 @@ export const NAVIGATION: { group: string; items: NavItem[] }[] = [
         permission: 'reservations.view',
       },
       { path: '/clients', label: 'Clients', icon: 'people', permission: 'customers.view' },
+      {
+        path: '/synchronisation',
+        label: 'Synchronisation',
+        icon: 'refresh',
+        permission: 'reservations.view',
+      },
     ],
   },
   {
@@ -85,6 +91,18 @@ export const NAVIGATION: { group: string; items: NavItem[] }[] = [
         label: 'Utilisateurs et accès',
         icon: 'people',
         permission: 'users.view',
+      },
+      {
+        path: '/admin/postes',
+        label: 'Postes de caisse',
+        icon: 'cash',
+        permission: 'workstations.manage',
+      },
+      {
+        path: '/admin/hors-ligne',
+        label: 'Mode hors ligne',
+        icon: 'cloudOff',
+        permission: 'offline.manage',
       },
       {
         path: '/admin/parametres',

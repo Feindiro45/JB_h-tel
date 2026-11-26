@@ -86,27 +86,31 @@ final class FinancialReport
     }
 
     /**
+     * Chambres seulement ; les salles de conférence sont comptées à part dans `conference`
+     * (D-072, choix de l'utilisateur).
+     *
      * @param  array{room_id?: string, room_type_id?: string, agent_id?: string}  $filters
-     * @return array<string, int|string>
+     * @return array<string, int|string|array<string, int>>
      */
     private function occupancy(array $filters): array
     {
         $at = CarbonImmutable::now();
         $rooms = DB::table('rooms AS room')->join('room_types AS category', 'category.id', '=', 'room.room_type_id');
         $this->filterRooms($rooms, $filters);
-        $catalog = $rooms->get(['room.id', 'room.maintenance_status']);
+        $catalog = $rooms->get(['room.id', 'room.maintenance_status', 'category.kind']);
         $current = DB::table('reservations')->whereIn('room_id', $catalog->pluck('id'))
             ->whereIn('status', ['PENDING', 'CONFIRMED', 'IN_PROGRESS'])
             ->where(fn (Builder $q) => $q->where('status', 'IN_PROGRESS')->orWhere(fn (Builder $w) => $w->where('blocked_from', '<=', $at)->where('blocked_until', '>', $at)))
             ->get(['room_id', 'status'])->groupBy('room_id');
-        $result = ['at' => $at->toIso8601String(), 'occupied' => 0, 'reserved' => 0, 'maintenance' => 0, 'free' => 0];
+        $empty = ['occupied' => 0, 'reserved' => 0, 'maintenance' => 0, 'free' => 0];
+        $counts = ['ROOM' => $empty, 'CONFERENCE' => $empty];
         foreach ($catalog as $room) {
             $stays = $current->get($room->id, collect());
             $state = $stays->contains('status', 'IN_PROGRESS') ? 'occupied' : ($room->maintenance_status === 'MAINTENANCE' ? 'maintenance' : ($stays->isEmpty() ? 'free' : 'reserved'));
-            $result[$state]++;
+            $counts[$room->kind === 'CONFERENCE' ? 'CONFERENCE' : 'ROOM'][$state]++;
         }
 
-        return $result;
+        return ['at' => $at->toIso8601String()] + $counts['ROOM'] + ['conference' => $counts['CONFERENCE']];
     }
 
     /** @param array{room_id?: string, room_type_id?: string, agent_id?: string} $filters */

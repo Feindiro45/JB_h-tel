@@ -214,6 +214,131 @@ describe('Administration', () => {
     expect(screen.getAllByRole('button', { name: 'Modifier' })).toHaveLength(1)
   })
 
+  it('range les paramètres par domaine, avec recherche et filtre « Afficher »', async () => {
+    mockApi({
+      ...defaults,
+      'GET /api/v1/settings': {
+        body: {
+          data: [
+            {
+              key: 'discounts.cashier_max_percent',
+              label: 'Plafond de remise',
+              value: 10,
+              unit: '%',
+              type: 'integer',
+              editable: true,
+              status: 'PROVISIONAL',
+              help: 'Au-delà, droit de dépasser le plafond.',
+              reference: 'D-016',
+            },
+            {
+              key: 'billing.half_day_max_hours',
+              label: 'Durée maximale du forfait demi-journée',
+              value: 12,
+              unit: 'h',
+              type: 'integer',
+              editable: false,
+              status: 'VALIDATED',
+              help: 'Jusqu’à 12 h incluses.',
+              reference: 'D-007',
+            },
+            {
+              key: 'offline.allowed_operations',
+              label: 'Opérations permises sans Internet',
+              value: ['payment.record', 'checkin'],
+              options: { 'payment.record': 'Encaissement', checkin: 'Arrivée' },
+              type: 'choices',
+              editable: true,
+              status: 'PROVISIONAL',
+              help: 'Les autres sont refusées hors ligne.',
+              reference: 'D-064',
+            },
+          ],
+        },
+      },
+    })
+    renderApp('/admin/parametres')
+    const user = userEvent.setup()
+
+    await screen.findByRole('article', { name: 'Plafond de remise' })
+    const nav = screen.getByRole('navigation', { name: 'Domaines des paramètres' })
+    expect(
+      within(nav).getByRole('link', { name: 'Remises : 1 règle, dont 1 à valider' }),
+    ).toHaveAttribute('href', '#parametres-discounts')
+    expect(
+      within(nav).getByRole('link', { name: 'Facturation et caisse : 1 règle' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Hors ligne' })).toHaveTextContent(
+      'EncaissementArrivée',
+    )
+    expect(screen.getByRole('article', { name: 'Plafond de remise' })).toHaveTextContent('10 %')
+
+    await user.type(screen.getByLabelText('Rechercher une règle'), 'd-007')
+    expect(screen.getAllByRole('article', { name: /.+/ })).toHaveLength(1)
+    expect(screen.getByRole('article', { name: /demi-journée/ })).toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText('Rechercher une règle'))
+    await user.selectOptions(screen.getByLabelText('Afficher'), 'PROVISIONAL')
+    expect(screen.queryByRole('article', { name: /demi-journée/ })).toBeNull()
+    expect(screen.getAllByRole('article', { name: /.+/ })).toHaveLength(2)
+
+    await user.type(screen.getByLabelText('Rechercher une règle'), 'introuvable')
+    expect(screen.getByText('Aucune règle ne correspond')).toBeInTheDocument()
+  })
+
+  it('modifie les informations de l’établissement imprimées sur les factures (D-073)', async () => {
+    const setting = (key: string, label: string, value: string | null) => ({
+      key,
+      label,
+      value,
+      type: 'text',
+      editable: true,
+      status: 'VALIDATED',
+      help: 'Imprimé sur les factures et reçus.',
+      reference: 'D-073',
+    })
+    const calls = mockApi({
+      ...defaults,
+      'GET /api/v1/settings': {
+        body: {
+          data: [
+            setting('hotel.city', 'Ville', 'Bambari, République centrafricaine'),
+            setting('hotel.email', 'E-mail de l’hôtel', 'reception@jb-hotel.com'),
+            setting('hotel.phone', 'Téléphone de l’hôtel', null),
+          ],
+        },
+      },
+      'PUT /api/v1/settings/hotel.email': { body: { data: { key: 'hotel.email', value: null } } },
+    })
+    renderApp('/admin/parametres')
+    const user = userEvent.setup()
+
+    const group = await screen.findByRole('region', { name: 'Établissement' })
+    expect(within(group).getByRole('article', { name: 'Ville' })).toHaveTextContent(
+      'Bambari, République centrafricaine',
+    )
+    expect(within(group).getByRole('article', { name: 'Téléphone de l’hôtel' })).toHaveTextContent(
+      'Non imprimé',
+    )
+
+    await user.click(
+      within(within(group).getByRole('article', { name: 'E-mail de l’hôtel' })).getByRole(
+        'button',
+        { name: 'Modifier' },
+      ),
+    )
+    const dialog = screen.getByRole('dialog', { name: 'E-mail de l’hôtel' })
+    const field = within(dialog).getByLabelText('E-mail de l’hôtel')
+    expect(field).toHaveAttribute('type', 'email')
+    expect(field).not.toBeRequired()
+    await user.clear(field)
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    // Une information facultative vidée n'est plus imprimée : la valeur envoyée est « null ».
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ value: null }),
+    )
+  })
+
   it('affiche le détail avant et après dans le journal d’audit', async () => {
     mockApi({
       ...defaults,
@@ -290,7 +415,8 @@ describe('Administration', () => {
     renderApp('/admin/utilisateurs')
     await screen.findByText(account.email)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: /Utilisateur/ }))
+    // « + Utilisateur » (et non le bouton « Tutoriel : Utilisateurs et accès »).
+    await user.click(screen.getByRole('button', { name: /^\+\s*Utilisateur$/ }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByLabelText('Mot de passe (facultatif)')).not.toBeRequired()
     expect(within(dialog).getByLabelText('Confirmer le mot de passe')).not.toBeRequired()

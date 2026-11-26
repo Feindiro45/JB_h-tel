@@ -45,7 +45,7 @@ class CorrectionsTest extends TestCase
     public function test_cashier_corrects_room_dates_and_price_before_the_stay(): void
     {
         $this->customer->forceFill(['email' => 'awa@exemple.cf'])->save();
-        $reservation = $this->bookOk(); // 101 VIP, 1 journée, 50 000
+        $reservation = $this->bookLegacyUninvoiced(); // Ancien séjour sans facture : correction par la caissière.
 
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$reservation}/modification/preview", $this->change(['reason' => null]))
             ->assertOk()
@@ -70,7 +70,7 @@ class CorrectionsTest extends TestCase
 
     public function test_modification_rechecks_availability_and_requires_a_reason(): void
     {
-        $reservation = $this->bookOk();
+        $reservation = $this->bookLegacyUninvoiced();
         $this->bookOk(['room_id' => $this->room102->uuid, 'start_date' => '2026-12-03', 'end_date' => '2026-12-03']);
 
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$reservation}/modification/preview", $this->change(['reason' => null]))
@@ -94,9 +94,9 @@ class CorrectionsTest extends TestCase
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$invoiced}/modification", $this->change(['start_date' => '2026-12-12', 'end_date' => '2026-12-12', 'quantity' => 1]))
             ->assertStatus(403)->assertJsonPath('code', 'modification_requires_admin');
         $this->actingAs($this->admin)->postJson("/api/v1/reservations/{$invoiced}/modification", $this->change(['start_date' => '2026-12-12', 'end_date' => '2026-12-12', 'quantity' => 1]))
-            ->assertOk()->assertJsonPath('meta.replacement_invoice_number', 'FAC-2026-000002');
+            ->assertOk()->assertJsonPath('meta.replacement_invoice_number', 'FAC-2026-000003');
 
-        $paid = $this->bookOk(['start_date' => '2026-12-20', 'end_date' => '2026-12-20']);
+        $paid = $this->bookLegacyUninvoiced(['start_date' => '2026-12-20', 'end_date' => '2026-12-20']);
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$paid}/payments", ['amount_fcfa' => 50000, 'method' => 'CASH'])->assertCreated();
         // Chambre Standard : 30 000 < 50 000 déjà encaissés.
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$paid}/modification", $this->change(['start_date' => '2026-12-20', 'end_date' => '2026-12-20', 'quantity' => 1]))
@@ -122,7 +122,7 @@ class CorrectionsTest extends TestCase
 
     public function test_customers_with_stays_and_reservations_with_money_or_documents_are_kept(): void
     {
-        $reservation = $this->bookOk();
+        $reservation = $this->bookLegacyUninvoiced();
         $this->actingAs($this->admin)->deleteJson("/api/v1/customers/{$this->customer->uuid}", ['reason' => 'x'])
             ->assertStatus(409)->assertJsonPath('code', 'customer_has_stays');
 

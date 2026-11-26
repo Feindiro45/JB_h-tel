@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Reservations;
 
+use App\Modules\Reservations\Domain\ReservationStatus;
 use App\Modules\Reservations\Models\Reservation;
 use App\Shared\Audit\AuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -66,7 +67,7 @@ class LifecycleTest extends TestCase
         $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$today}/check-in")->assertOk();
 
         $this->travelTo(now()->addHours(2));
-        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$today}/check-out")
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$today}/check-out", ['unpaid_reason' => 'Paiement prévu demain'])
             ->assertOk()
             ->assertJsonPath('data.status', 'COMPLETED')
             ->assertJsonPath('data.price.net_fcfa', 30000);
@@ -78,6 +79,42 @@ class LifecycleTest extends TestCase
 
         // La chambre libérée peut être réservée pour le reste de la journée.
         $this->book(['start_time' => '14:00', 'end_time' => '20:00', 'billing_unit' => 'HALF_DAY'])->assertCreated();
+    }
+
+    /** D-071 : un séjour non soldé ne se clôture qu'avec un motif, écrit avec le solde dans le journal. */
+    public function test_check_out_with_unpaid_balance_requires_a_reason_that_is_audited(): void
+    {
+        $id = $this->bookOk(['start_time' => '09:00', 'end_time' => '18:00', 'billing_unit' => 'HALF_DAY']);
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/payments", ['amount_fcfa' => 10000, 'method' => 'CASH'])->assertCreated();
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-in")->assertOk();
+
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out")
+            ->assertStatus(409)->assertJsonPath('code', 'checkout_unpaid_balance')
+            ->assertJsonPath('title', 'Solde impayé au départ');
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out", ['unpaid_reason' => '   '])
+            ->assertStatus(409)->assertJsonPath('code', 'checkout_unpaid_balance');
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out", ['unpaid_reason' => str_repeat('x', 256)])
+            ->assertStatus(422)->assertJsonValidationErrors(['unpaid_reason']);
+        $this->assertSame(ReservationStatus::InProgress, Reservation::query()->firstOrFail()->status);
+
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out", ['unpaid_reason' => 'Entreprise : paiement par virement'])
+            ->assertOk()->assertJsonPath('data.status', 'COMPLETED');
+        $audit = AuditLog::query()->where('action', 'reservation.checked_out')->firstOrFail();
+        $this->assertSame(20000, $audit->after_json['unpaid_balance_fcfa'] ?? null);
+        $this->assertSame('Entreprise : paiement par virement', $audit->after_json['unpaid_reason'] ?? null);
+    }
+
+    public function test_paid_stay_checks_out_without_reason_and_ignores_one(): void
+    {
+        $id = $this->bookOk(['start_time' => '09:00', 'end_time' => '18:00', 'billing_unit' => 'HALF_DAY']);
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/payments", ['amount_fcfa' => 30000, 'method' => 'CASH'])->assertCreated();
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-in")->assertOk();
+
+        $this->actingAs($this->cashier)->postJson("/api/v1/reservations/{$id}/check-out", ['unpaid_reason' => 'Inutile'])
+            ->assertOk()->assertJsonPath('data.status', 'COMPLETED');
+        $audit = AuditLog::query()->where('action', 'reservation.checked_out')->firstOrFail();
+        $this->assertArrayNotHasKey('unpaid_balance_fcfa', $audit->after_json);
+        $this->assertArrayNotHasKey('unpaid_reason', $audit->after_json);
     }
 
     public function test_cancellation_is_motivated_audited_and_frees_the_room(): void

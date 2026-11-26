@@ -30,6 +30,10 @@ final class InvoicePresenter
             'net_fcfa' => $invoice->net_fcfa,
             // Adresse encodée dans le QR code (réservée aux utilisateurs authentifiés).
             'verification_url' => app(InvoiceVerification::class)->url($invoice),
-        ] + ($withSnapshot ? ['snapshot' => $invoice->snapshot_json] : []);
+        ] + ($withSnapshot ? [
+            'snapshot' => $invoice->snapshot_json,
+            // QR code imprimé sur le ticket 80 mm (D-065) ; seulement pour un document lu seul.
+            'verification_qr' => app(InvoiceVerification::class)->qrDataUri($invoice),
+        ] : []);
     }
 }
